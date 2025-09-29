@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package hello;
+
+service HelloService {
+  rpc GetHello (HelloIdRequest) returns (HelloResponse);
+  rpc GetAllHellos (Empty) returns (HelloList);
+  rpc CreateHello (CreateHelloRequest) returns (HelloResponse);
+  rpc UpdateHello (UpdateHelloRequest) returns (HelloResponse);
+  rpc DeleteHello (HelloIdRequest) returns (DeleteResponse);
+}
+
+message Empty {}
+
+message HelloIdRequest {
+  string id = 1;
+}
+
+message CreateHelloRequest {
+  string name = 1;
+  string message = 2;
+}
+
+message UpdateHelloRequest {
+  string id = 1;
+  string name = 2;
+  string message = 3;
+}
+
+message HelloResponse {
+  string id = 1;
+  string name = 2;
+  string message = 3;
+}
+
+message HelloList {
+  repeated HelloResponse items = 1;
+}
+
+message DeleteResponse {
+  bool success = 1;
+}

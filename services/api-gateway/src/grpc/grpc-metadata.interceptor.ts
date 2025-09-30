@@ -1,4 +1,9 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+} from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import { Metadata } from '@grpc/grpc-js';
 
@@ -17,18 +22,19 @@ import { Metadata } from '@grpc/grpc-js';
 
 @Injectable()
 export class GrpcMetadataInterceptor implements NestInterceptor {
-    buildMetadataFromRequest(req: any): Metadata {
-        const md = new Metadata();
-        const auth = req.headers?.authorization || '';
-        if (auth) md.add('authorization', auth);
-        if (req.headers?.['x-user-id']) md.add('x-user-id', String(req.headers['x-user-id']));
-        return md;
-    }
+  buildMetadataFromRequest(req: any): Metadata {
+    const md = new Metadata();
+    const auth = req.headers?.authorization || '';
+    if (auth) md.add('authorization', auth);
+    if (req.headers?.['x-user-id'])
+      md.add('x-user-id', String(req.headers['x-user-id']));
+    return md;
+  }
 
-    intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
-        const http = ctx.switchToHttp();
-        const req = http.getRequest();
-        req._grpcMetadata = this.buildMetadataFromRequest(req);
-        return next.handle().pipe(map(x => x));
-    }
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
+    const http = ctx.switchToHttp();
+    const req = http.getRequest();
+    req._grpcMetadata = this.buildMetadataFromRequest(req);
+    return next.handle().pipe(map((x) => x));
+  }
 }

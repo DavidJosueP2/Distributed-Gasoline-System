@@ -6,9 +6,9 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: string;
+  accessToken: string;
+  tokenType: string;
+  expiresIn: string;
 }
 
 export interface AuthServiceClient {

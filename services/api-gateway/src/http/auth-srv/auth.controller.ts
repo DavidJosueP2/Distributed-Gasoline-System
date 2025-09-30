@@ -1,17 +1,20 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Logger } from '@nestjs/common';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
-import { lastValueFrom } from 'rxjs';
 import {
   AuthServiceClient,
 } from 'src/grpc/auth/auth.client';
-
 import type {
   LoginRequest,
   LoginResponse,
 } from 'src/grpc/auth/auth.client';
+import { LoginDto } from '../../dto/login.dto';
+import { lastValueFrom } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly factory: GrpcClientFactory) { }
 
   private async client(): Promise<AuthServiceClient> {
@@ -24,8 +27,24 @@ export class AuthController {
   }
 
   @Post('log-in')
-  async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
-    const authSvc = await this.client();
-    return lastValueFrom(authSvc.Login(dto));
+  async login(@Body() dto: LoginDto): Promise<LoginResponse> {
+    const client = await this.client();
+
+    // Convertir DTO a LoginRequest para gRPC
+    const loginRequest: LoginRequest = {
+      email: dto.email,
+      password: dto.password,
+    };
+
+    const result = await lastValueFrom(
+      client.Login(loginRequest).pipe(
+        catchError((error) => {
+          this.logger.error('Error en comunicación gRPC:', error);
+          throw error;
+        }),
+      ),
+    );
+
+    return result;
   }
 }

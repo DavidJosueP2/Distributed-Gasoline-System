@@ -4,8 +4,9 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Metadata } from '@grpc/grpc-js';
+import { Reflector } from '@nestjs/core';
 
 /**
  * Interceptor que traduce los headers HTTP a metadata de gRPC.
@@ -22,19 +23,31 @@ import { Metadata } from '@grpc/grpc-js';
 
 @Injectable()
 export class GrpcMetadataInterceptor implements NestInterceptor {
+  constructor(
+    private readonly reflector: Reflector
+  ) { }
+
+
   buildMetadataFromRequest(req: any): Metadata {
     const md = new Metadata();
     const auth = req.headers?.authorization || '';
     if (auth) md.add('authorization', auth);
-    if (req.headers?.['x-user-id'])
-      md.add('x-user-id', String(req.headers['x-user-id']));
     return md;
   }
 
   intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
-    const http = ctx.switchToHttp();
-    const req = http.getRequest();
-    req._grpcMetadata = this.buildMetadataFromRequest(req);
-    return next.handle().pipe(map((x) => x));
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      'isPublic',
+      [ctx.getHandler(), ctx.getClass()],
+    );
+
+    console.log("grpc-metadata.interceptor: isPublic", isPublic);
+
+    if (!isPublic) {
+      const req = ctx.switchToHttp().getRequest();
+      req._grpcMetadata = this.buildMetadataFromRequest(req);
+    }
+
+    return next.handle();
   }
 }

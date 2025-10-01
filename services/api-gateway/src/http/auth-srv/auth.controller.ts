@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Logger } from '@nestjs/common';
+import { Body, Controller, Post, Logger, Req, UseGuards, Get } from '@nestjs/common';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import {
   AuthServiceClient,
@@ -7,9 +7,10 @@ import type {
   LoginRequest,
   LoginResponse,
 } from 'src/grpc/auth/auth.client';
-import { LoginDto } from '../../dto/login.dto';
 import { lastValueFrom } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { JwtAuthGuard } from 'src/guards/JwtAuthGuard';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -26,18 +27,12 @@ export class AuthController {
     return client.getService<AuthServiceClient>('AuthService');
   }
 
+  @Public()
   @Post('log-in')
-  async login(@Body() dto: LoginDto): Promise<LoginResponse> {
+  async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
     const client = await this.client();
-
-    // Convertir DTO a LoginRequest para gRPC
-    const loginRequest: LoginRequest = {
-      email: dto.email,
-      password: dto.password,
-    };
-
     const result = await lastValueFrom(
-      client.Login(loginRequest).pipe(
+      client.Login(dto).pipe(
         catchError((error) => {
           this.logger.error('Error en comunicación gRPC:', error);
           throw error;
@@ -47,4 +42,22 @@ export class AuthController {
 
     return result;
   }
+
+  /**
+  * Endpoint de prueba protegido con JWT.
+  * - Verifica que el guard valide el token.
+  * - Verifica que el interceptor propague los metadatos.
+  */
+  @Get('test')
+  async test(@Req() req: any): Promise<any> {
+    this.logger.debug('Payload del token:', req.user);
+    this.logger.debug('Metadatos gRPC construidos:', req._grpcMetadata);
+
+    return {
+      message: 'Método de prueba ejecutado',
+      user: req.user
+    };
+  }
+
+
 }

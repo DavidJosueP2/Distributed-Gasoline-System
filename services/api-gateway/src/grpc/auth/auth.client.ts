@@ -1,5 +1,13 @@
 import { Observable } from 'rxjs';
 
+export interface TestRequest {
+  message: string;
+}
+
+export interface TestResponse {
+  message: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -13,4 +21,5 @@ export interface LoginResponse {
 
 export interface AuthServiceClient {
   Login(data: LoginRequest): Observable<LoginResponse>;
+  TestMetadata(data: TestRequest): Observable<TestResponse>;
 }

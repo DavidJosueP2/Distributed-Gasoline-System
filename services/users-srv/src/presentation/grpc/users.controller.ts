@@ -4,16 +4,19 @@
   import { plainToInstance, type ClassConstructor } from 'class-transformer';
   import { validate } from 'class-validator';
   import { UsersApplicationService } from '../../application/services/users-application.service';
-  import { CreateUserDto } from '../../application/dto/create-user.dto';
-  import { UpdateUserDto } from '../../application/dto/update-user.dto';
+ 
   import { UserMapper } from '../../application/mappers/user.mapper';
   import { flattenValidationErrors } from '../../validation/field-error.util';
+import { CreateUserDto } from 'src/application/dto/request/create-user-request';
+import { UpdateUserDto } from 'src/application/dto/request/update-user-request';
+import { FindUserByEmailRequest } from 'src/application/dto/request/find-user-by-email-reques';
 
   type StringLike = string | number | bigint | undefined | null;
 
   interface UserIdPayload {
     user_id?: StringLike;
   }
+
 
   interface CreateUserPayload {
     first_name?: string;
@@ -34,19 +37,27 @@
   export class UsersGrpcController {
     constructor(private readonly service: UsersApplicationService) {}
 
+
     @GrpcMethod('UserService', 'GetUser')
     async getUser(data: UserIdPayload) {
       const id = this.coerceId(data.user_id);
       const user = await this.service.getUserById(id);
       return UserMapper.toGrpc(user);
     }
+
+    @GrpcMethod('UserService', 'GetUserByEmail')
+    async getUserByEmail(data: FindUserByEmailRequest) {
+      const user = await this.service.getUserByEmail(data);
+      return UserMapper.toGrpcByEmail(user);
+    }
+    
     
 @GrpcMethod('UserService', 'GetAllUsers')
 async getAll() {
+  console.log("llego")
   const users = await this.service.getAllUsers();
 
   const grpcResult = UserMapper.toGrpcList(users); 
-  console.log('Resultado a devolver por gRPC:', grpcResult); 
 
   return grpcResult;
 }

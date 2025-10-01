@@ -1,12 +1,16 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { hash } from 'bcryptjs';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import { ensureUserStatus } from '../../domain/value-objects/user-status.vo';
-import { CreateUserDto } from '../dto/create-user.dto';
-import { UpdateUserDto } from '../dto/update-user.dto';
+
 import { UserMapper } from '../mappers/user.mapper';
-import { UserResponseDto } from '../dto/user-response.dto';
+import { FindUserByEmailRequest } from '../dto/request/find-user-by-email-reques';
+import FindUserByEmailResponse from '../dto/response/find-user-by-email-response';
+import { UserResponseDto } from '../dto/response/user-response';
+import { CreateUserDto } from '../dto/request/create-user-request';
+import { UpdateUserDto } from '../dto/request/update-user-request';
+import { NotFoundException } from '../exceptions/not-found.exception';
 
 @Injectable()
 export class UsersApplicationService {
@@ -15,11 +19,17 @@ export class UsersApplicationService {
     private readonly repository: UserRepository,
   ) {}
 
+
+  async getUserByEmail(request: FindUserByEmailRequest): Promise<FindUserByEmailResponse> {
+    const user = await this.repository.findByEmail(request.email);
+    console.log("llego a application service", user)
+      if (!user) throw new NotFoundException("Usuario no encontradoss"); 
+    return UserMapper.toLoginResponse(user);
+  }
+
   async getUserById(id: number): Promise<UserResponseDto> {
     const user = await this.repository.findById(id);
-    if (!user) {
-      throw new NotFoundException(`User ${id} not found`);
-    }
+    if (!user) throw new NotFoundException("Usuario no encontrado"); 
     return UserMapper.toResponse(user);
   }
 

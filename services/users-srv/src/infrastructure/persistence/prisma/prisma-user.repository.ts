@@ -23,6 +23,15 @@ export class PrismaUserRepository implements UserRepository {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  async findByEmail(email: string): Promise<User | null> {
+   const record = await this.prisma.user.findUnique({
+      where: { email },
+      include: INCLUDE_ROLES,
+    });
+    if (!record) return null;
+    return PrismaUserMapper.toDomain(record as any);
+  }
+
   async findById(id: number): Promise<User | null> {
     const record = await this.prisma.user.findUnique({
       where: { id: toBigInt(id) },
@@ -38,11 +47,9 @@ export class PrismaUserRepository implements UserRepository {
     orderBy: { createdAt: 'desc' },
   });
 
-  console.log('Registros desde la base de datos:', records); // <-- log agregado
 
   const users = records.map((record) => PrismaUserMapper.toDomain(record as any));
 
-  console.log('Usuarios después de mapear a dominio:', users); // <-- log de mapeo
 
   return users;
 }

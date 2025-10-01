@@ -7,7 +7,7 @@ export interface UserProps {
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string | null;
+  phone: string | null;
   username: string;
   passwordHash: string;
   status: UserStatus;

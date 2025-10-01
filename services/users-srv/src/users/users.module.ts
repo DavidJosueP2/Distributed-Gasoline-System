@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { PrismaModule } from 'prisma/prisma.module';
+import { PrismaModule } from '../../prisma/prisma.module';
+import { UsersApplicationService } from '../application/services/users-application.service';
+import { PrismaUserRepositoryProvider } from '../infrastructure/persistence/prisma/prisma-user.repository';
+import { UsersGrpcController } from '../presentation/grpc/users.controller';
 
 @Module({
   imports: [PrismaModule],
-  //controllers: [UsersController],
-  providers: [UsersService],
+  controllers: [UsersGrpcController],
+  providers: [UsersApplicationService, PrismaUserRepositoryProvider],
 })
 export class UsersModule {}

@@ -8,7 +8,7 @@
     "eureka:up": "docker compose up -d eureka",
     "eureka:down": "docker compose down",
     "db-auth:up": "docker compose up -d users-db",
-    "db-auth:down": "docker compose down users-db",
+    "db-auth:down": "docker compose down users-db -v",
     "dev": "npm run eureka:up && npm run db-auth:up && concurrently -k -n GATEWAY \"npm --workspace services/api-gateway run start:dev\""
   },
   "devDependencies": {

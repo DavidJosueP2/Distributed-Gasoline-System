@@ -9,7 +9,7 @@ import type {
 } from 'src/grpc/auth/auth.client';
 import { lastValueFrom } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { Public } from '@common/auth/decorators/public.decorator';
+import { Public } from '../../common/auth/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {

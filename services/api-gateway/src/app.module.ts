@@ -14,7 +14,7 @@ import { GrpcErrorInterceptor } from './grpc/grpc-error.interceptor';
 import { HelloController } from './http/hello-srv/hello.controller';
 import { UsersController } from './http/users-srv/users.controller';
 import { AuthController } from './http/auth-srv/auth.controller';
-import { JwtAuthGuard } from './guards/jwt.auth.guard';
+import { JwtAuthGuard } from './common/auth/guards/jwt.auth.guard';
 
 const globalProviders: Provider[] = [
   { provide: APP_INTERCEPTOR, useClass: GrpcMetadataInterceptor },

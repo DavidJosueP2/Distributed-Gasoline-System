@@ -1,3 +1,4 @@
+import { Metadata } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
 
 export interface TestRequest {
@@ -21,5 +22,5 @@ export interface LoginResponse {
 
 export interface AuthServiceClient {
   Login(data: LoginRequest): Observable<LoginResponse>;
-  TestMetadata(data: TestRequest): Observable<TestResponse>;
+  TestMetadata(data: TestRequest, metadata?: Metadata): Observable<TestResponse>;
 }

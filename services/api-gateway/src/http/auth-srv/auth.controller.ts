@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Logger, Req, UseGuards, Get } from '@nestjs/common';
+import { Body, Controller, Post, Logger, Req, Get, UseGuards } from '@nestjs/common';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import {
   AuthServiceClient,
@@ -9,8 +9,8 @@ import type {
 } from 'src/grpc/auth/auth.client';
 import { lastValueFrom } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { JwtAuthGuard } from 'src/guards/JwtAuthGuard';
 import { Public } from 'src/decorators/public.decorator';
+import { JwtAuthGuard } from 'src/guards/jwt.auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -43,21 +43,11 @@ export class AuthController {
     return result;
   }
 
-  /**
-  * Endpoint de prueba protegido con JWT.
-  * - Verifica que el guard valide el token.
-  * - Verifica que el interceptor propague los metadatos.
-  */
-  @Get('test')
-  async test(@Req() req: any): Promise<any> {
-    this.logger.debug('Payload del token:', req.user);
-    this.logger.debug('Metadatos gRPC construidos:', req._grpcMetadata);
-
-    return {
-      message: 'Método de prueba ejecutado',
-      user: req.user
-    };
+  @Get("test")
+  async test(@Req() req): Promise<any> {
+    const client = await this.client();
+    const result = await lastValueFrom(client.TestMetadata({ message: 'Hello from API-Gateway' }, req._grpcMetadata));
+    return result;
   }
-
 
 }

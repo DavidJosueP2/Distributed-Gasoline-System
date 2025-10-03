@@ -14,10 +14,4 @@ export class Role {
     return this.props.name;
   }
 
-  toJSON(): RoleProps {
-    return {
-      id: BigInt(this.props.id),
-      name: this.props.name,
-    };
-  }
 }

@@ -14,7 +14,7 @@
     first_name varchar(100) not null,
     last_name varchar(100) not null,
     email varchar(120) not null unique,
-    phone varchar(20),
+    phone varchar(20) not null unique,
     username varchar(60) not null unique,
     password_hash varchar(255) not null,
     status varchar(20) not null default 'ACTIVE',

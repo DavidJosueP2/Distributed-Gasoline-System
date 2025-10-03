@@ -10,14 +10,14 @@ export class UserMapper {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      phone: user.phone ?? null,
+      phone: user.phone,
       username: user.username,
       status: user.status,
       roles: user.roles.map((role) => ({ id: role.id, name: role.name })),
     };
   }
 
-  static toLoginResponse(user:User): FindUserByEmailResponse {
+  static toFindByEmailResponse(user:User): FindUserByEmailResponse {
   return {
     id: user.id,
       firstName: user.firstName,
@@ -39,43 +39,42 @@ export class UserMapper {
 
   static toGrpcByEmail(user:FindUserByEmailResponse) {
 
-      const userId = user.id || 0; 
+  
     return {
-      userId: userId, 
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      email: user.email || '',
-      phone: user.phone || undefined,
-      username: user.username || '',
-      password: user.password || '',
+      userId: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
+      password: user.password,
       roles: (user.roles || []).map((role) => ({
-        roleId: role.id || 0,
-        name: role.name || '',
+        roleId: role.id,
+        name: role.name ,
       })),
     };
   }
 
+
   static toGrpc(user: UserResponseDto) {
 
-    const userId = user.id || 0;
-    
     return {
-      userId: userId, // Leave as a number for gRPC
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      email: user.email || '',
-      phone: user.phone || undefined,
-      username: user.username || '',
+      userId: user.id, 
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
       status: user.status || '',
       roles: (user.roles || []).map((role) => ({
-        roleId: role.id || 0, // Leave as a number for gRPC
-        name: role.name || '',
+        roleId: role.id,
+        name: role.name,
       })),
     };
   }
 
 static toGrpcList(users: UserResponseDto[]) {
-  // Asegurarse de mapear solo DTOs planos, no objetos ya gRPC
+  
   return {
     items: users.map((user) => this.toGrpc(user)),
   };

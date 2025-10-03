@@ -62,7 +62,6 @@ export class PrismaUserRepository implements UserRepository {
         phone: input.phone,
         username: input.username,
         passwordHash: input.passwordHash,
-        status: input.status ?? 'ACTIVE',
         userRoles: input.roleIds?.length
           ? {
               create: input.roleIds.map((roleId) => ({

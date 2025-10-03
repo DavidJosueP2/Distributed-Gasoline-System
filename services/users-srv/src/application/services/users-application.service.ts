@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { hash } from 'bcryptjs';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
-import { ensureUserStatus } from '../../domain/value-objects/user-status.vo';
+import { ensureUserStatus, UserStatus } from '../../domain/value-objects/user-status.vo';
 
 import { UserMapper } from '../mappers/user.mapper';
 import { FindUserByEmailRequest } from '../dto/request/find-user-by-email-reques';
@@ -11,6 +11,9 @@ import { UserResponseDto } from '../dto/response/user-response';
 import { CreateUserDto } from '../dto/request/create-user-request';
 import { UpdateUserDto } from '../dto/request/update-user-request';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { NotUserActive } from '../exceptions/not-active-user.exception';
+import { User } from 'generated/prisma';
+import { DataAlreadyExistsException } from '../exceptions/data-already-exists.exception';
 
 @Injectable()
 export class UsersApplicationService {
@@ -22,25 +25,28 @@ export class UsersApplicationService {
 
   async getUserByEmail(request: FindUserByEmailRequest): Promise<FindUserByEmailResponse> {
     const user = await this.repository.findByEmail(request.email);
-    console.log("llego a application service", user)
-      if (!user) throw new NotFoundException("Usuario no encontradoss"); 
-    return UserMapper.toLoginResponse(user);
+    if(!user) throw new NotFoundException('Usuario no encontrado');
+    this.ensureActive(user.status);
+    return UserMapper.toFindByEmailResponse(user);
   }
 
   async getUserById(id: number): Promise<UserResponseDto> {
     const user = await this.repository.findById(id);
-    if (!user) throw new NotFoundException("Usuario no encontrado"); 
+     if(!user) throw new NotFoundException('Usuario no encontrado');
+    this.ensureActive(user.status);
     return UserMapper.toResponse(user);
   }
 
 async getAllUsers(): Promise<UserResponseDto[]> {
   const users = await this.repository.findAll();
-  console.log('Users fetched in application service:', users); // <-- log de depuración
   return UserMapper.toList(users);
 }
 
-
   async createUser(dto: CreateUserDto): Promise<UserResponseDto> {
+
+if(await this.repository.findByEmail(dto.email)) {
+  throw new DataAlreadyExistsException('El correo electrónico ya está en uso');
+}
     const passwordHash = await hash(dto.password, 10);
     const user = await this.repository.create({
       firstName: dto.firstName,
@@ -49,7 +55,6 @@ async getAllUsers(): Promise<UserResponseDto[]> {
       phone: dto.phone,
       username: dto.username,
       passwordHash,
-      status: ensureUserStatus(dto.status),
       roleIds: dto.roleIds,
     });
     return UserMapper.toResponse(user);
@@ -81,4 +86,10 @@ async getAllUsers(): Promise<UserResponseDto[]> {
     await this.repository.delete(id);
     return { success: true };
   }
+
+
+  private ensureActive(status?: string | UserStatus): void {
+  const normalized = ensureUserStatus(status as string);
+  if (normalized !== 'ACTIVE') throw new NotUserActive('El usuario no esta activo o bloqueado');
+}
 }

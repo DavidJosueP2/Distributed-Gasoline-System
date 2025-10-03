@@ -5,18 +5,17 @@ export interface CreateUserInput {
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string | null;
+  phone: string;
   username: string;
   passwordHash: string;
-  status?: UserStatus;
-  roleIds?: number[];
+  roleIds: number[];
 }
 
 export interface UpdateUserInput {
   firstName?: string;
   lastName?: string;
   email?: string;
-  phone?: string | null;
+  phone?: string;
   username?: string;
   passwordHash?: string;
   status?: UserStatus;

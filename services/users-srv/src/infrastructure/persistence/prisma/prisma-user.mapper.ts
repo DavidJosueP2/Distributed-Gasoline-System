@@ -19,7 +19,7 @@ type PrismaUserWithRoles = {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string | null;
+  phone: string;
   username: string;
   passwordHash: string;
   status: string;

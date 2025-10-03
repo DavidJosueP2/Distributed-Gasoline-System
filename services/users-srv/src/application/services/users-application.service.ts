@@ -63,8 +63,17 @@ if(await this.repository.findByEmail(dto.email)) {
   async updateUser(dto: UpdateUserDto): Promise<UserResponseDto> {
     const existing = await this.repository.findById(dto.userId);
     if (!existing) {
-      throw new NotFoundException(`User ${dto.userId} not found`);
+      throw new NotFoundException(`Usuario no encontrado`);
     }
+    this.ensureActive(existing.status);
+
+    if (await this.repository.findByEmailExceptSelf(dto.email, dto.userId)) {
+      throw new DataAlreadyExistsException('El correo electrónico ya está en uso');
+    }
+    if (await this.repository.findByPhoneExceptSelf(dto.phone, dto.userId)) {
+      throw new DataAlreadyExistsException('El número de teléfono ya está en uso');
+    }
+
 
     const passwordHash = dto.password ? await hash(dto.password, 10) : undefined;
 

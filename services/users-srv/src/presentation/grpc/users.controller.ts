@@ -31,8 +31,7 @@ import { FindUserByEmailRequest } from 'src/application/dto/request/find-user-by
       const user = await this.service.getUserByEmail(data);
       return UserMapper.toGrpcByEmail(user);
     }
-    
-    
+     
 @GrpcMethod('UserService', 'GetAllUsers')
 async getAll() {
   const users = await this.service.getAllUsers();
@@ -48,12 +47,11 @@ async getAll() {
       return UserMapper.toGrpc(user);
     }
 
-    // @GrpcMethod('UserService', 'UpdateUser')
-    // async update(data: UpdateUserDto) {
-    //   const dto = await this.validatePayload(UpdateUserDto, this.mapUpdatePayload(data));
-    //   const user = await this.service.updateUser(dto);
-    //   return UserMapper.toGrpc(user);
-    // }
+    @GrpcMethod('UserService', 'UpdateUser')
+    async update(data: UpdateUserDto) {
+      const user = await this.service.updateUser(data);
+      return UserMapper.toGrpc(user);
+    }
 
     // @GrpcMethod('UserService', 'DeleteUser')
     // async delete(data: number) {

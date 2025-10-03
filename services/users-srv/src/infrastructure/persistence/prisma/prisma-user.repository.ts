@@ -32,6 +32,35 @@ export class PrismaUserRepository implements UserRepository {
     return PrismaUserMapper.toDomain(record as any);
   }
 
+  async findByEmailExceptSelf(email: string, userId: number): Promise<User | null> {
+  const record = await this.prisma.user.findFirst({
+    where: {
+      email,
+      NOT: {
+        id: toBigInt(userId), 
+      },
+    } 
+  });
+
+  if (!record) return null;
+  return PrismaUserMapper.toDomain(record as any);
+}
+
+
+  async findByPhoneExceptSelf(phone: string, userId: number): Promise<User | null> {
+  const record = await this.prisma.user.findFirst({
+    where: {
+      phone,
+      NOT: {
+        id: toBigInt(userId), 
+      },
+    }
+  });
+  if (!record) return null;
+  return PrismaUserMapper.toDomain(record as any);
+}
+
+
   async findById(id: number): Promise<User | null> {
     const record = await this.prisma.user.findUnique({
       where: { id: toBigInt(id) },

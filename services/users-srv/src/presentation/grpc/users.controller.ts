@@ -4,17 +4,19 @@ import { status as GrpcStatus } from '@grpc/grpc-js';
 import { plainToInstance, type ClassConstructor } from 'class-transformer';
 import { validate } from 'class-validator';
 import { UsersApplicationService } from '../../application/services/users-application.service';
-import { CreateUserDto } from '../../application/dto/create-user.dto';
-import { UpdateUserDto } from '../../application/dto/update-user.dto';
+
 import { UserMapper } from '../../application/mappers/user.mapper';
 import { flattenValidationErrors } from '../../validation/field-error.util';
-import { Roles } from 'src/decorators/roles.decorator';
+import { CreateUserDto } from 'src/application/dto/request/create-user-request';
+import { UpdateUserDto } from 'src/application/dto/request/update-user-request';
+import { FindUserByEmailRequest } from 'src/application/dto/request/find-user-by-email-reques';
 
 type StringLike = string | number | bigint | undefined | null;
 
 interface UserIdPayload {
   user_id?: StringLike;
 }
+
 
 interface CreateUserPayload {
   first_name?: string;
@@ -35,12 +37,6 @@ interface UpdateUserPayload extends CreateUserPayload {
 export class UsersGrpcController {
   constructor(private readonly service: UsersApplicationService) { }
 
-  @Roles('ADMIN')
-  @GrpcMethod('UserService', 'Ping')
-  ping(): { message: string } {
-    return { message: 'pong' };
-  }
-
 
   @GrpcMethod('UserService', 'GetUser')
   async getUser(data: UserIdPayload) {
@@ -49,12 +45,19 @@ export class UsersGrpcController {
     return UserMapper.toGrpc(user);
   }
 
+  @GrpcMethod('UserService', 'GetUserByEmail')
+  async getUserByEmail(data: FindUserByEmailRequest) {
+    const user = await this.service.getUserByEmail(data);
+    return UserMapper.toGrpcByEmail(user);
+  }
+
+
   @GrpcMethod('UserService', 'GetAllUsers')
   async getAll() {
+    console.log("llego")
     const users = await this.service.getAllUsers();
 
     const grpcResult = UserMapper.toGrpcList(users);
-    console.log('Resultado a devolver por gRPC:', grpcResult);
 
     return grpcResult;
   }

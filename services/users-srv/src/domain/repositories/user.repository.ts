@@ -27,6 +27,7 @@ export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 
 export interface UserRepository {
   findById(id: number): Promise<User | null>;
+  findByEmail(email: string): Promise<User | null>;
   findAll(): Promise<User[]>;
   create(input: CreateUserInput): Promise<User>;
   update(id: number, input: UpdateUserInput): Promise<User>;

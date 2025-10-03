@@ -1,5 +1,7 @@
 import { User } from '../../domain/entities/user.entity';
-import { UserResponseDto } from '../dto/user-response.dto';
+import FindUserByEmailResponse from '../dto/response/find-user-by-email-response';
+import { UserResponseDto } from '../dto/response/user-response';
+
 
 export class UserMapper {
   static toResponse(user: User): UserResponseDto {
@@ -15,20 +17,52 @@ export class UserMapper {
     };
   }
 
+  static toLoginResponse(user:User): FindUserByEmailResponse {
+  return {
+    id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
+      password: user.passwordHash,
+      roles: user.roles.map((role) => ({ id: role.id, name: role.name })),
+  };
+    
+  }
+
+  
+
   static toList(users: User[]): UserResponseDto[] {
     return users.map((user) => this.toResponse(user));
   }
 
+  static toGrpcByEmail(user:FindUserByEmailResponse) {
+
+      const userId = user.id || 0; 
+    return {
+      userId: userId, 
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      email: user.email || '',
+      phone: user.phone || undefined,
+      username: user.username || '',
+      password: user.password || '',
+      roles: (user.roles || []).map((role) => ({
+        roleId: role.id || 0,
+        name: role.name || '',
+      })),
+    };
+  }
+
   static toGrpc(user: UserResponseDto) {
-    console.log('Converting to gRPC:', JSON.stringify(user, null, 2)); // Debug log
-    
-    // Ensure we have number values for fields that need them
+
     const userId = user.id || 0;
     
     return {
       userId: userId, // Leave as a number for gRPC
       firstName: user.firstName || '',
-    lastName: user.lastName || '',
+      lastName: user.lastName || '',
       email: user.email || '',
       phone: user.phone || undefined,
       username: user.username || '',

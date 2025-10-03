@@ -7,6 +7,7 @@ import { status as GrpcStatus } from '@grpc/grpc-js';
 import { AppModule } from './app.module';
 import { flattenValidationErrors } from './validation/field-error.util';
 import { registerInEureka } from './discovery/eureka-register';
+import { RpcExceptionFromValidationErrors } from './application/exceptions/RpcExceptionFromValidationErrors';
 
 async function bootstrap() {
   const PORT = Number(
@@ -25,23 +26,18 @@ async function bootstrap() {
     },
   });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-      exceptionFactory: (errors) => {
-        const fieldErrors = flattenValidationErrors(errors);
-        return new RpcException({
-          code: GrpcStatus.INVALID_ARGUMENT,
-          message: 'Validation failed',
-          details: JSON.stringify({ fieldErrors }),
-        });
-      },
-    }),
-  );
-
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: { enableImplicitConversion: true },
+    exceptionFactory: (errors) => {
+      
+      return RpcExceptionFromValidationErrors(errors);
+    },
+  }),
+);
   const eureka = registerInEureka();
 
   await app.listen();

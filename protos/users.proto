@@ -4,10 +4,27 @@ package users;
 
 service UserService {
   rpc GetUser (UserIdRequest) returns (UserResponse);
+  rpc GetUserByEmail (GetUserByEmailRequest) returns (GetUserByEmailResponse);
   rpc GetAllUsers (Empty) returns (UserList);
   rpc CreateUser (CreateUserRequest) returns (UserResponse);
   rpc UpdateUser (UpdateUserRequest) returns (UserResponse);
   rpc DeleteUser (UserIdRequest) returns (DeleteResponse);
+}
+
+
+message GetUserByEmailRequest {
+  string email = 1;
+}
+
+message GetUserByEmailResponse {
+  int64 user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string phone = 5;
+  string username = 6;
+  string password = 7;
+  repeated RoleResponse roles = 8;
 }
 
 message Empty {}
@@ -26,6 +43,7 @@ message CreateUserRequest {
   string status = 7;
   repeated int64 role_ids = 8;
 }
+
 
 message UpdateUserRequest {
   int64 user_id = 1;
@@ -54,6 +72,8 @@ message UserResponse {
   string status = 7;
   repeated RoleResponse roles = 8;
 }
+
+
 
 message UserList {
   repeated UserResponse items = 1;

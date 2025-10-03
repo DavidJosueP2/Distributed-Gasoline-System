@@ -53,11 +53,7 @@ export class UsersController {
 
     private mapToHttp(user: UserResponse): UserHttpDto {
         const rawUser = user as unknown as Record<string, any>;
-        // Debug output to understand incoming shape from gRPC
-        if (process.env.NODE_ENV !== 'production') {
-            // eslint-disable-next-line no-console
-            console.log('[gateway] Raw gRPC user payload:', rawUser);
-        }
+       
         const userId = rawUser.user_id ?? rawUser.userId ?? rawUser.id;
         const firstName = rawUser.first_name ?? rawUser.firstName ?? '';
         const lastName = rawUser.last_name ?? rawUser.lastName ?? '';

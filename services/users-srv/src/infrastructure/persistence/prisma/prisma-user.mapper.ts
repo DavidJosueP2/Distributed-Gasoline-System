@@ -37,7 +37,6 @@ export class PrismaUserMapper {
         name: userRole.role.name 
       }),
     );
-
     // Ensure user ID is properly converted from bigint to number
     return User.create({
       id: parseInt(String(user.id), 10),

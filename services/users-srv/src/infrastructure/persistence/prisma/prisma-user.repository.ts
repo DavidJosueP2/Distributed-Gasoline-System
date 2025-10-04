@@ -8,6 +8,7 @@ import {
 } from '../../../domain/repositories/user.repository';
 import { PrismaUserMapper } from './prisma-user.mapper';
 import { User } from '../../../domain/entities/user.entity';
+import { hash } from 'crypto';
 
 const INCLUDE_ROLES = {
   userRoles: { include: { role: true } },
@@ -23,18 +24,53 @@ export class PrismaUserRepository implements UserRepository {
 
   constructor(private readonly prisma: PrismaService) {}
 
+
+
   async findByEmail(email: string): Promise<User | null> {
    const record = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email,
+        deletedAt: null
+      },
       include: INCLUDE_ROLES,
     });
     if (!record) return null;
     return PrismaUserMapper.toDomain(record as any);
   }
 
+  async findByEmailExceptSelf(email: string, userId: number): Promise<User | null> {
+  const record = await this.prisma.user.findFirst({
+    where: {
+      email,
+      NOT: {
+        id: toBigInt(userId), 
+      },
+    } 
+  });
+
+  if (!record) return null;
+  return PrismaUserMapper.toDomain(record as any);
+}
+
+
+  async findByPhoneExceptSelf(phone: string, userId: number): Promise<User | null> {
+  const record = await this.prisma.user.findFirst({
+    where: {
+      phone,
+      NOT: {
+        id: toBigInt(userId), 
+      },
+    }
+  });
+  if (!record) return null;
+  return PrismaUserMapper.toDomain(record as any);
+}
+
+
   async findById(id: number): Promise<User | null> {
     const record = await this.prisma.user.findUnique({
-      where: { id: toBigInt(id) },
+      where: { id: toBigInt(id),
+        deletedAt: null
+      },
       include: INCLUDE_ROLES,
     });
     if (!record) return null;
@@ -43,6 +79,9 @@ export class PrismaUserRepository implements UserRepository {
 
  async findAll(): Promise<User[]> {
   const records = await this.prisma.user.findMany({
+    where: {
+      deletedAt: null
+    },
     include: INCLUDE_ROLES,
     orderBy: { createdAt: 'desc' },
   });
@@ -62,7 +101,6 @@ export class PrismaUserRepository implements UserRepository {
         phone: input.phone,
         username: input.username,
         passwordHash: input.passwordHash,
-        status: input.status ?? 'ACTIVE',
         userRoles: input.roleIds?.length
           ? {
               create: input.roleIds.map((roleId) => ({
@@ -110,7 +148,9 @@ export class PrismaUserRepository implements UserRepository {
       });
 
       return tx.user.update({
-        where: { id: userId },
+        where: { id: userId,
+          deletedAt: null
+        },
         data,
         include: INCLUDE_ROLES,
       });
@@ -121,8 +161,40 @@ export class PrismaUserRepository implements UserRepository {
 
   async delete(id: number): Promise<void> {
     const userId = toBigInt(id);
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.user.update({
+      where:{id:userId},
+      data:{
+        deletedAt:new Date(),
+        status:'INACTIVE'
+      }
+    })
   }
+
+    async undelete(id: number): Promise<void> {
+      const userId = toBigInt(id);
+    await this.prisma.user.update({
+      where:{id:userId},
+      data:{
+        deletedAt:null,
+        status:'ACTIVE'
+      }
+    })
+  }
+
+   async updatePassword(id: number, newPasswordHash: string): Promise<void> {
+   const record = await this.prisma.user.findUnique({
+      where: { id: toBigInt(id)
+      }
+    });
+
+    await this.prisma.user.update({
+      where: { id: toBigInt(id) },
+      data: { passwordHash: newPasswordHash },
+    });
+
+  
+  }
+  
 }
 
 export const PrismaUserRepositoryProvider = {

@@ -18,13 +18,15 @@ import { NotUserActive } from '../exceptions/not-active-user.exception';
 import { User } from 'generated/prisma';
 import { DataAlreadyExistsException } from '../exceptions/data-already-exists.exception';
 import { UpdatePasswordRequest } from '../dto/request/update-password-request';
+import { Metadata } from '@grpc/grpc-js';
+import { Roles } from 'src/common/auth';
 
 @Injectable()
 export class UsersApplicationService {
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly repository: UserRepository,
-  ) {}
+  ) { }
 
   async getUserByEmail(
     request: FindUserByEmailRequest,

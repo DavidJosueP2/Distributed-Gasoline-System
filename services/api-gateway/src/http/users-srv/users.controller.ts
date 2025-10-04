@@ -83,31 +83,43 @@ export class UsersController {
         @Req() req: RequestWithGrpc,
     ): Observable<UserResponse> {
         return from(this.svc(req)).pipe(
-            switchMap((svc) => svc.CreateUser(dto, req._grpcMetadata)),
+            switchMap((svc) => svc
+            .CreateUser(dto, req._grpcMetadata)
+            .pipe(map(normalizeUser)))
         );
     }
 
-    // @Put(':id')
-    // @GrpcTimeout(1500)
-    // update(
-    //     @Param('id') id: string,
-    //     @Body() dto: UpdateUserRequest,
-    //     @Req() req: RequestWithGrpc,
-    // ): Observable<UserResponse> {
-    //     // te aseguras que siempre tenga el id
-    //     dto.userId = id;
-    //     return from(this.svc(req)).pipe(
-    //         switchMap((svc) => svc.UpdateUser(dto, req._grpcMetadata)),
-    //     );
-    // }
+    @Put(':id')
+    update(
+        @Param('id') id: string,
+        @Body() dto: UpdateUserRequest,
+        @Req() req: RequestWithGrpc,
+    ): Observable<UserResponse> {
+        dto.userId = id;
+        return from(this.svc(req)).pipe(
+            switchMap((svc) => svc.UpdateUser(dto, req._grpcMetadata).pipe(map(normalizeUser))),
+        );
+    }
 
-    // @Delete(':id')
-    // remove(
-    //     @Param('id') id: string,
-    //     @Req() req: RequestWithGrpc,
-    // ): Observable<{ success: boolean }> {
-    //     return from(this.svc(req)).pipe(
-    //         switchMap((svc) => svc.DeleteUser({ userId: id }, req._grpcMetadata)),
-    //     );
-    // }
+    @Delete(':id')
+    remove(
+        @Param('id') id: string,
+        @Req() req: RequestWithGrpc,
+    ): Observable<{ success: boolean }> {
+        return from(this.svc(req)).pipe(
+            switchMap((svc) => svc.DeleteUser({ userId: id }, req._grpcMetadata)),
+        );
+    }
+
+    @Post('/undelete/:id')
+    unRemove(
+        @Param('id') id: string,
+        @Req() req: RequestWithGrpc,
+    ): Observable<{ success: boolean }> {
+        return from(this.svc(req)).pipe(
+            switchMap((svc) => svc.UnDeleteUser({ userId: id }, req._grpcMetadata)),
+        );
+    }
+
+            
 }

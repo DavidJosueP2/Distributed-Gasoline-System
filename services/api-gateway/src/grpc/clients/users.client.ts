@@ -48,7 +48,7 @@ export interface UpdateUserRequest {
     username: string;
     password: string;
     status: string;
-    roleIds?: LongLike[];
+    roleIds: LongLike[];
 }
 
 export interface UserServiceClient {
@@ -57,4 +57,5 @@ export interface UserServiceClient {
     CreateUser(data: CreateUserRequest, metadata?: any): Observable<UserResponse>;
     UpdateUser(data: UpdateUserRequest, metadata?: any): Observable<UserResponse>;
     DeleteUser(data: { userId: LongLike }, metadata?: any): Observable<{ success: boolean }>;
+    UnDeleteUser(data: { userId: LongLike }, metadata?: any): Observable<{ success: boolean }>;
 }

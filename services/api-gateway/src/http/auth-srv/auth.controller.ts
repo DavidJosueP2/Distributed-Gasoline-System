@@ -6,8 +6,10 @@ import {
 import type {
   LoginRequest,
   LoginResponse,
+  RecoverPasswordRequest,
+  RecoverPasswordResponse,
 } from 'src/grpc/auth/auth.client';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Public } from '../../common/auth/decorators/public.decorator';
 
@@ -28,10 +30,26 @@ export class AuthController {
 
   @Public()
   @Post('log-in')
-  async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
+  public async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
     const client = await this.client();
     const result = await lastValueFrom(
       client.login(dto).pipe(
+        catchError((error) => {
+          this.logger.error('Error en comunicación gRPC:', error);
+          throw error;
+        }),
+      ),
+    );
+
+    return result;
+  }
+
+  @Public()
+  @Post("recover-password")
+  public async recoverPassword(@Body() dto: RecoverPasswordRequest): Promise<RecoverPasswordResponse> {
+    const client = await this.client();
+    const result = await lastValueFrom(
+      client.recoverPassword(dto).pipe(
         catchError((error) => {
           this.logger.error('Error en comunicación gRPC:', error);
           throw error;

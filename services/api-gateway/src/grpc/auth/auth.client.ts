@@ -13,7 +13,16 @@ export interface LoginResponse {
   expiresIn: string;
 }
 
+export interface RecoverPasswordRequest {
+  email: string;
+}
+
+export interface RecoverPasswordResponse {
+  message: string;
+}
+
 export interface AuthServiceClient {
   login(data: LoginRequest): Observable<LoginResponse>;
   justForTest(data: {}, metadata?: Metadata): Observable<any>;
+  recoverPassword(data: RecoverPasswordRequest): Observable<RecoverPasswordResponse>;
 }

@@ -3,7 +3,7 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import * as bcrypt from 'bcryptjs';
-import { LoginResponse } from './types/auth.types';
+import { LoginResponse, RecoverPasswordResponse } from './types/auth.types';
 import { of, Observable, from, lastValueFrom, catchError } from 'rxjs';
 import { UserServiceClient, GetUserByEmailRequest } from './types/user.client';
 import { Metadata } from '@grpc/grpc-js';
@@ -17,6 +17,7 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) { }
 
+  // Cliente gRPC para el servicio de usuarios.
   private async userClient(): Promise<UserServiceClient> {
     const client = await this.grpcFactory.clientFor(
       'USERS-SERVICE', // nombre de la app en eureka
@@ -71,6 +72,19 @@ export class AuthService {
     };
 
     return response;
+  }
+
+  public recoverPassword(email: string): Observable<RecoverPasswordResponse> {
+
+    // Verificando que el usuario exista.
+
+    // Generar token.
+
+    // Guardar token en base de datos con fecha de expiración.
+
+    // Aquí iría la lógica para enviar el correo de recuperación de contraseña.
+    this.logger.log(`Instrucciones de recuperación de contraseña enviadas a ${email}`);
+    return of({ message: `Instrucciones de recuperación de contraseña enviadas a ${email}` });
   }
 
   public async justForTest(

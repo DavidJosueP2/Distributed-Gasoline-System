@@ -8,3 +8,11 @@ export interface LoginResponse {
   tokenType: string;    // Cambiado de token_type a tokenType
   expiresIn: string;    // Cambiado de expires_in a expiresIn
 }
+
+export interface RecoverPasswordRequest {
+  email: string;
+}
+
+export interface RecoverPasswordResponse {
+  message: string;
+}

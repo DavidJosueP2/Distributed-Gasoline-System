@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
-import { status as GrpcStatus } from '@grpc/grpc-js';
+import { status as GrpcStatus, Metadata } from '@grpc/grpc-js';
 import { plainToInstance, type ClassConstructor } from 'class-transformer';
 import { validate } from 'class-validator';
 import { UsersApplicationService } from '../../application/services/users-application.service';
@@ -10,6 +10,7 @@ import { flattenValidationErrors } from '../../validation/field-error.util';
 import { CreateUserDto } from 'src/application/dto/request/create-user-request';
 import { UpdateUserDto } from 'src/application/dto/request/update-user-request';
 import { FindUserByEmailRequest } from 'src/application/dto/request/find-user-by-email-reques';
+import { Roles } from 'src/common/auth';
 
 type StringLike = string | number | bigint | undefined | null;
 
@@ -51,14 +52,11 @@ export class UsersGrpcController {
     return UserMapper.toGrpcByEmail(user);
   }
 
-
+  @Roles('Testing ')
   @GrpcMethod('UserService', 'GetAllUsers')
-  async getAll() {
-    console.log("llego")
-    const users = await this.service.getAllUsers();
-
+  async getAll(req: {}, metadata?: Metadata) {
+    const users = await this.service.getAllUsers({}, metadata);
     const grpcResult = UserMapper.toGrpcList(users);
-
     return grpcResult;
   }
 

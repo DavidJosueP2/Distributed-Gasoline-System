@@ -2,13 +2,7 @@ syntax = "proto3";
 
 package auth;
 
-message TestRequest {
-  string message = 1;
-}
-
-message TestResponse {
-  string message = 1;
-}
+message Empty {}
 
 message LoginRequest {
   string email = 1;
@@ -23,5 +17,5 @@ message LoginResponse {
 
 service AuthService {
   rpc Login (LoginRequest) returns (LoginResponse);
-  rpc TestMetadata (TestRequest) returns (TestResponse);
+  rpc JustForTest (Empty) returns (Empty);
 }

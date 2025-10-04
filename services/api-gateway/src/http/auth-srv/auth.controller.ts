@@ -31,7 +31,7 @@ export class AuthController {
   async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
     const client = await this.client();
     const result = await lastValueFrom(
-      client.Login(dto).pipe(
+      client.login(dto).pipe(
         catchError((error) => {
           this.logger.error('Error en comunicación gRPC:', error);
           throw error;
@@ -42,10 +42,13 @@ export class AuthController {
     return result;
   }
 
-  @Get("test")
-  async test(@Req() req): Promise<any> {
+  // Propagar metadata.
+  @Get("just-for-test")
+  async justForTest(@Req() req): Promise<any> {
     const client = await this.client();
-    const result = await lastValueFrom(client.TestMetadata({ message: 'Hello from API-Gateway' }, req._grpcMetadata));
+
+    // Al llamar al servidor gRPC se transforma a JustForTest y asi sabe a que metodo ir.
+    const result = await lastValueFrom(client.justForTest({ message: 'Just testing...' }, req._grpcMetadata));
     return result;
   }
 

@@ -1,7 +1,8 @@
 import {
   CanActivate,
   ExecutionContext,
-  Injectable
+  Injectable,
+  UnauthorizedException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RpcException } from '@nestjs/microservices';
@@ -29,7 +30,7 @@ export class JwtAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new RpcException('No token provided');
+      throw new UnauthorizedException('No token provided');
     }
     const token = authHeader.replace('Bearer ', '');
     try {
@@ -37,7 +38,7 @@ export class JwtAuthGuard implements CanActivate {
       req.user = payload;
       return true;
     } catch (e) {
-      throw new RpcException('Invalid token');
+      throw new UnauthorizedException('Invalid token');
     }
   }
 }

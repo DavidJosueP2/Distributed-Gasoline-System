@@ -27,9 +27,10 @@ export class PrismaUserRepository implements UserRepository {
 
 
   async findByEmail(email: string): Promise<User | null> {
-   const record = await this.prisma.user.findUnique({
-      where: { email,
-        deletedAt: null
+    const record = await this.prisma.user.findUnique({
+      where: {
+        email,
+        deletedAt: null,
       },
       include: INCLUDE_ROLES,
     });
@@ -37,14 +38,41 @@ export class PrismaUserRepository implements UserRepository {
     return PrismaUserMapper.toDomain(record as any);
   }
 
+  async findByPhone(phone: string): Promise<User | null> {
+    const record = await this.prisma.user.findFirst({
+      where: {
+        phone,
+        deletedAt: null,
+      },
+      include: INCLUDE_ROLES,
+    });
+    if (!record) return null;
+    return PrismaUserMapper.toDomain(record as any);
+  }
+
+  async findByUserName(username: string): Promise<User | null> {
+    const record = await this.prisma.user.findUnique({
+      where: {
+        username,
+        deletedAt: null,
+      },
+      include: INCLUDE_ROLES,
+    });
+    if (!record) return null;
+    return PrismaUserMapper.toDomain(record as any);
+  }
+
+
   async findByEmailExceptSelf(email: string, userId: number): Promise<User | null> {
   const record = await this.prisma.user.findFirst({
     where: {
       email,
+      deletedAt: null,
       NOT: {
         id: toBigInt(userId), 
       },
-    } 
+    },
+    include: INCLUDE_ROLES,
   });
 
   if (!record) return null;
@@ -56,14 +84,32 @@ export class PrismaUserRepository implements UserRepository {
   const record = await this.prisma.user.findFirst({
     where: {
       phone,
+      deletedAt: null,
       NOT: {
         id: toBigInt(userId), 
       },
-    }
+    },
+    include: INCLUDE_ROLES,
   });
   if (!record) return null;
   return PrismaUserMapper.toDomain(record as any);
 }
+
+async findByUserNameExceptSelf(username: string, userId: number): Promise<User | null> {
+  const record = await this.prisma.user.findFirst({
+    where: {
+      username,
+      deletedAt: null,
+      NOT: {
+        id: toBigInt(userId), 
+      },
+    },
+    include: INCLUDE_ROLES,
+  });
+  if (!record) return null;
+  return PrismaUserMapper.toDomain(record as any);
+}
+
 
 
   async findById(id: number): Promise<User | null> {

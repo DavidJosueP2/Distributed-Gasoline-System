@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { hash } from 'bcryptjs';
+import { hash, compare } from 'bcryptjs';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
 import {
@@ -121,15 +121,14 @@ export class UsersApplicationService {
 
     this.ensureActive(row.status);
 
-    const newPasswordHash = await hash(request.newPassword, 10);
-console.log(row.passwordHash,newPasswordHash);
+    const isSamePassword = await compare(request.newPassword, row.passwordHash);
 
-    if (row.passwordHash == newPasswordHash) {
+    if (isSamePassword) {
       throw new DataAlreadyExistsException(
         'No se puede usar contraseñas antiguas',
       );
     }
-
+    const newPasswordHash = await hash(request.newPassword, 10);
     await this.repository.updatePassword(row.id, newPasswordHash);
 
     return { success: true };

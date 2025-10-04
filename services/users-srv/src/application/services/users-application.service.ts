@@ -55,6 +55,17 @@ export class UsersApplicationService {
         'El correo electrónico ya está en uso',
       );
     }
+    if (await this.repository.findByPhone(dto.phone)) {
+      throw new DataAlreadyExistsException(
+        'El número de teléfono ya está en uso',
+      );
+    }
+    if (await this.repository.findByUserName(dto.username)) {
+      throw new DataAlreadyExistsException(
+        'El nombre de usuario ya está en uso',
+      );
+    }
+
     const passwordHash = await hash(dto.password, 10);
     const user = await this.repository.create({
       firstName: dto.firstName,
@@ -85,10 +96,14 @@ export class UsersApplicationService {
         'El número de teléfono ya está en uso',
       );
     }
+      if (await this.repository.findByUserNameExceptSelf(dto.username, dto.userId)) {
+      throw new DataAlreadyExistsException(
+        'El número de teléfono ya está en uso',
+      );
+    }
 
-    const passwordHash = dto.password
-      ? await hash(dto.password, 10)
-      : undefined;
+
+    const newPasswordHash = await hash(dto.password, 10);
 
     const updated = await this.repository.update(existing.id, {
       firstName: dto.firstName,
@@ -96,7 +111,7 @@ export class UsersApplicationService {
       email: dto.email,
       phone: dto.phone,
       username: dto.username,
-      passwordHash,
+      passwordHash: newPasswordHash,
       status: dto.status ? ensureUserStatus(dto.status) : existing.status,
       roleIds: dto.roleIds,
     });

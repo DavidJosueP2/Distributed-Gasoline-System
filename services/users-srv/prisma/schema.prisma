@@ -18,7 +18,7 @@ model User {
   firstName    String    @map("first_name")
   lastName     String    @map("last_name")
   email        String    @unique
-  phone        String    @map("phone")
+  phone        String    @unique @map("phone")
   username     String    @unique
   passwordHash String    @map("password_hash")
   status       String    @default("ACTIVE")

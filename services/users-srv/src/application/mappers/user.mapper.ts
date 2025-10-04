@@ -12,7 +12,6 @@ export class UserMapper {
       email: user.email,
       phone: user.phone,
       username: user.username,
-      status: user.status,
       roles: user.roles.map((role) => ({ id: role.id, name: role.name })),
     };
   }
@@ -65,7 +64,6 @@ export class UserMapper {
       email: user.email,
       phone: user.phone,
       username: user.username,
-      status: user.status || '',
       roles: (user.roles || []).map((role) => ({
         roleId: role.id,
         name: role.name,

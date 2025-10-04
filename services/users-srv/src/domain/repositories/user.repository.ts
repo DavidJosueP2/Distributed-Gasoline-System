@@ -18,7 +18,7 @@ export interface UpdateUserInput {
   phone: string;
   username: string;
   passwordHash: string;
-  status?: UserStatus;
+  status: UserStatus;
   roleIds?: number[];
 }
 
@@ -32,5 +32,7 @@ export interface UserRepository {
   findAll(): Promise<User[]>;
   create(input: CreateUserInput): Promise<User>;
   update(id: number, input: UpdateUserInput): Promise<User>;
+  updatePassword(id: number, newPasswordHash: string): Promise<void>;
   delete(id: number): Promise<void>;
+  undelete(id: number): Promise<void>;
 }

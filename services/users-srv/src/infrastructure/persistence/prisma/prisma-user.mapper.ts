@@ -30,14 +30,14 @@ type PrismaUserWithRoles = {
 
 export class PrismaUserMapper {
   static toDomain(user: PrismaUserWithRoles): User {
-    // Ensure role IDs are properly converted from bigint to number
+
     const roles = (user.userRoles ?? []).map(
       (userRole) => new Role({ 
         id: parseInt(String(userRole.role.id), 10), 
         name: userRole.role.name 
       }),
     );
-    // Ensure user ID is properly converted from bigint to number
+
     return User.create({
       id: parseInt(String(user.id), 10),
       firstName: user.firstName,

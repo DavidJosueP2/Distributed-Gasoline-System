@@ -19,7 +19,8 @@
     password_hash varchar(255) not null,
     status varchar(20) not null default 'ACTIVE',
     created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
+    updated_at timestamptz not null default now(),
+    deleted_at timestamptz default null
   );
 
   alter table users

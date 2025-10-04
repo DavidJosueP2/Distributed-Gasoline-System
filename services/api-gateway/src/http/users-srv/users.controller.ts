@@ -142,7 +142,7 @@ export class UsersController {
         );
     }
 
-    @Patch(':id')
+    @Put(':id')
     update(
         @Param('id') id: string,
         @Body() dto: UpdateUserHttpDto,

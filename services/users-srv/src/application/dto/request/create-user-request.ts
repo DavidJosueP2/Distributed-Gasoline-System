@@ -1,4 +1,4 @@
-import { IsArray, IsEmail, IsNotEmpty, IsOptional, IsString, Length, MinLength, ArrayNotEmpty, IsInt } from 'class-validator';
+import { IsArray, IsEmail, IsNotEmpty, IsOptional, IsString, Length, MinLength, ArrayNotEmpty, IsInt, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateUserDto {
@@ -24,8 +24,10 @@ export class CreateUserDto {
   @Length(4, 60, { message: 'El nombre de usuario debe tener entre 4 y 60 caracteres.' })
   username!: string;
 
-  @IsString({ message: 'La contraseña debe ser una cadena de texto.' })
-  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres.' })
+  @IsString({ message: 'La contraseña debe ser un texto' })
+  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+  @Matches(/(?=.*[A-Z])/, { message: 'La contraseña debe contener al menos una letra mayúscula' })
+  @Matches(/(?=.*\d)/, { message: 'La contraseña debe contener al menos un número' })
   password!: string;
 
   @IsOptional()

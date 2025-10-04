@@ -2,7 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { hash } from 'bcryptjs';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
-import { ensureUserStatus, UserStatus } from '../../domain/value-objects/user-status.vo';
+import {
+  ensureUserStatus,
+  UserStatus,
+} from '../../domain/value-objects/user-status.vo';
 
 import { UserMapper } from '../mappers/user.mapper';
 import { FindUserByEmailRequest } from '../dto/request/find-user-by-email-reques';
@@ -14,6 +17,7 @@ import { NotFoundException } from '../exceptions/not-found.exception';
 import { NotUserActive } from '../exceptions/not-active-user.exception';
 import { User } from 'generated/prisma';
 import { DataAlreadyExistsException } from '../exceptions/data-already-exists.exception';
+import { UpdatePasswordRequest } from '../dto/request/update-password-request';
 
 @Injectable()
 export class UsersApplicationService {
@@ -22,31 +26,33 @@ export class UsersApplicationService {
     private readonly repository: UserRepository,
   ) {}
 
-
-  async getUserByEmail(request: FindUserByEmailRequest): Promise<FindUserByEmailResponse> {
+  async getUserByEmail(
+    request: FindUserByEmailRequest,
+  ): Promise<FindUserByEmailResponse> {
     const user = await this.repository.findByEmail(request.email);
-    if(!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user) throw new NotFoundException('Usuario no encontrado');
     this.ensureActive(user.status);
     return UserMapper.toFindByEmailResponse(user);
   }
 
   async getUserById(id: number): Promise<UserResponseDto> {
     const user = await this.repository.findById(id);
-     if(!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user) throw new NotFoundException('Usuario no encontrado');
     this.ensureActive(user.status);
     return UserMapper.toResponse(user);
   }
 
-async getAllUsers(): Promise<UserResponseDto[]> {
-  const users = await this.repository.findAll();
-  return UserMapper.toList(users);
-}
+  async getAllUsers(): Promise<UserResponseDto[]> {
+    const users = await this.repository.findAll();
+    return UserMapper.toList(users);
+  }
 
   async createUser(dto: CreateUserDto): Promise<UserResponseDto> {
-
-if(await this.repository.findByEmail(dto.email)) {
-  throw new DataAlreadyExistsException('El correo electrónico ya está en uso');
-}
+    if (await this.repository.findByEmail(dto.email)) {
+      throw new DataAlreadyExistsException(
+        'El correo electrónico ya está en uso',
+      );
+    }
     const passwordHash = await hash(dto.password, 10);
     const user = await this.repository.create({
       firstName: dto.firstName,
@@ -68,14 +74,19 @@ if(await this.repository.findByEmail(dto.email)) {
     this.ensureActive(existing.status);
 
     if (await this.repository.findByEmailExceptSelf(dto.email, dto.userId)) {
-      throw new DataAlreadyExistsException('El correo electrónico ya está en uso');
+      throw new DataAlreadyExistsException(
+        'El correo electrónico ya está en uso',
+      );
     }
     if (await this.repository.findByPhoneExceptSelf(dto.phone, dto.userId)) {
-      throw new DataAlreadyExistsException('El número de teléfono ya está en uso');
+      throw new DataAlreadyExistsException(
+        'El número de teléfono ya está en uso',
+      );
     }
 
-
-    const passwordHash = dto.password ? await hash(dto.password, 10) : undefined;
+    const passwordHash = dto.password
+      ? await hash(dto.password, 10)
+      : undefined;
 
     const updated = await this.repository.update(existing.id, {
       firstName: dto.firstName,
@@ -84,7 +95,7 @@ if(await this.repository.findByEmail(dto.email)) {
       phone: dto.phone,
       username: dto.username,
       passwordHash,
-      status: dto.status ? ensureUserStatus(dto.status) : undefined,
+      status: dto.status ? ensureUserStatus(dto.status) : existing.status,
       roleIds: dto.roleIds,
     });
 
@@ -95,10 +106,40 @@ if(await this.repository.findByEmail(dto.email)) {
     await this.repository.delete(id);
     return { success: true };
   }
+  async undeleteUser(id: number): Promise<{ success: boolean }> {
+    await this.repository.undelete(id);
+    return { success: true };
+  }
 
+  async updatePassword(
+    request: UpdatePasswordRequest,
+  ): Promise<{ success: boolean }> {
+    const row = await this.repository.findById(request.userId);
+    if (!row) {
+      throw new NotFoundException(`Usuario no encontrado`);
+    }
+
+    this.ensureActive(row.status);
+
+    const newPasswordHash = await hash(request.newPassword, 10);
+console.log(row.passwordHash,newPasswordHash);
+
+    if (row.passwordHash == newPasswordHash) {
+      throw new DataAlreadyExistsException(
+        'No se puede usar contraseñas antiguas',
+      );
+    }
+
+    await this.repository.updatePassword(row.id, newPasswordHash);
+
+    return { success: true };
+  }
 
   private ensureActive(status?: string | UserStatus): void {
-  const normalized = ensureUserStatus(status as string);
-  if (normalized !== 'ACTIVE') throw new NotUserActive('El usuario no esta activo o bloqueado');
-}
+    const normalized = ensureUserStatus(status as string);
+    if (normalized !== 'ACTIVE')
+      throw new NotUserActive(
+        'Su cuenta se encuentra bloqueada por favor contacte al administrador',
+      );
+  }
 }

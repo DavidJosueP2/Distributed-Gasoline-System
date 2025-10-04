@@ -11,33 +11,35 @@ import { UserResponseDto } from '../dto/response/user-response';
 import { CreateUserDto } from '../dto/request/create-user-request';
 import { UpdateUserDto } from '../dto/request/update-user-request';
 import { NotFoundException } from '../exceptions/not-found.exception';
+import { Metadata } from '@grpc/grpc-js';
+import { Roles } from 'src/common/auth';
 
 @Injectable()
 export class UsersApplicationService {
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly repository: UserRepository,
-  ) {}
+  ) { }
 
 
   async getUserByEmail(request: FindUserByEmailRequest): Promise<FindUserByEmailResponse> {
     const user = await this.repository.findByEmail(request.email);
     console.log("llego a application service", user)
-      if (!user) throw new NotFoundException("Usuario no encontradoss"); 
+    if (!user) throw new NotFoundException("Usuario no encontradoss");
     return UserMapper.toLoginResponse(user);
   }
 
   async getUserById(id: number): Promise<UserResponseDto> {
     const user = await this.repository.findById(id);
-    if (!user) throw new NotFoundException("Usuario no encontrado"); 
+    if (!user) throw new NotFoundException("Usuario no encontrado");
     return UserMapper.toResponse(user);
   }
 
-async getAllUsers(): Promise<UserResponseDto[]> {
-  const users = await this.repository.findAll();
-  console.log('Users fetched in application service:', users); // <-- log de depuración
-  return UserMapper.toList(users);
-}
+  async getAllUsers(req: {}, metadata?: Metadata): Promise<UserResponseDto[]> {
+    console.log("Metadata recibida en UsersApplicationService.getAllUsers:", metadata?.getMap());
+    const users = await this.repository.findAll();
+    return UserMapper.toList(users);
+  }
 
 
   async createUser(dto: CreateUserDto): Promise<UserResponseDto> {

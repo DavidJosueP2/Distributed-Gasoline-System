@@ -3,10 +3,17 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import * as bcrypt from 'bcryptjs';
-import { LoginResponse } from './types/auth.types';
+import { LoginResponse, ResetPasswordRequest, ResetPasswordResponse } from './types/auth.types';
 import { of, Observable, from, lastValueFrom, catchError } from 'rxjs';
-import { UserServiceClient, GetUserByEmailRequest } from './types/user.client';
-import { Metadata } from '@grpc/grpc-js';
+import { UserServiceClient, GetUserByEmailRequest, UpdatePasswordRequest } from './types/user.client';
+import { InjectRepository } from '@nestjs/typeorm';
+import { VerificationToken } from './entities/verification-token.entity';
+import { randomUUID } from 'crypto';
+import { EmailService, PasswordRecoveryRequest, PasswordRecoveryResponse } from './types/email.client';
+import { MoreThan, Repository } from 'typeorm';
+import { RpcException } from '@nestjs/microservices';
+import { Metadata, status as GrpcStatus } from '@grpc/grpc-js';
+import { safeGrpcCall } from './common/auth/utils/grpc-call.util';
 
 @Injectable()
 export class AuthService {
@@ -15,8 +22,11 @@ export class AuthService {
   constructor(
     private readonly grpcFactory: GrpcClientFactory,
     private readonly jwt: JwtService,
+    @InjectRepository(VerificationToken)
+    private readonly verificationTokenRepository: Repository<VerificationToken>,
   ) { }
 
+  // Cliente gRPC para el servicio de usuarios.
   private async userClient(): Promise<UserServiceClient> {
     const client = await this.grpcFactory.clientFor(
       'USERS-SERVICE', // nombre de la app en eureka
@@ -28,6 +38,16 @@ export class AuthService {
     return client.getService<UserServiceClient>('UserService');
   }
 
+  private async emailClient(): Promise<EmailService> {
+    const client = await this.grpcFactory.clientFor(
+      'EMAIL-SERVICE',
+      'email',
+      'email.proto',
+    );
+
+    return client.getService<EmailService>('EmailService');
+  }
+
   public login(email: string, password: string): Observable<LoginResponse> {
     return from(this.doLogin(email, password));
   }
@@ -37,22 +57,22 @@ export class AuthService {
 
     const emailRequest: GetUserByEmailRequest = { email };
 
-    const user = await lastValueFrom(
-      client.getUserByEmail(emailRequest).pipe(
-        catchError(err => {
-          this.logger.error('Error en gRPC:', err);
-          throw err;
-        }),
-      ),
-    );
+    const user = await safeGrpcCall(client.getUserByEmail(emailRequest), 'AuthService.getUserByEmail');
 
     if (!user?.userId || !user.password) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Credenciales inválidas',
+      });
     }
+
     const ok = await bcrypt.compare(password, user.password);
 
     if (!ok) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Credenciales inválidas',
+      });
     }
 
     const payload = {
@@ -61,7 +81,6 @@ export class AuthService {
       roles: user.roles ?? [],
     };
 
-    console.log('Auth Service JWT secret:', process.env.JWT_SECRET);
     const token = this.jwt.sign(payload);
 
     const response: LoginResponse = {
@@ -73,6 +92,94 @@ export class AuthService {
     return response;
   }
 
+  public async recoverPassword(email: string): Promise<PasswordRecoveryResponse> {
+
+    // Verificando que el usuario exista.
+    const client = await this.userClient();
+    const emailRequest: GetUserByEmailRequest = { email };
+
+    const user = await safeGrpcCall(client.getUserByEmail(emailRequest), 'UserService.GetUserByEmail');
+
+    // Generar token y guardarlo en la base de datos.
+    const token = await this.generateForUser(Number(user.userId));
+
+    // gRPC para enviar el correo.
+    const emailClient = await this.emailClient();
+    const request: PasswordRecoveryRequest = { email, token: token.tokenHash };
+
+    const emailResponse = await safeGrpcCall(emailClient.sendPasswordRecoveryEmail(request), 'EmailService.SendPasswordRecoveryEmail');
+
+    return emailResponse;
+  }
+
+  private async generateForUser(userId: number): Promise<VerificationToken> {
+
+    // Voy a asumir directamente que el usuario existe, porque esta función se llama después de verificar eso.
+    const expirationTime = 10; // minutos
+    const verificationToken = this.verificationTokenRepository.create({
+      userId,
+      tokenHash: randomUUID(),
+      expiresAt: this.minutesFromNow(expirationTime),
+      used: false,
+    });
+
+    return await this.verificationTokenRepository.save(verificationToken);
+  }
+
+  private minutesFromNow(minutes: number): Date {
+    return new Date(Date.now() + minutes * 60 * 1000);
+  }
+
+  public async resetPassword(tokenRequest: string, newPassword: string): Promise<ResetPasswordResponse> {
+    // Verificar validez del token (que no este usado y expirado)
+    const token = await this.verificationTokenRepository.findOne({
+      where: {
+        tokenHash: tokenRequest,
+      },
+    });
+
+    if (!token || token.used || token.expiresAt < new Date()) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Token inválido o expirado',
+      });
+    }
+
+    // Actualizar contrasena en la base de datos.
+    const userClient = await this.userClient();
+    const user = await safeGrpcCall(userClient.getUser({ userId: token.userId }), "UserService.GetUser");
+
+    if (!user || !user.userId) {
+      throw new RpcException({
+        code: GrpcStatus.NOT_FOUND,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    const updatePasswordRequest: UpdatePasswordRequest = { userId: user.userId, newPassword };
+
+    const updatedResponse = await safeGrpcCall(userClient.updatePassword(updatePasswordRequest), "UserService.UpdatePassword");
+
+    if (!updatedResponse.success) {
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'No se pudo actualizar la contraseña',
+      });
+    }
+
+    // Invalidar token.
+    token.used = true;
+    await this.verificationTokenRepository.save(token);
+
+    // Respuesta al cliente.
+    const response$: ResetPasswordResponse = {
+      success: true,
+      message: 'Contraseña actualizada correctamente',
+    };
+
+    return response$;
+  }
+
   public async justForTest(
     data: { message: string },
     metadata: Metadata,
@@ -81,6 +188,4 @@ export class AuthService {
     const client = await this.userClient();
     return await lastValueFrom(client.getAllUsers({}, metadata));
   }
-
-
 }

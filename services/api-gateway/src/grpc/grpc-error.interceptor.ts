@@ -103,7 +103,7 @@ export class GrpcErrorInterceptor implements NestInterceptor {
                 }
 
                 const cause = detectTransportCause(e);
-                const cleanMsg = stripGrpcPrefix(e?.message ?? e?.error?.message) || e?.details || 'Upstream error';
+                const cleanMsg = stripGrpcPrefix(e?.message ?? e?.error?.message) || 'Error en el servicio';
                 const reason = reasonFor(code, cause?.errno);
 
                 return throwError(() => new HttpException({

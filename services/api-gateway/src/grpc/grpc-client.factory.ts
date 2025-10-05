@@ -62,7 +62,20 @@ export class GrpcClientFactory {
         const url = `${resolveHost(inst)}:${resolvePort(inst)}`;
         return ClientProxyFactory.create({
             transport: Transport.GRPC,
-            options: { url, package: pkg, protoPath: join(this.protosDir, protoFile) },
+            options: {
+                url,
+                package: pkg,
+                protoPath: join(this.protosDir, protoFile),
+                loader: {
+                    longs: String,   // <- clavea
+                    enums: String,   // <- clave
+                    defaults: false,
+                    arrays: true,
+                    keepCase: false,
+                    objects: true,
+                    oneofs: true,
+                },
+            },
         }) as unknown as ClientGrpc;
     }
 }

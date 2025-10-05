@@ -9,6 +9,8 @@ import { GrpcMetadataInterceptor } from './grpc/grpc-metadata.interceptor';
 import { GrpcTimeoutInterceptor } from './grpc/grpc-timeout.interceptor';
 import { GrpcErrorInterceptor } from './grpc/grpc-error.interceptor';
 import { HelloController } from './http/hello-srv/hello.controller';
+import { VehicleModelsHttpController } from './http/vehicles-svc/vehicle-models.controller';
+import { VehicleUnitsHttpController } from './http/vehicles-svc/vehicle-units.controller';
 
 @Module({
     imports: [
@@ -18,7 +20,7 @@ import { HelloController } from './http/hello-srv/hello.controller';
         }),
         DiscoveryModule,
     ],
-    controllers: [ HelloController],
+    controllers: [ HelloController, VehicleModelsHttpController, VehicleUnitsHttpController ],
     providers: [
         GrpcClientFactory,
         { provide: APP_INTERCEPTOR, useClass: GrpcMetadataInterceptor },

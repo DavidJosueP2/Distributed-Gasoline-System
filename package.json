@@ -1,13 +1,32 @@
 {
   "name": "fuel-control",
   "private": true,
-  "workspaces": ["services/*"],
+  "workspaces": [
+    "services/*"
+  ],
   "scripts": {
     "eureka:up": "docker compose up -d eureka",
     "eureka:down": "docker compose down",
     "dev": "npm run eureka:up && concurrently -k -n GATEWAY,DRV1,DRV2 \"npm --workspace services/api-gateway run start:dev\" \"PORT=50051 npm --workspace services/drivers run start:dev\" \"PORT=50052 npm --workspace services/drivers run start:dev\""
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "@types/node": "^24.6.0",
+    "concurrently": "^9.0.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.0",
+    "@grpc/proto-loader": "^0.8.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/microservices": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "dotenv": "^17.2.3",
+    "eureka-js-client": "^4.5.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
   }
 }

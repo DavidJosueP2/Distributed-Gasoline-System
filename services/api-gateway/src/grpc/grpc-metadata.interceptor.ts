@@ -1,11 +1,17 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
-import { Observable, map } from 'rxjs';
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { Metadata } from '@grpc/grpc-js';
+import { Reflector } from '@nestjs/core';
 
 /**
  * Interceptor que traduce los headers HTTP a metadata de gRPC.
  *
- * - Toma headers como `Authorization` o `x-user-id` de la petición HTTP.
+ * - Toma headers como `Authorization` de la petición HTTP.
  * - Los coloca en un objeto `Metadata` de gRPC.
  * - Ese objeto se guarda en `req._grpcMetadata`.
  *
@@ -15,20 +21,33 @@ import { Metadata } from '@grpc/grpc-js';
  *   svc.AlgunMetodoGrpc(reqBody, req._grpcMetadata)
  */
 
+// Ejeuta logica antes o despues del handler del controller.
 @Injectable()
 export class GrpcMetadataInterceptor implements NestInterceptor {
-    buildMetadataFromRequest(req: any): Metadata {
-        const md = new Metadata();
-        const auth = req.headers?.authorization || '';
-        if (auth) md.add('authorization', auth);
-        if (req.headers?.['x-user-id']) md.add('x-user-id', String(req.headers['x-user-id']));
-        return md;
+  constructor(
+    private readonly reflector: Reflector
+  ) { }
+
+  buildMetadataFromRequest(req: any): Metadata {
+    const md = new Metadata();
+    const auth = req.headers?.authorization || '';
+    if (auth) md.add('authorization', auth);
+    return md;
+  }
+
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      'isPublic',
+      [ctx.getHandler(), ctx.getClass()],
+    );
+
+    // Sino, agrega metadatos.
+    if (!isPublic) {
+      const req = ctx.switchToHttp().getRequest();
+      req._grpcMetadata = this.buildMetadataFromRequest(req);
     }
 
-    intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
-        const http = ctx.switchToHttp();
-        const req = http.getRequest();
-        req._grpcMetadata = this.buildMetadataFromRequest(req);
-        return next.handle().pipe(map(x => x));
-    }
+    // Si es publica, continua.
+    return next.handle();
+  }
 }

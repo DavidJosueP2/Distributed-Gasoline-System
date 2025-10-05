@@ -9,7 +9,7 @@ export interface UserServiceClient {
   getAllUsers(req: Empty, metadata?: Metadata): Observable<UserList>;
   createUser(req: CreateUserRequest): Observable<UserResponse>;
   updateUser(req: UpdateUserRequest): Observable<UserResponse>;
-  deleteUser(req: UserIdRequest): Observable<DeleteResponse>;
+  updatePassword(req: UpdatePasswordRequest): Observable<BooleanResponse>;
 }
 
 // Mensajes (Request / Response)
@@ -78,6 +78,11 @@ export interface UserList {
   items: UserResponse[];
 }
 
-export interface DeleteResponse {
+export interface UpdatePasswordRequest {
+  userId: number;
+  newPassword: string;
+}
+
+export interface BooleanResponse {
   success: boolean;
 }

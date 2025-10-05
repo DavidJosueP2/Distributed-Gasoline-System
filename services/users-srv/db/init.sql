@@ -45,7 +45,7 @@
   -- Insert users con bcrypt
   insert into users(first_name, last_name, email, phone, username, password_hash)
   values
-    ('Alice', 'Admin', 'alice.admin@example.com', '+51 111 222 333', 'alice_admin', crypt('admin123', gen_salt('bf'))),
+    ('Alice', 'Admin', 'josuegarcab2@hotmail.com', '+51 111 222 333', 'alice_admin', crypt('admin123', gen_salt('bf'))),
     ('Sam',   'Supervisor', 'sam.supervisor@example.com', '+51 444 555 666', 'sam_supervisor', crypt('supervisor123', gen_salt('bf'))),
     ('Dylan', 'Driver', 'dylan.driver@example.com', '+51 777 888 999', 'dylan_driver', crypt('driver123', gen_salt('bf')))
   on conflict (username) do nothing;

@@ -5,17 +5,8 @@ package auth;
 service AuthService {
   rpc Login (LoginRequest) returns (LoginResponse);
   rpc JustForTest (Empty) returns (Empty);
-  rpc RecoverPassword (RecoverPasswordRequest) returns (RecoverPasswordResponse);
-}
-
-message Empty {}
-
-message RecoverPasswordRequest {
-  string email = 1;
-}
-
-message RecoverPasswordResponse {
-  string message = 1;
+  rpc RecoverPassword (PasswordRecoveryRequest) returns (PasswordRecoveryResponse);
+  rpc ResetPassword (ResetPasswordRequest) returns (ResetPasswordResponse);  
 }
 
 message LoginRequest {
@@ -27,4 +18,25 @@ message LoginResponse {
   string access_token = 1;
   string token_type = 2;
   string expires_in = 3;
+}
+
+message Empty {}
+
+message PasswordRecoveryRequest {
+  string email = 1;
+}
+
+message PasswordRecoveryResponse {
+  bool success = 2;
+  string message = 1;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string new_password = 2;
+}
+
+message ResetPasswordResponse {
+  bool success = 1;
+  string message = 2;
 }

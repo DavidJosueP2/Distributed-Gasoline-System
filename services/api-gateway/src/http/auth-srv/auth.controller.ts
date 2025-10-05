@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Logger, Req, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Logger, Req, Get, UseGuards, HttpCode } from '@nestjs/common';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import {
   AuthServiceClient,
@@ -6,8 +6,10 @@ import {
 import type {
   LoginRequest,
   LoginResponse,
-  RecoverPasswordRequest,
-  RecoverPasswordResponse,
+  PasswordRecoveryRequest,
+  PasswordRecoveryResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
 } from 'src/grpc/auth/auth.client';
 import { lastValueFrom, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -30,6 +32,7 @@ export class AuthController {
 
   @Public()
   @Post('log-in')
+  @HttpCode(200)
   public async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
     const client = await this.client();
     const result = await lastValueFrom(
@@ -44,12 +47,30 @@ export class AuthController {
     return result;
   }
 
+  // Request de recuperacion de contraseña
   @Public()
   @Post("recover-password")
-  public async recoverPassword(@Body() dto: RecoverPasswordRequest): Promise<RecoverPasswordResponse> {
+  @HttpCode(200)
+  public async recoverPassword(@Body() dto: PasswordRecoveryRequest): Promise<PasswordRecoveryResponse> {
     const client = await this.client();
     const result = await lastValueFrom(
       client.recoverPassword(dto).pipe(
+        catchError((error) => {
+          this.logger.error('Error en comunicación gRPC:', error);
+          throw error;
+        }),
+      ),
+    );
+
+    return result;
+  }
+
+  @Public()
+  @Post("reset-password")
+  public async resetPassword(@Body() dto: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+    const client = await this.client();
+    const result = await lastValueFrom(
+      client.resetPassword(dto).pipe(
         catchError((error) => {
           this.logger.error('Error en comunicación gRPC:', error);
           throw error;

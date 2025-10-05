@@ -3,7 +3,8 @@ import { GrpcMethod } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
 
 // Esto le dice a typescript: este import solo es de tipo, no lo intentes meter en los metadatos de los decoradores
-import type { LoginRequest, LoginResponse, RecoverPasswordRequest, RecoverPasswordResponse } from './types/auth.types';
+import { LoginRequest, PasswordRecoveryRequest, ResetPasswordRequest } from './types/auth.types';
+import type { LoginResponse, PasswordRecoveryResponse, ResetPasswordResponse } from "./types/auth.types";
 import { Observable } from 'rxjs';
 import { Roles } from './common/auth/decorators/roles.decorator';
 import { Public } from './common/auth/decorators/public.decorator';
@@ -21,16 +22,22 @@ export class AuthController {
     return response$;
   }
 
+  @Public()
+  @GrpcMethod('AuthService', 'RecoverPassword')
+  public recoverPassword(data: PasswordRecoveryRequest): Promise<PasswordRecoveryResponse> {
+    return this.auth.recoverPassword(data.email);
+  }
+
+  @Public()
+  @GrpcMethod('AuthService', 'ResetPassword')
+  public resetPassword(data: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+    return this.auth.resetPassword(data.token, data.newPassword);
+  }
+
   @Roles('ADMIN')
   @GrpcMethod('AuthService', 'JustForTest')
   public justForTest(data: { message: string }, metadata: Metadata): Promise<any> {
     return this.auth.justForTest(data, metadata);
-  }
-
-  @Public()
-  @GrpcMethod('AuthService', 'RecoverPassword')
-  public recoverPassword(data: RecoverPasswordRequest): Promise<RecoverPasswordResponse> {
-    return this.auth.recoverPassword(data.email);
   }
 
 }

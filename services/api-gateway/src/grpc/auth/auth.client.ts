@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 export interface AuthServiceClient {
   login(data: LoginRequest): Observable<LoginResponse>;
   justForTest(data: {}, metadata?: Metadata): Observable<any>;
-  recoverPassword(data: RecoverPasswordRequest): Observable<RecoverPasswordResponse>;
+  recoverPassword(data: PasswordRecoveryRequest): Observable<PasswordRecoveryResponse>;
+  resetPassword(data: ResetPasswordRequest): Observable<ResetPasswordResponse>;
 }
 
 export interface LoginRequest {
@@ -18,10 +19,21 @@ export interface LoginResponse {
   expiresIn: string;
 }
 
-export interface RecoverPasswordRequest {
+export interface PasswordRecoveryRequest {
   email: string;
 }
 
-export interface RecoverPasswordResponse {
+export interface PasswordRecoveryResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
   message: string;
 }

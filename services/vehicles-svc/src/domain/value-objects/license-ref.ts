@@ -1,0 +1,1 @@
+export type LicenseRef = { code?: string; id?: bigint };

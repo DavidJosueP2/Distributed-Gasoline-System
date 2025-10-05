@@ -1,13 +1,21 @@
 {
   "name": "fuel-control",
   "private": true,
-  "workspaces": ["services/*"],
+  "workspaces": [
+    "services/*"
+  ],
   "scripts": {
     "eureka:up": "docker compose up -d eureka",
     "eureka:down": "docker compose down",
-    "dev": "npm run eureka:up && concurrently -k -n GATEWAY,DRV1,DRV2 \"npm --workspace services/api-gateway run start:dev\" \"PORT=50051 npm --workspace services/drivers run start:dev\" \"PORT=50052 npm --workspace services/drivers run start:dev\""
+    "db-auth:up": "docker compose up -d users-db",
+    "db-auth:down": "docker compose down users-db -v",
+    "dev": "npm run eureka:up && npm run db-auth:up && concurrently -k -n GATEWAY \"npm --workspace services/api-gateway run start:dev\""
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
+  },
+  "dependencies": {
+    "@nestjs/jwt": "^11.0.0",
+    "dotenv": "^17.2.3"
   }
 }

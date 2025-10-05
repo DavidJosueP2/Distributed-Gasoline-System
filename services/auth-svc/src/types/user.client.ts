@@ -1,6 +1,17 @@
 import { Metadata } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
 
+// Interfaz del servicio gRPC con Observables
+
+export interface UserServiceClient {
+  getUser(req: UserIdRequest): Observable<UserResponse>;
+  getUserByEmail(req: GetUserByEmailRequest): Observable<GetUserByEmailResponse>;
+  getAllUsers(req: Empty, metadata?: Metadata): Observable<UserList>;
+  createUser(req: CreateUserRequest): Observable<UserResponse>;
+  updateUser(req: UpdateUserRequest): Observable<UserResponse>;
+  updatePassword(req: UpdatePasswordRequest): Observable<BooleanResponse>;
+}
+
 // Mensajes (Request / Response)
 
 export interface GetUserByEmailRequest {
@@ -67,22 +78,11 @@ export interface UserList {
   items: UserResponse[];
 }
 
-export interface DeleteResponse {
-  success: boolean;
+export interface UpdatePasswordRequest {
+  userId: number;
+  newPassword: string;
 }
 
-// Interfaz del servicio gRPC con Observables
-
-export interface UserServiceClient {
-  getUser(req: UserIdRequest): Observable<UserResponse>;
-
-  getUserByEmail(req: GetUserByEmailRequest): Observable<GetUserByEmailResponse>;
-
-  getAllUsers(req: Empty, metadata?: Metadata): Observable<UserList>;
-
-  createUser(req: CreateUserRequest): Observable<UserResponse>;
-
-  updateUser(req: UpdateUserRequest): Observable<UserResponse>;
-
-  deleteUser(req: UserIdRequest): Observable<DeleteResponse>;
+export interface BooleanResponse {
+  success: boolean;
 }

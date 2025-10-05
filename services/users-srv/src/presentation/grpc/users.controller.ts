@@ -18,7 +18,7 @@ type StringLike = string | number | bigint | undefined | null;
 
 @Controller()
 export class UsersGrpcController {
-  constructor(private readonly service: UsersApplicationService) {}
+  constructor(private readonly service: UsersApplicationService) { }
 
   private coerceId(value: StringLike): number {
     const parsed = typeof value === 'bigint' ? Number(value) : Number(value);
@@ -29,9 +29,17 @@ export class UsersGrpcController {
   }
 
 
-  @Roles('ADMIN', 'SUPERVISOR','DRIVER')
+  @Public()
   @GrpcMethod('UserService', 'GetUser')
   async getUser(data: { userId: StringLike }) {
+    const id = this.coerceId(data.userId);
+    const user = await this.service.getUserById(id);
+    return UserMapper.toGrpc(user);
+  }
+
+  @Public()
+  @GrpcMethod('UserService', 'GetUser')
+  async getUserService(data: { userId: StringLike }) {
     const id = this.coerceId(data.userId);
     const user = await this.service.getUserById(id);
     return UserMapper.toGrpc(user);
@@ -61,14 +69,14 @@ export class UsersGrpcController {
     return UserMapper.toGrpc(user);
   }
 
-  @Roles('ADMIN', 'SUPERVISOR','DRIVER')
+  @Roles('ADMIN', 'SUPERVISOR', 'DRIVER')
   @GrpcMethod('UserService', 'UpdateUser')
   async update(data: UpdateUserDto) {
     const user = await this.service.updateUser(data);
     return UserMapper.toGrpc(user);
   }
 
-  @Roles('ADMIN', 'SUPERVISOR','DRIVER')
+  @Public()
   @GrpcMethod('UserService', 'UpdatePassword')
   async updatePassword(data: UpdatePasswordRequest) {
     const result = await this.service.updatePassword(data);

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Logger, Req, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Logger, Req, Get, UseGuards, HttpCode } from '@nestjs/common';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import {
   AuthServiceClient,
@@ -6,8 +6,12 @@ import {
 import type {
   LoginRequest,
   LoginResponse,
+  PasswordRecoveryRequest,
+  PasswordRecoveryResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
 } from 'src/grpc/auth/auth.client';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Public } from '../../common/auth/decorators/public.decorator';
 
@@ -28,10 +32,45 @@ export class AuthController {
 
   @Public()
   @Post('log-in')
-  async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
+  @HttpCode(200)
+  public async login(@Body() dto: LoginRequest): Promise<LoginResponse> {
     const client = await this.client();
     const result = await lastValueFrom(
       client.login(dto).pipe(
+        catchError((error) => {
+          this.logger.error('Error en comunicación gRPC:', error);
+          throw error;
+        }),
+      ),
+    );
+
+    return result;
+  }
+
+  // Request de recuperacion de contraseña
+  @Public()
+  @Post("recover-password")
+  @HttpCode(200)
+  public async recoverPassword(@Body() dto: PasswordRecoveryRequest): Promise<PasswordRecoveryResponse> {
+    const client = await this.client();
+    const result = await lastValueFrom(
+      client.recoverPassword(dto).pipe(
+        catchError((error) => {
+          this.logger.error('Error en comunicación gRPC:', error);
+          throw error;
+        }),
+      ),
+    );
+
+    return result;
+  }
+
+  @Public()
+  @Post("reset-password")
+  public async resetPassword(@Body() dto: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+    const client = await this.client();
+    const result = await lastValueFrom(
+      client.resetPassword(dto).pipe(
         catchError((error) => {
           this.logger.error('Error en comunicación gRPC:', error);
           throw error;

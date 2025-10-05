@@ -19,11 +19,11 @@ import { APP_GUARD } from '@nestjs/core';
     DiscoveryModule,
     UsersModule,
   ],
-  /* providers: [
+  providers: [
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
-    }
-  ], */
+    },
+  ],
 })
 export class AppModule { }

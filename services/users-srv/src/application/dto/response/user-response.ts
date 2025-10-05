@@ -10,6 +10,5 @@ export interface UserResponseDto {
   email: string;
   phone?: string | null;
   username: string;
-  status: string;
   roles: RoleResponseDto[];
 }

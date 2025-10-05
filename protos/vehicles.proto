@@ -1,0 +1,349 @@
+syntax = "proto3";
+
+package vehicles.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum MachineType {
+  MACHINE_TYPE_UNSPECIFIED = 0;
+  LIGHT = 1;
+  HEAVY  = 2;
+}
+
+enum EngineType {
+  ENGINE_TYPE_UNSPECIFIED = 0;
+  GASOLINE = 1;
+  DIESEL   = 2;
+  HYBRID   = 3;
+}
+
+enum OperationalStatus {
+  OPERATIONAL_STATUS_UNSPECIFIED = 0;
+  ACTIVE      = 1;
+  MAINTENANCE = 2;
+  RETIRED     = 3; // regla: RETIRED no regresa a ACTIVE
+  ON_ROUTE    = 4; // vehículo en ruta
+}
+
+// =====================================================
+// Value Objects
+// =====================================================
+
+message LicenseRef {
+  oneof ref {
+    string license_type_code = 1; // 'A'..'G'
+    int64  license_type_id   = 2; // ID lógico externo
+  }
+}
+
+message Pagination {
+  uint32 page_size = 1;   // elementos por página
+  string page_token = 2;  // token de continuación
+}
+
+message PaginationResult {
+  string next_page_token = 1; // vacío si no hay más
+}
+
+// =====================================================
+// Model (Plantilla)
+// =====================================================
+
+message VehicleModel {
+  int64 model_id = 1;
+  string brand = 2;             // ej: "Toyota"
+  string family = 3;            // ej: "Corolla"
+  string trim = 4;              // ej: "XLI"
+  int32 year_from = 5;
+  int32 year_to = 6;            // 0 = null
+  MachineType machine_type = 7; // LIVIANA | PESADA
+  string status = 8;            // "ACTIVE" | "DEPRECATED"
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message ModelEngineSpec {
+  int64 model_id = 1;
+  EngineType engine_type = 2;      // GASOLINE | DIESEL | HYBRID
+  double displacement_cc = 3;      // obligatorio
+  double power_hp = 4;             // obligatorio
+  double baseline_l_per_100km = 5; // obligatorio
+}
+
+message CreateModelRequest {
+  string brand = 1;
+  string family = 2;
+  string trim = 3;            // opcional
+  int32 year_from = 4;
+  int32 year_to = 5;          // 0 = null
+  MachineType machine_type = 6;
+  ModelEngineSpec engine = 7; // baseline de fábrica
+  repeated LicenseRef default_licenses = 8; // opcional
+  string idempotency_key = 9; // opcional
+}
+
+message CreateModelResponse { int64 model_id = 1; }
+
+message DeprecateModelRequest { int64 model_id = 1; }
+message GetModelRequest { int64 model_id = 1; }
+
+message GetModelResponse {
+  VehicleModel model = 1;
+  ModelEngineSpec engine = 2;
+  repeated LicenseRef default_licenses = 3;
+}
+
+message GetModelByIdentityRequest {
+  string brand = 1;
+  string family = 2;
+  string trim = 3;     // opcional: usa "" para null
+  int32 year_from = 4;
+  int32 year_to = 5;   // usa 0 para null
+}
+
+message GetModelByIdentityResponse {
+  VehicleModel model = 1;
+  ModelEngineSpec engine = 2;
+  repeated LicenseRef default_licenses = 3;
+}
+
+message ListModelsRequest {
+  Pagination page = 1;
+  string brand_filter = 2;   // opcional
+  string family_filter = 3;  // opcional
+  MachineType machine_type_filter = 4; // opcional
+  string status_filter = 5;  // "ACTIVE" | "DEPRECATED" | vacío
+}
+
+message ListModelsResponse {
+  repeated VehicleModel models = 1;
+  PaginationResult page = 2;
+}
+
+message UpdateModelRequest {
+  int64 model_id = 1; // obligatorio
+  int64 expected_version = 9; // versión esperada para optimistic lock (0 = ignorar, no recomendado)
+  string status = 2; // opcional: "ACTIVE" | "DEPRECATED" (vacío => no cambia)
+  int32 year_to = 3; // 0 => null (si se envía y cambia)
+  string brand = 4; // opcional: sólo si no hay unidades asociadas
+  string family = 5; // opcional: sólo si no hay unidades asociadas
+  string trim = 6; // opcional: sólo si no hay unidades asociadas (vacío => null)
+  int32 year_from = 7; // opcional: sólo si no hay unidades asociadas (0 = ignore)
+  MachineType machine_type = 8; // opcional: sólo si no hay unidades asociadas (0 = ignore)
+  ModelEngineSpec engine = 10; // opcional: especificaciones del motor a actualizar
+}
+
+message DeleteModelRequest {
+  int64 model_id = 1; // obligatorio
+  int64 expected_version = 2; // versión esperada para optimistic lock (0 = ignorar)
+}
+
+message DeleteModelResponse {} // vacío, éxito implícito o excepción
+
+// =====================================================
+// Model License Requirements
+// =====================================================
+
+message ListModelLicenseRequirementsRequest {
+  int64 model_id = 1;
+}
+
+message ListModelLicenseRequirementsResponse {
+  repeated LicenseRef licenses = 1;
+}
+
+message SetModelLicenseRequirementsRequest {
+  int64 model_id = 1;
+  repeated LicenseRef licenses = 2; // Reemplaza el array completo (soft-unique)
+}
+
+message SetModelLicenseRequirementsResponse {
+  repeated LicenseRef licenses = 1; // Licencias guardadas después de aplicar soft-unique
+}
+
+message DeleteModelLicenseRequirementRequest {
+  int64 model_id = 1;
+  oneof license_ref {
+    string license_type_code = 2; // 'A'..'G'
+    int64 license_type_id = 3;    // ID lógico externo
+  }
+}
+
+message DeleteModelLicenseRequirementResponse {
+  repeated LicenseRef remaining_licenses = 1; // Licencias que quedan después de eliminar
+}
+
+// =====================================================
+// Unit (Vehículo con placa)
+// =====================================================
+
+message VehicleUnitConsumption {
+  double baseline_model_l_per_100km = 1;     // baseline del modelo (siempre presente)
+  double calibration_k = 2;                  // factor aplicado (calculado automáticamente por antigüedad y km)
+  double effective_l_per_100km = 3;          // (override ?? baseline_model) * calibration_k
+  double baseline_override_l_per_100km = 4;  // si existe override explícito en consumption_specifications
+}
+
+message VehicleUnit {
+  int64 vehicle_id = 1;
+  int64 model_id = 2;
+  string plate = 3;                 // único (case-insensitive en DB)
+  string serial_vin = 4;            // único
+  OperationalStatus operational_status = 5;     // ACTIVE | MAINTENANCE | RETIRED
+  double tank_capacity_l = 6;
+  double odometer_km = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  VehicleUnitConsumption consumption = 10; // anidado
+}
+
+message CreateUnitRequest {
+  int64 model_id = 1;
+  string plate = 2;
+  string serial_vin = 3;         // opcional
+  double tank_capacity_l = 4;    // obligatorio
+  double odometer_km = 5;        // opcional (default 0)
+  repeated LicenseRef extra_licenses = 6; // opcional
+  string idempotency_key = 7; // opcional
+  // NUEVO: Permitir especificar consumption en la creación (transacción atómica)
+  message ConsumptionInput {
+    double baseline_override_l_per_100km = 1; // opcional - si no se especifica, usa el baseline del modelo
+  }
+  ConsumptionInput consumption = 8; // opcional
+  // NOTA: calibration_k se calcula automáticamente basándose en year_from del modelo y odometer_km
+}
+
+message CreateUnitResponse { int64 vehicle_id = 1; }
+
+message UpdateUnitStatusRequest {
+  oneof key {
+    int64 vehicle_id = 1;
+    string plate = 2;
+  }
+  OperationalStatus new_status = 3;
+}
+
+message UpsertUnitConsumptionRequest {
+  int64 vehicle_id = 1;
+  double baseline_override_l_per_100km = 2; // obligatorio
+  // NOTA: calibration_k se recalcula automáticamente en cada actualización
+  // No se acepta como parámetro de entrada
+}
+
+message UpdateUnitRequest { // NUEVO: sólo placa y tanque (otros campos vía otros flujos)
+  int64 vehicle_id = 1;          // identificador obligatorio
+  string plate = 2;              // opcional nueva placa
+  double tank_capacity_l = 3;    // opcional nueva capacidad
+  double odometer_km = 4;        // opcional nuevo kilometraje (recalcula calibration_k automáticamente)
+}
+
+message GetUnitRequest {
+  oneof key {
+    int64 vehicle_id = 1;
+    string plate = 2;
+    string serial_vin = 3; // NUEVO: búsqueda por VIN
+  }
+}
+
+message GetUnitResponse {
+  VehicleUnit unit = 1;
+  repeated LicenseRef required_licenses = 2; // modelo + unidad
+}
+
+message ListUnitsRequest {
+  Pagination page = 1;
+  OperationalStatus status_filter = 2; // opcional
+  string plate_prefix = 3;             // opcional (búsqueda simple)
+  int64 model_id_filter = 4;           // opcional
+}
+
+message ListUnitsResponse {
+  repeated VehicleUnit units = 1;
+  PaginationResult page = 2;
+}
+
+message DeleteUnitRequest {
+  oneof key {
+    int64 vehicle_id = 1;
+    string plate = 2;
+  }
+}
+
+message DeleteUnitResponse { // devuelve instante de borrado lógico
+  google.protobuf.Timestamp deleted_at = 1;
+}
+
+// =====================================================
+// Estimación simple (usa effective_l_per_100km actual)
+// =====================================================
+
+message EstimateFuelRequest {
+  oneof key {
+    int64 vehicle_id = 1;
+    string plate = 2;
+  }
+  double distance_km = 3; // > 0
+}
+
+message EstimateFuelResponse {
+  int64 vehicle_id = 1;
+  double effective_l_per_100km = 2; // leído del cálculo actual
+  double estimated_liters = 3;      // effective * (distance_km/100)
+}
+
+// =====================================================
+// Consumption Profile
+// =====================================================
+
+message GetUnitConsumptionProfileRequest {
+  oneof key {
+    int64 vehicle_id = 1;
+    string plate = 2;
+  }
+}
+
+message GetUnitConsumptionProfileResponse {
+  int64 vehicle_id = 1;
+  double baseline_model_l_per_100km = 2;    // baseline del modelo (siempre presente)
+  double calibration_k = 3;                 // factor aplicado (calculado automáticamente)
+  double effective_l_per_100km = 4;         // (override ?? baseline_model) * calibration_k
+  double baseline_override_l_per_100km = 5; // si existe override explícito
+  EngineType engine_type = 6;               // tipo de motor del modelo
+  int32 vehicle_year = 7;                   // año del vehículo (year_from del modelo)
+  double odometer_km = 8;                   // kilometraje actual
+}
+
+// =====================================================
+// Service
+// =====================================================
+
+service VehiclesService {
+  // ----- Models -----
+  rpc CreateModel (CreateModelRequest) returns (CreateModelResponse);
+  rpc DeprecateModel (DeprecateModelRequest) returns (.google.protobuf.Timestamp);
+  rpc GetModel (GetModelRequest) returns (GetModelResponse);
+  rpc GetModelByIdentity (GetModelByIdentityRequest) returns (GetModelByIdentityResponse); // NUEVO: Búsqueda por identidad
+  rpc ListModels (ListModelsRequest) returns (ListModelsResponse);
+  rpc UpdateModel (UpdateModelRequest) returns (VehicleModel);
+  rpc DeleteModel (DeleteModelRequest) returns (DeleteModelResponse); // NUEVO: Borrado lógico de modelo
+
+  // ----- Model License Requirements -----
+  rpc ListModelLicenseRequirements (ListModelLicenseRequirementsRequest) returns (ListModelLicenseRequirementsResponse);
+  rpc SetModelLicenseRequirements (SetModelLicenseRequirementsRequest) returns (SetModelLicenseRequirementsResponse);
+  rpc DeleteModelLicenseRequirement (DeleteModelLicenseRequirementRequest) returns (DeleteModelLicenseRequirementResponse);
+
+  // ----- Units -----
+  rpc CreateUnit (CreateUnitRequest) returns (CreateUnitResponse);
+  rpc UpdateUnitStatus (UpdateUnitStatusRequest) returns (.google.protobuf.Timestamp);
+  rpc UpsertUnitConsumption (UpsertUnitConsumptionRequest) returns (VehicleUnitConsumption);
+  rpc UpdateUnit (UpdateUnitRequest) returns (VehicleUnit);
+  rpc DeleteUnit (DeleteUnitRequest) returns (DeleteUnitResponse); // Soft delete
+
+  rpc GetUnit (GetUnitRequest) returns (GetUnitResponse);
+  rpc ListUnits (ListUnitsRequest) returns (ListUnitsResponse);
+  rpc GetUnitConsumptionProfile (GetUnitConsumptionProfileRequest) returns (GetUnitConsumptionProfileResponse); // NUEVO
+
+  // ----- Domain queries -----
+  rpc GetUnitRequiredLicenses (GetUnitRequest) returns (stream LicenseRef);
+  rpc EstimateFuelSimple (EstimateFuelRequest) returns (EstimateFuelResponse);
+}

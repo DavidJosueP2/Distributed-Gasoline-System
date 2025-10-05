@@ -2,7 +2,12 @@ syntax = "proto3";
 
 package auth;
 
-message Empty {}
+service AuthService {
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc JustForTest (Empty) returns (Empty);
+  rpc RecoverPassword (PasswordRecoveryRequest) returns (PasswordRecoveryResponse);
+  rpc ResetPassword (ResetPasswordRequest) returns (ResetPasswordResponse);  
+}
 
 message LoginRequest {
   string email = 1;
@@ -15,7 +20,23 @@ message LoginResponse {
   string expires_in = 3;
 }
 
-service AuthService {
-  rpc Login (LoginRequest) returns (LoginResponse);
-  rpc JustForTest (Empty) returns (Empty);
+message Empty {}
+
+message PasswordRecoveryRequest {
+  string email = 1;
+}
+
+message PasswordRecoveryResponse {
+  bool success = 2;
+  string message = 1;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string new_password = 2;
+}
+
+message ResetPasswordResponse {
+  bool success = 1;
+  string message = 2;
 }

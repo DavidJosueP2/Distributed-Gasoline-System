@@ -15,7 +15,6 @@ import { CreateUserDto } from '../dto/request/create-user-request';
 import { UpdateUserDto } from '../dto/request/update-user-request';
 import { NotFoundException } from '../exceptions/not-found.exception';
 import { NotUserActive } from '../exceptions/not-active-user.exception';
-import { User } from 'generated/prisma';
 import { DataAlreadyExistsException } from '../exceptions/data-already-exists.exception';
 import { UpdatePasswordRequest } from '../dto/request/update-password-request';
 import { Metadata } from '@grpc/grpc-js';
@@ -32,14 +31,14 @@ export class UsersApplicationService {
     request: FindUserByEmailRequest,
   ): Promise<FindUserByEmailResponse> {
     const user = await this.repository.findByEmail(request.email);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user) throw new NotFoundException('Usuario no encontrado con email: ' + request.email);
     this.ensureActive(user.status);
     return UserMapper.toFindByEmailResponse(user);
   }
 
   async getUserById(id: number): Promise<UserResponseDto> {
     const user = await this.repository.findById(id);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user) throw new NotFoundException('Usuario no encontrado con id: ' + id);
     this.ensureActive(user.status);
     return UserMapper.toResponse(user);
   }
@@ -96,7 +95,7 @@ export class UsersApplicationService {
         'El número de teléfono ya está en uso',
       );
     }
-      if (await this.repository.findByUserNameExceptSelf(dto.username, dto.userId)) {
+    if (await this.repository.findByUserNameExceptSelf(dto.username, dto.userId)) {
       throw new DataAlreadyExistsException(
         'El número de teléfono ya está en uso',
       );

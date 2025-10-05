@@ -8,7 +8,7 @@ import { RolesGuard } from './common/auth/guards/jwt.roles.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { VerificationToken } from './entities/verification-token';
+import { VerificationToken } from './entities/verification-token.entity';
 
 @Module({
   imports: [

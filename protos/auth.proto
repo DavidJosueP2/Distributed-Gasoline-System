@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package auth;
 
+service AuthService {
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc JustForTest (Empty) returns (Empty);
+  rpc RecoverPassword (RecoverPasswordRequest) returns (RecoverPasswordResponse);
+}
+
 message Empty {}
 
 message RecoverPasswordRequest {
@@ -21,10 +27,4 @@ message LoginResponse {
   string access_token = 1;
   string token_type = 2;
   string expires_in = 3;
-}
-
-service AuthService {
-  rpc Login (LoginRequest) returns (LoginResponse);
-  rpc JustForTest (Empty) returns (Empty);
-  rpc RecoverPassword (RecoverPasswordRequest) returns (RecoverPasswordResponse);
 }

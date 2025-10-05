@@ -12,14 +12,12 @@ services:
     restart: unless-stopped
   
   auth-db:
-    image: postgres:15
-    container_name: auth-db
-    env_file:
-      - ./services/auth-svc/.env
+    image: postgres:16
+    container_name: auth-db-gasoline
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5433:5432"
     volumes:
@@ -28,7 +26,7 @@ services:
   
   users-db:
     image: postgres:16
-    container_name: users-db
+    container_name: users-db-gasoline
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -41,3 +39,4 @@ services:
     restart: unless-stopped
 volumes:
   users-db-data:
+  auth-db-data:

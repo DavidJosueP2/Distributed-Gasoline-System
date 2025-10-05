@@ -1,4 +1,4 @@
-import { Controller, Logger } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
 
@@ -29,7 +29,7 @@ export class AuthController {
 
   @Public()
   @GrpcMethod('AuthService', 'RecoverPassword')
-  public recoverPassword(data: RecoverPasswordRequest): Observable<RecoverPasswordResponse> {
+  public recoverPassword(data: RecoverPasswordRequest): Promise<RecoverPasswordResponse> {
     return this.auth.recoverPassword(data.email);
   }
 

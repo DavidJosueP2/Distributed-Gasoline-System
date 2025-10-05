@@ -1,6 +1,11 @@
 import { Metadata } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
 
+export interface AuthServiceClient {
+  login(data: LoginRequest): Observable<LoginResponse>;
+  justForTest(data: {}, metadata?: Metadata): Observable<any>;
+  recoverPassword(data: RecoverPasswordRequest): Observable<RecoverPasswordResponse>;
+}
 
 export interface LoginRequest {
   email: string;
@@ -19,10 +24,4 @@ export interface RecoverPasswordRequest {
 
 export interface RecoverPasswordResponse {
   message: string;
-}
-
-export interface AuthServiceClient {
-  login(data: LoginRequest): Observable<LoginResponse>;
-  justForTest(data: {}, metadata?: Metadata): Observable<any>;
-  recoverPassword(data: RecoverPasswordRequest): Observable<RecoverPasswordResponse>;
 }

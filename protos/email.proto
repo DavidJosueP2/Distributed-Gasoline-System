@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package email;
+
+service EmailService {
+  rpc SendPasswordRecoveryEmail(PasswordRecoveryRequest) returns (PasswordRecoveryResponse);
+}
+
+message PasswordRecoveryRequest {
+  string email = 1;
+  string token = 2;
+}
+
+message PasswordRecoveryResponse {
+  bool success = 1;
+  string message = 2;
+}

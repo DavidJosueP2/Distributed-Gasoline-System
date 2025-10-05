@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { Module, ValidationPipe } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
 import {
   MicroserviceOptions,
   RpcException,
@@ -14,16 +13,6 @@ import { AuthModule } from './auth.module';
 import { flattenValidationErrors } from './validation/field-error.util';
 import { registerInEureka } from './discovery/eureka-register';
 
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ['../../../.env'], // .env central del monorepo
-    }),
-    AuthModule,
-  ],
-})
-class AppModule { }
 
 async function bootstrap() {
   const PORT = Number(process.env.AUTH_GRPC_PORT || 50052);
@@ -31,7 +20,7 @@ async function bootstrap() {
   const PROTO_ROOT = join(__dirname, '../../../protos');
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
-    AppModule,
+    AuthModule,
     {
       transport: Transport.GRPC,
       options: {

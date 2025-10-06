@@ -19,24 +19,24 @@ services:
     restart: unless-stopped
 
   # ---------- Outbox Publisher ----------
-  outbox-publisher:
-    build: ./services/outbox-publisher
-    container_name: outbox-publisher
-    restart: unless-stopped
-    environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
-      OUTBOX_EXCHANGE: ${OUTBOX_EXCHANGE}
-      OUTBOX_DBS: ${OUTBOX_DBS}
-      PUBLISH_BATCH: ${PUBLISH_BATCH}
-      POLL_MS: ${POLL_MS}
-      PORT: ${OUTBOX_PUBLISHER_PORT}
-    depends_on:
-      - rabbitmq
-      - users-db
-    ports:
-      - "4100:4100"
-    networks:
-      - default
+  # outbox-publisher:
+  #   build: ./services/outbox-publisher
+  #   container_name: outbox-publisher
+  #   restart: unless-stopped
+  #   environment:
+  #     RABBITMQ_URL: ${RABBITMQ_URL}
+  #     OUTBOX_EXCHANGE: ${OUTBOX_EXCHANGE}
+  #     OUTBOX_DBS: ${OUTBOX_DBS}
+  #     PUBLISH_BATCH: ${PUBLISH_BATCH}
+  #     POLL_MS: ${POLL_MS}
+  #     PORT: ${OUTBOX_PUBLISHER_PORT}
+  #   depends_on:
+  #     - rabbitmq
+  #     - users-db
+  #   ports:
+  #     - "4100:4100"
+  #   networks:
+  #     - default
 
   # ---------- Eureka ----------
   eureka:
@@ -115,10 +115,7 @@ services:
     container_name: vehicles-postgres
     env_file:
       - ./services/vehicles-svc/.env
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER_VEH}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_VEH}
-      POSTGRES_DB: ${POSTGRES_DB_VEH}
+ 
     volumes:
       - vehicles-db-data:/var/lib/postgresql/data
       - ./services/vehicles-svc/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro

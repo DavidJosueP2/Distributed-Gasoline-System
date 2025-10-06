@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("USERS_DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -50,4 +50,18 @@ model UserRole {
 
   @@unique([userId, roleId])
   @@map("user_roles")
+}
+
+// Outbox table used for transactional outbox pattern
+model Outbox {
+  id         String   @id @default(uuid())
+  topic      String
+  routingKey String   @map("routing_key")
+  payload    Json
+  published  Boolean  @default(false)
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@map("outbox")
 }

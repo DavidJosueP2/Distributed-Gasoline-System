@@ -1,0 +1,264 @@
+syntax = "proto3";
+
+package driverms.v1;
+
+// Optional generator hints for other languages
+option java_multiple_files = true;
+option java_package = "com.example.driverms.v1";
+option go_package = "driverms/v1;drivermsv1";
+
+// =====================
+// Common / Shared Types
+// =====================
+
+message Empty {}
+
+// Driver availability as per DriverAvailability enum in the entity
+enum DriverAvailability {
+  DRIVER_AVAILABILITY_UNSPECIFIED = 0;
+  AVAILABLE = 1;
+  ON_ROUTE = 2;
+  LICENSE_EXPIRED = 3;
+  INACTIVE = 4;
+}
+
+// License status as per LicenseStatus enum in the entity
+enum LicenseStatus {
+  LICENSE_STATUS_UNSPECIFIED = 0;
+  VALID = 1;
+  EXPIRED = 2;
+  SUSPENDED = 3;
+}
+
+// Mirrors src/drivers/entities/driver-license.entity.ts
+message DriverLicense {
+  int64 driver_license_id = 1;       // PK
+  int64 driver_id = 2;               // FK al driver
+  int64 license_type_id = 3;         // FK al tipo de licencia
+  string number = 4;                 // Número de licencia, único
+  string issued_at = 5;              // Fecha de emisión, YYYY-MM-DD
+  string expires_at = 6;             // Fecha de expiración, YYYY-MM-DD
+  LicenseStatus status = 7;          // Estado de la licencia
+  int64 version = 8;                 // Control de concurrencia
+
+  // Campos opcionales derivados de relaciones o cálculos
+  string license_type_code = 9;      // Código del tipo de licencia
+  string license_type_description = 10; // Descripción del tipo
+  bool is_active = 11;               // True si la licencia está activa
+}
+
+// Mirrors src/license-types/entities/license-include.entity.ts
+message LicenseInclude {
+  int64 parent_license_type_id = 1;
+  int64 child_license_type_id = 2;
+}
+
+// Mirrors src/license-types/entities/license-type.entity.ts
+message LicenseType {
+  int64 license_type_id = 1;
+  string code = 2;                // unique, length <= 10
+  string description = 3;         // optional, length <= 160
+  bool is_professional = 4;       // defaults to false
+  string created_at = 5;          // ISO 8601 timestamp
+  repeated LicenseInclude parent_includes = 6;
+  repeated LicenseInclude child_includes = 7;
+  // When fetched with relations in findOne, licenses for drivers may be present
+  repeated DriverLicense driver_licenses = 8;
+}
+
+message DriverSummary {
+  int64 total_licenses = 1;
+  int64 active_licenses = 2;
+  int64 expired_licenses = 3;
+  int64 suspended_licenses = 4;
+  repeated string license_types = 5;
+}
+
+// Mirrors src/drivers/entities/driver.entity.ts
+message Driver {
+  int64 driver_id = 1;
+  int64 user_id = 2;                     // unique by DB constraint
+  DriverAvailability availability = 3;    // defaults to AVAILABLE
+  int64 version = 4;                      // optimistic concurrency
+  string created_at = 5;                  // ISO 8601 timestamp
+  string updated_at = 6;                  // ISO 8601 timestamp
+  repeated DriverLicense licenses = 7;    // relation loaded in findAll/findOne
+  DriverSummary summary = 8;              // ⬅️ AGREGAR ESTE CAMPO
+}
+
+
+
+// =====================
+// Drivers Service
+// =====================
+
+message CreateDriverRequest {
+  int64 user_id = 1;
+  DriverAvailability availability = 2; // optional (UNSPECIFIED to omit)
+  int64 version = 3;                   // optional (0 to omit)
+}
+
+message FindAllDriversRequest {}
+
+message DriversList {
+  repeated Driver drivers = 1;  // ⬅️ Cambiar de items a drivers
+  int64 total = 2;
+}
+
+message FindOneDriverRequest {
+  int64 id = 1; // driver_id
+}
+
+message UpdateDriverRequest {
+  int64 id = 1;                        // driver_id
+  optional int64 user_id = 2;          // presence-aware in proto3
+  optional DriverAvailability availability = 3;
+  optional int64 version = 4;
+}
+
+message RemoveDriverRequest {
+  int64 id = 1; // driver_id
+}
+
+message RemoveDriverResponse {
+  bool success = 1;
+}
+
+message CanDriveRequest {
+  int64 driver_id = 1;
+  int64 license_type_id = 2;
+}
+
+message CanDriveResponse {
+  bool can_drive = 1;
+  string reason = 2;                          // ⬅️ Agregar este campo
+  repeated MatchingLicense matching_licenses = 3; // ⬅️ Agregar este campo
+}
+
+message MatchingLicense {
+  int64 license_id = 1;
+  string license_type = 2;
+  string expires_at = 3;
+}
+
+service DriversService {
+  rpc Create (CreateDriverRequest) returns (Driver);
+  rpc FindAll (FindAllDriversRequest) returns (DriversList);
+  rpc FindOne (FindOneDriverRequest) returns (Driver);
+  rpc Update (UpdateDriverRequest) returns (Driver);
+  rpc Remove (RemoveDriverRequest) returns (RemoveDriverResponse);
+  rpc CanDrive (CanDriveRequest) returns (CanDriveResponse);
+}
+
+// =====================
+// License Types Service
+// =====================
+
+message CreateLicenseTypeRequest {
+  string code = 1;                // required
+  string description = 2;         // optional
+  bool is_professional = 3;       // optional (false by default)
+}
+
+message LicenseTypeWithIncludes{
+  LicenseType license_type = 1;
+  repeated LicenseInclude parent_includes = 2;
+  repeated LicenseInclude child_includes =3;
+}
+
+message FindAllLicenseTypesRequest {}
+
+message LicenseTypeList {
+  repeated LicenseType items=1;
+  // repeated LicenseTypeWithIncludes items = 1;
+}
+
+message FindOneLicenseTypeRequest {
+  int64 id = 1; // license_type_id
+}
+
+message FindByCodeRequest {
+  string code = 1;
+}
+
+message UpdateLicenseTypeRequest {
+  int64 id = 1;                       // license_type_id to update
+  optional string code = 2;           // new code
+  optional string description = 3;    // new description
+  optional bool is_professional = 4;  // new flag
+}
+
+message RemoveLicenseTypeRequest {
+  int64 id = 1; // license_type_id
+}
+
+message RemoveLicenseTypeResponse {
+  bool success = 1;
+}
+
+message AddInclusionRequest {
+  int64 parent_id = 1; // parent_license_type_id
+  int64 child_id = 2;  // child_license_type_id
+}
+
+message RemoveInclusionRequest {
+  int64 parent_id = 1;
+  int64 child_id = 2;
+}
+
+message RemoveInclusionResponse {
+  bool success = 1;
+}
+
+message GetClosureRequest {
+  int64 license_type_id = 1; // parent
+}
+
+message GetClosureResponse {
+  repeated int64 child_ids = 1; // result of closure
+}
+
+service LicenseTypesService {
+  rpc Create (CreateLicenseTypeRequest) returns (LicenseType);
+  rpc FindAll (FindAllLicenseTypesRequest) returns (LicenseTypeList);
+  rpc FindOne (FindOneLicenseTypeRequest) returns (LicenseType);
+  rpc FindByCode (FindByCodeRequest) returns (LicenseType);
+  rpc Update (UpdateLicenseTypeRequest) returns (LicenseType);
+  rpc Remove (RemoveLicenseTypeRequest) returns (RemoveLicenseTypeResponse);
+  rpc AddInclusion (AddInclusionRequest) returns (LicenseInclude);
+  rpc RemoveInclusion (RemoveInclusionRequest) returns (RemoveInclusionResponse);
+  rpc GetClosure (GetClosureRequest) returns (GetClosureResponse);
+}
+
+// =====================
+// Driver Licenses Service
+// =====================
+
+message CreateDriverLicenseRequest {
+  int64 driver_id = 1;
+  int64 license_type_id = 2;
+  string number = 3;        // unique
+  string issued_at = 4;     // YYYY-MM-DD
+  string expires_at = 5;    // YYYY-MM-DD
+  LicenseStatus status = 6; // optional (use LICENSE_STATUS_UNSPECIFIED to omit)
+}
+
+message FindByDriverRequest {
+  int64 driver_id = 1;
+}
+
+message SuspendLicenseRequest {
+  int64 driver_id = 1;
+  int64 license_id = 2; // driver_license_id
+}
+
+message DriverLicenseList {
+  repeated DriverLicense items = 1;
+}
+
+service DriverLicensesService {
+  rpc Create (CreateDriverLicenseRequest) returns (DriverLicense);
+  rpc FindByDriver (FindByDriverRequest) returns (DriverLicenseList);
+  rpc Suspend (SuspendLicenseRequest) returns (DriverLicense);
+  rpc FindActiveByDriver (FindByDriverRequest) returns (DriverLicenseList);
+}

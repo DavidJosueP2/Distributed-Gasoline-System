@@ -10,6 +10,9 @@ import { GrpcTimeoutInterceptor } from './grpc/grpc-timeout.interceptor';
 import { GrpcErrorInterceptor } from './grpc/grpc-error.interceptor';
 
 import { HelloController } from './http/hello-srv/hello.controller';
+import { DriversHttpController } from './http/drivers-svc/drivers.controller';
+import { LicenseTypesHttpController } from './http/drivers-svc/license-types.controller';
+import { DriverLicensesHttpController } from './http/drivers-svc/driver-licenses.controller';
 import { VehicleModelsHttpController } from './http/vehicles-svc/vehicle-models.controller';
 import { VehicleUnitsHttpController } from './http/vehicles-svc/vehicle-units.controller';
 import { UsersController } from './http/users-srv/users.controller';
@@ -44,6 +47,9 @@ const globalProviders: Provider[] = [
     ],
     controllers: [
         HelloController,
+        DriversHttpController,
+        LicenseTypesHttpController,
+        DriverLicensesHttpController,
         VehicleModelsHttpController,
         VehicleUnitsHttpController,
         UsersController,

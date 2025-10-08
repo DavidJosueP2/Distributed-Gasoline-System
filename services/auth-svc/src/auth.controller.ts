@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 
 // Esto le dice a typescript: este import solo es de tipo, no lo intentes meter en los metadatos de los decoradores
 import { LoginRequest, PasswordRecoveryRequest, ResetPasswordRequest } from './types/auth.types';
-import type { LoginResponse, PasswordRecoveryResponse, ResetPasswordResponse } from "./types/auth.types";
+import type { LoginResponse, PasswordRecoveryResponse, ResetPasswordResponse, UserResponse } from "./types/auth.types";
 import { Observable } from 'rxjs';
 import { Roles } from './common/auth/decorators/roles.decorator';
 import { Public } from './common/auth/decorators/public.decorator';
@@ -34,10 +34,17 @@ export class AuthController {
     return this.auth.resetPassword(data.token, data.newPassword);
   }
 
+  @Roles('ADMIN') // Cualquier usuario autenticado (si o si token)
+  @GrpcMethod('AuthService', 'Me')
+  public me(data: {}, metadata: Metadata): Promise<UserResponse> {
+    return this.auth.me(data, metadata);
+  }
+
   @Roles('ADMIN')
   @GrpcMethod('AuthService', 'JustForTest')
   public justForTest(data: { message: string }, metadata: Metadata): Promise<any> {
     return this.auth.justForTest(data, metadata);
   }
+
 
 }

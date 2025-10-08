@@ -36,9 +36,9 @@ services:
     image: postgres:16
     container_name: fuelhub-auth-db
     environment:
-      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${AUTH_DB_PASS:-root}
-      POSTGRES_DB: ${AUTH_DB_NAME:-auth}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: auth
     ports:
       - "5433:5432"
     volumes:

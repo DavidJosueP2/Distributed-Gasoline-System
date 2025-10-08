@@ -37,3 +37,13 @@ export interface ResetPasswordResponse {
   success: boolean;
   message: string;
 }
+
+export interface UserResponse {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  username: string;
+  roles: string[];
+}

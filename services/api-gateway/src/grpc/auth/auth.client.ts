@@ -6,6 +6,7 @@ export interface AuthServiceClient {
   justForTest(data: {}, metadata?: Metadata): Observable<any>;
   recoverPassword(data: PasswordRecoveryRequest): Observable<PasswordRecoveryResponse>;
   resetPassword(data: ResetPasswordRequest): Observable<ResetPasswordResponse>;
+  me(data: {}, metadata?: Metadata): Observable<UserResponse>;
 }
 
 export interface LoginRequest {
@@ -36,4 +37,14 @@ export interface ResetPasswordRequest {
 export interface ResetPasswordResponse {
   success: boolean;
   message: string;
+}
+
+export interface UserResponse {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  username: string;
+  roles: string[];
 }

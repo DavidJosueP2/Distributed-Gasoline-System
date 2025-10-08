@@ -10,6 +10,7 @@ import type {
   PasswordRecoveryResponse,
   ResetPasswordRequest,
   ResetPasswordResponse,
+  UserResponse,
 } from 'src/grpc/auth/auth.client';
 import { lastValueFrom, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -78,6 +79,16 @@ export class AuthController {
       ),
     );
 
+    return result;
+  }
+
+  @Get("me") // Obtener datos del usuario autenticado (si o si token)
+  public async me(@Req() req): Promise<UserResponse> {
+    const client = await this.client();
+    const result = await lastValueFrom(client.me({}, req._grpcMetadata));
+    const userId = result.userId;
+    const validUserId = Number(userId);
+    result.userId = validUserId;
     return result;
   }
 

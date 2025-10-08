@@ -3,7 +3,7 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import * as bcrypt from 'bcryptjs';
-import { LoginResponse, ResetPasswordRequest, ResetPasswordResponse } from './types/auth.types';
+import { LoginResponse, ResetPasswordRequest, ResetPasswordResponse, UserResponse } from './types/auth.types';
 import { of, Observable, from, lastValueFrom, catchError } from 'rxjs';
 import { UserServiceClient, GetUserByEmailRequest, UpdatePasswordRequest } from './types/user.client';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -178,6 +178,65 @@ export class AuthService {
     };
 
     return response$;
+  }
+
+  public async me(data: {}, metadata: Metadata): Promise<UserResponse> {
+
+    const client = await this.userClient();
+
+    const rawAuth = metadata.getMap()['authorization'];
+
+    if (!rawAuth) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'No se proporcionó token de autenticación',
+      });
+    }
+
+    const auth =
+      typeof rawAuth === 'string'
+        ? rawAuth
+        : rawAuth instanceof Buffer
+          ? rawAuth.toString()
+          : String(rawAuth);
+
+
+    const token = auth.replace('Bearer ', '');
+
+    if (!token) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'No se proporcionó token de autenticación',
+      });
+    }
+
+    try {
+      const payload = this.jwt.verify(token);
+      const email = payload.email;
+      const emailRequest: GetUserByEmailRequest = { email };
+      const user = await lastValueFrom(client.getUserByEmail(emailRequest));
+
+      const roles: string[] = user?.roles.map(role => {
+        return role.name;
+      }) ?? [];
+
+      const response: UserResponse = {
+        userId: user.userId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        username: user.username,
+        roles: roles,
+      }
+
+      return response;
+    } catch (e) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Token inválido',
+      });
+    }
   }
 
   public async justForTest(

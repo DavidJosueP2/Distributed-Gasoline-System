@@ -34,4 +34,6 @@ export class CreateUserDto {
   @IsInt({ each: true, message: 'Rol invalido.' })
   @Type(() => Number)
   roleIds!: number[];
+  
+
 }

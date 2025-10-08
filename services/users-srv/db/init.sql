@@ -60,14 +60,3 @@
     (u.username = 'dylan_driver'    and r.name = 'DRIVER')
   );
 
--- Outbox table for transactional outbox pattern
-create table if not exists outbox (
-  id uuid primary key default gen_random_uuid(),
-  topic varchar(200) not null,
-  routing_key varchar(200) not null,
-  payload jsonb not null,
-  published boolean not null default false,
-  attempts integer not null default 0,
-  created_at timestamptz not null default now(),
-  published_at timestamptz default null
-);

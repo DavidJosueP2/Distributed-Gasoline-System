@@ -1,6 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  output        = "../node_modules/@prisma/client"  
+  output        = "../node_modules/@prisma/client"
   binaryTargets = ["native", "windows"]
 }
 
@@ -8,7 +8,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 
 model User {
   id           BigInt     @id @default(autoincrement()) @map("user_id")
@@ -48,15 +47,11 @@ model UserRole {
   @@map("user_roles")
 }
 
-model Outbox {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  topic       String    @db.VarChar(200)
-  routingKey  String    @map("routing_key") @db.VarChar(200)
-  payload     Json
-  published   Boolean   @default(false)
-  attempts    Int       @default(0)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
-
-  @@map("outbox")
+model logs {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  level      String   @db.VarChar(20)
+  service    String   @db.VarChar(100)
+  message    String
+  context    Json?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
 }

@@ -37,13 +37,7 @@ export class UsersGrpcController {
     return UserMapper.toGrpc(user);
   }
 
-  @Public()
-  @GrpcMethod('UserService', 'GetUser')
-  async getUserService(data: { userId: StringLike }) {
-    const id = this.coerceId(data.userId);
-    const user = await this.service.getUserById(id);
-    return UserMapper.toGrpc(user);
-  }
+ 
 
   @Public()
   @GrpcMethod('UserService', 'GetUserByEmail')
@@ -62,7 +56,7 @@ export class UsersGrpcController {
     return grpcResult;
   }
 
-  @Roles('ADMIN')
+  @Public()
   @GrpcMethod('UserService', 'CreateUser')
   async create(data: CreateUserDto) {
     const user = await this.service.createUser(data);

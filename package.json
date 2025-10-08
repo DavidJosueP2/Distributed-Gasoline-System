@@ -5,18 +5,38 @@
     "services/*"
   ],
   "scripts": {
-    "eureka:up": "docker compose up -d eureka",
-    "eureka:down": "docker compose down",
-    "db-auth:up": "docker compose up -d users-db",
-    "db-auth:down": "docker compose down users-db -v",
-    "dev": "npm run eureka:up && npm run db-auth:up && concurrently -k -n GATEWAY \"npm --workspace services/api-gateway run start:dev\""
-  },
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down -v",
+    "infra:logs": "docker compose logs -f",
+    "infra:ready": "npx wait-on -t 120000 http-get://localhost:8761 tcp:localhost:5499",
+
+    "prisma:users": "npm exec -w services/users-srv prisma generate",
+    "prisma:vehicles:reset": "npm exec -w services/vehicles-svc prisma migrate reset --force",
+    "prisma:prepare": "npm run prisma:users && npm run prisma:vehicles:reset",
+
+    "dev:gw": "npm --workspace services/api-gateway run --if-present start:dev",
+    "dev:auth": "npm --workspace services/auth-svc run --if-present start:dev",
+    "dev:email": "npm --workspace services/email-svc run --if-present start:dev",
+    "dev:hello": "npm --workspace services/hello-svc run --if-present start:dev",
+    "dev:users": "npm --workspace services/users-srv run --if-present start:dev",
+    "dev:vehicles": "npm --workspace services/vehicles-svc run --if-present start:dev",
+
+    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,HELLO-SVC,USERS-SVC,VEHICLES-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:hello\" \"npm run dev:users\" \"npm run dev:vehicles\"",
+
+    "setup": "npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
+    "dev": "npm run infra:up && npm run infra:ready && npm run dev:services",
+
+    "clean": "ts-node tools/clean.ts",
+    "reset": "npm run clean && npm install"
+  }
+,
   "devDependencies": {
     "@types/node": "^24.6.0",
     "concurrently": "^9.0.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "wait-on": "^7.2.0"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.0",
@@ -24,13 +44,12 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.6",
-    "@nestjs/microservices": "^11.1.6",
     "@nestjs/jwt": "^11.0.0",
+    "@nestjs/microservices": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
     "dotenv": "^17.2.3",
     "eureka-js-client": "^4.5.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "concurrently": "^9.0.0"
+    "rxjs": "^7.8.2"
   }
 }

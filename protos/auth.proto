@@ -6,7 +6,8 @@ service AuthService {
   rpc Login (LoginRequest) returns (LoginResponse);
   rpc JustForTest (Empty) returns (Empty);
   rpc RecoverPassword (PasswordRecoveryRequest) returns (PasswordRecoveryResponse);
-  rpc ResetPassword (ResetPasswordRequest) returns (ResetPasswordResponse);  
+  rpc ResetPassword (ResetPasswordRequest) returns (ResetPasswordResponse); 
+  rpc Me (Empty) returns (UserResponse); 
 }
 
 message LoginRequest {
@@ -39,4 +40,14 @@ message ResetPasswordRequest {
 message ResetPasswordResponse {
   bool success = 1;
   string message = 2;
+}
+
+message UserResponse {
+  int64 user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string phone = 5;
+  string username = 6;
+  repeated string roles = 7;
 }

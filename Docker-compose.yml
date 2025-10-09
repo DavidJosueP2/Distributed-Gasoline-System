@@ -4,7 +4,7 @@ services:
   # ---------- RabbitMQ ----------
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: rabbitmq
+    container_name: fuelhub-rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -21,7 +21,7 @@ services:
   # ---------- Eureka ----------
   eureka:
     image: ygqygq2/eureka-server:latest
-    container_name: eureka
+    container_name: fuelhub-eureka
     ports:
       - "8761:8761"
     healthcheck:
@@ -34,11 +34,11 @@ services:
   # ---------- Auth Database ----------
   auth-db:
     image: postgres:16
-    container_name: auth-db
+    container_name: fuelhub-auth-db
     environment:
-      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${AUTH_DB_PASS:-root}
-      POSTGRES_DB: ${AUTH_DB_NAME:-auth}  
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: auth
     ports:
       - "5433:5432"
     volumes:
@@ -53,11 +53,11 @@ services:
   # ---------- Users Database ----------
   users-db:
     image: postgres:16
-    container_name: users-db
+    container_name: fuelhub-users-db
     environment:
       POSTGRES_USER: ${USERS_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${USERS_DB_PASS:-admin}
-      POSTGRES_DB: ${USERS_DB_NAME:-users} 
+      POSTGRES_DB: ${USERS_DB_NAME:-users}
     ports:
       - "5434:5432"
     volumes:
@@ -73,11 +73,11 @@ services:
   # ---------- Driver Database ----------
   driver-db:
     image: postgres:16
-    container_name: driver-db
+    container_name: fuelhub-driver-db
     environment:
       POSTGRES_USER: ${DRIVER_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DRIVER_DB_PASS:-admin}
-      POSTGRES_DB: ${DRIVER_DB_NAME:-drivers}  
+      POSTGRES_DB: ${DRIVER_DB_NAME:-drivers}
     ports:
       - "5436:5432"
     volumes:
@@ -92,7 +92,7 @@ services:
   # ---------- Vehicles Database ----------
   vehicles-db:
     image: postgres:16
-    container_name: vehicles
+    container_name: fuelhub-vehicles-db
     env_file:
       - ./services/vehicles-svc/.env
     volumes:
@@ -110,7 +110,7 @@ services:
   # ---------- PGAdmin ----------
   pgadmin:
     image: dpage/pgadmin4:8
-    container_name: pgadmin
+    container_name: fuelhub-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin123

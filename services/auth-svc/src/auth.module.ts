@@ -20,20 +20,11 @@ import { VerificationToken } from './entities/verification-token.entity';
     // Prefer a full DATABASE URL if provided (works well with docker-compose and local mapped ports)
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: process.env.AUTH_DATABASE_URL || undefined,
-      host: process.env.AUTH_DB_HOST || process.env.POSTGRES_HOST,
-      port: process.env.AUTH_DB_PORT
-        ? parseInt(process.env.AUTH_DB_PORT, 10)
-        : process.env.POSTGRES_PORT
-        ? parseInt(process.env.POSTGRES_PORT, 10)
-        : 5432,
-      username: process.env.AUTH_DB_USER || process.env.POSTGRES_USER,
-      password: process.env.AUTH_DB_PASS || process.env.POSTGRES_PASSWORD,
-      database:
-        process.env.AUTH_DB_NAME ||
-        process.env.AUTH_DB ||
-        process.env.POSTGRES_DB ||
-        'auth',
+      host: process.env.AUTH_DB_HOST,
+      port: process.env.AUTH_DB_PORT ? parseInt(process.env.AUTH_DB_PORT, 10) : 5432,
+      username: process.env.AUTH_DB_USER,
+      password: process.env.AUTH_DB_PASS,
+      database: process.env.AUTH_DB,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true, // solo para desarrollo
     }),

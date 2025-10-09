@@ -301,3 +301,4 @@ WHERE vu.plate='PQR-456' AND vu.deleted_at IS NULL
     ON CONFLICT (vehicle_id) DO UPDATE
                                     SET baseline_override_l_per_100km = EXCLUDED.baseline_override_l_per_100km,
                                     calibration_k = EXCLUDED.calibration_k;
+*/

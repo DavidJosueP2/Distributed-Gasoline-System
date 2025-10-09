@@ -39,7 +39,6 @@ export class RolesGuard implements CanActivate {
     const token = authHeader.replace('Bearer ', '');
     try {
       const payload = this.jwtService.verify(token);
-      console.log("Payload jwt.roles.guard.ts", payload);
 
       const roleNames = payload.roles?.map((r) => r.name) ?? [];
 

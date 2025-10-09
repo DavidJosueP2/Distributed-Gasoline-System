@@ -7,6 +7,7 @@ export interface AuthServiceClient {
   recoverPassword(data: PasswordRecoveryRequest): Observable<PasswordRecoveryResponse>;
   resetPassword(data: ResetPasswordRequest): Observable<ResetPasswordResponse>;
   me(data: {}, metadata?: Metadata): Observable<UserResponse>;
+  updateFullname(data: UpdateFullnameRequest, metadata?: Metadata): Observable<UserResponse>;
 }
 
 export interface LoginRequest {
@@ -47,4 +48,10 @@ export interface UserResponse {
   phone: string;
   username: string;
   roles: string[];
+}
+
+export interface UpdateFullnameRequest {
+  userId: number;
+  firstName: string;
+  lastName: string;
 }

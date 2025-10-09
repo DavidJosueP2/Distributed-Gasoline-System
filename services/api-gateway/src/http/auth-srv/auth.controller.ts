@@ -10,6 +10,7 @@ import type {
   PasswordRecoveryResponse,
   ResetPasswordRequest,
   ResetPasswordResponse,
+  UpdateFullnameRequest,
   UserResponse,
 } from 'src/grpc/auth/auth.client';
 import { lastValueFrom, Observable } from 'rxjs';
@@ -89,6 +90,13 @@ export class AuthController {
     const userId = result.userId;
     const validUserId = Number(userId);
     result.userId = validUserId;
+    return result;
+  }
+
+  @Post("update-fullname")
+  public async updateFullname(@Body() dto: UpdateFullnameRequest, @Req() req): Promise<UserResponse> {
+    const client = await this.client();
+    const result = await lastValueFrom(client.updateFullname(dto, req._grpcMetadata));
     return result;
   }
 

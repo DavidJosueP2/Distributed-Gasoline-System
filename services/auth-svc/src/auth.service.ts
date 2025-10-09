@@ -5,7 +5,7 @@ import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import * as bcrypt from 'bcryptjs';
 import { LoginResponse, ResetPasswordRequest, ResetPasswordResponse, UserResponse } from './types/auth.types';
 import { of, Observable, from, lastValueFrom, catchError } from 'rxjs';
-import { UserServiceClient, GetUserByEmailRequest, UpdatePasswordRequest } from './types/user.client';
+import { UserServiceClient, GetUserByEmailRequest, UpdatePasswordRequest, UpdateFullnameRequest } from './types/user.client';
 import { InjectRepository } from '@nestjs/typeorm';
 import { VerificationToken } from './entities/verification-token.entity';
 import { randomUUID } from 'crypto';
@@ -237,6 +237,35 @@ export class AuthService {
         message: 'Token inválido',
       });
     }
+  }
+
+  public async updateFullname(data: { userId: number, firstName: string, lastName: string }, metadata: Metadata): Promise<UserResponse> {
+
+    const client = await this.userClient();
+
+    const updateRequest: UpdateFullnameRequest = {
+      userId: data.userId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+    };
+
+    const response = await lastValueFrom(client.updateFullname(updateRequest, metadata));
+
+    const roles: string[] = response?.roles.map(role => {
+      return role.name;
+    }) ?? [];
+
+    const userResponse: UserResponse = {
+      userId: response.userId,
+      firstName: response.firstName,
+      lastName: response.lastName,
+      email: response.email,
+      phone: response.phone,
+      username: response.username,
+      roles: roles,
+    };
+
+    return userResponse;
   }
 
   public async justForTest(

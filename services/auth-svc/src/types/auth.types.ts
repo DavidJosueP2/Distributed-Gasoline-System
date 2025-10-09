@@ -1,4 +1,5 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsString, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class LoginRequest {
   @IsEmail({}, { message: 'El correo no tiene un formato válido.' })
@@ -46,4 +47,17 @@ export interface UserResponse {
   phone: string;
   username: string;
   roles: string[];
+}
+
+export class UpdateFullnameRequest {
+  @Type(() => Number)
+  @IsNotEmpty({ message: 'El ID del usuario es obligatorio' })
+  @IsInt({ message: 'El ID del usuario debe ser un número entero' })
+  userId: number;
+
+  @IsString({ message: 'El nombre debe ser texto.' })
+  firstName: string;
+
+  @IsString({ message: 'El apellido debe ser texto.' })
+  lastName: string;
 }

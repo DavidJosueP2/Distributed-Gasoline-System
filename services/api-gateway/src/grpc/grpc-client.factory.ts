@@ -65,22 +65,28 @@ export class GrpcClientFactory {
     }) as unknown as ClientGrpc;
   }
 
-  async forService(
-    appName: string,
-    pkg: string,
-    protoFile: string,
-  ): Promise<ClientGrpc> {
-    const list = await this.waitForInstances(appName.toUpperCase());
-    const inst = this.rr.pick<any>(appName.toUpperCase(), list);
-    if (!inst) throw new Error(`${appName} without instances`);
-    const url = `${resolveHost(inst)}:${resolvePort(inst)}`;
-    return ClientProxyFactory.create({
-      transport: Transport.GRPC,
-      options: {
-        url,
-        package: pkg,
-        protoPath: join(this.protosDir, protoFile),
-      },
-    }) as unknown as ClientGrpc;
-  }
+    async forService(
+        appName: string,
+        pkg: string,
+        protoFile: string,
+    ): Promise<ClientGrpc> {
+        const list = await this.waitForInstances(appName.toUpperCase());
+        const inst = this.rr.pick<any>(appName.toUpperCase(), list);
+        if (!inst) throw new Error(`${appName} without instances`);
+        const url = `${resolveHost(inst)}:${resolvePort(inst)}`;
+        return ClientProxyFactory.create({
+            transport: Transport.GRPC,
+            options: {
+                url,
+                package: pkg,
+                protoPath: join(this.protosDir, protoFile),
+                loader: {
+                    longs: Number,
+                    enums: String,
+                    defaults: true,
+                    oneofs: true,
+                },
+            },
+        }) as unknown as ClientGrpc;
+    }
 }

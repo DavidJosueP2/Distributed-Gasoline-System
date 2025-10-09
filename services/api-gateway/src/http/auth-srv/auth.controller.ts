@@ -96,6 +96,7 @@ export class AuthController {
   @Post("update-fullname")
   public async updateFullname(@Body() dto: UpdateFullnameRequest, @Req() req): Promise<UserResponse> {
     const client = await this.client();
+    console.log('CLIENT METHODS:', client);
     const result = await lastValueFrom(client.updateFullname(dto, req._grpcMetadata));
     return result;
   }

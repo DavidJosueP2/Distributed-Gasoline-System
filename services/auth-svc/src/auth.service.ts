@@ -249,7 +249,7 @@ export class AuthService {
       lastName: data.lastName,
     };
 
-    const response = await lastValueFrom(client.updateFullname(updateRequest, metadata));
+    const response = await lastValueFrom(client.updateFullName(updateRequest, metadata));
 
     const roles: string[] = response?.roles.map(role => {
       return role.name;

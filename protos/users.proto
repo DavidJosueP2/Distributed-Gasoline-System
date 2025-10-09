@@ -8,6 +8,7 @@ service UserService {
   rpc GetAllUsers (Empty) returns (UserList);
   rpc CreateUser (CreateUserRequest) returns (UserResponse);
   rpc UpdateUser (UpdateUserRequest) returns (UserResponse);
+  rpc UpdateFullName (UpdateFullNameRequest) returns (UserResponse);
   rpc DeleteUser (UserIdRequest) returns (BooleanResponse);
   rpc UnDeleteUser (UserIdRequest) returns (BooleanResponse);
   rpc UpdatePassword (UpdatePasswordRequest) returns (BooleanResponse);
@@ -86,4 +87,10 @@ message BooleanResponse {
 message UpdatePasswordRequest {
   int64 user_id = 1;
   string new_password = 2;
+}
+
+message UpdateFullNameRequest {
+  int64 user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
 }

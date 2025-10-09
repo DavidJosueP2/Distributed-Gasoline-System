@@ -8,7 +8,6 @@ import {
 } from '../../../domain/repositories/user.repository';
 import { PrismaUserMapper } from './prisma-user.mapper';
 import { User } from '../../../domain/entities/user.entity';
-import { hash } from 'crypto';
 
 const INCLUDE_ROLES = {
   userRoles: { include: { role: true } },
@@ -139,23 +138,25 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
   return users;
 }
   async create(input: CreateUserInput): Promise<User> {
-    const record = await this.prisma.user.create({
-      data: {
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: input.email,
-        phone: input.phone,
-        username: input.username,
-        passwordHash: input.passwordHash,
-        userRoles: input.roleIds?.length
-          ? {
-              create: input.roleIds.map((roleId) => ({
-                role: { connect: { id: toBigInt(roleId) } },
-              })),
-            }
-          : undefined,
-      },
-      include: INCLUDE_ROLES,
+    const record = await this.prisma.$transaction(async (tx) => {
+      return tx.user.create({
+        data: {
+          firstName: input.firstName,
+          lastName: input.lastName,
+          email: input.email,
+          phone: input.phone,
+          username: input.username,
+          passwordHash: input.passwordHash,
+          userRoles: input.roleIds?.length
+            ? {
+                create: input.roleIds.map((roleId) => ({
+                  role: { connect: { id: toBigInt(roleId) } },
+                })),
+              }
+            : undefined,
+        },
+        include: INCLUDE_ROLES,
+      });
     });
 
     return PrismaUserMapper.toDomain(record as any);

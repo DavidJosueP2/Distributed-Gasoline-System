@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { hash, compare } from 'bcryptjs';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository';
 import type { UserRepository } from '../../domain/repositories/user.repository';
@@ -17,14 +17,16 @@ import { NotFoundException } from '../exceptions/not-found.exception';
 import { NotUserActive } from '../exceptions/not-active-user.exception';
 import { DataAlreadyExistsException } from '../exceptions/data-already-exists.exception';
 import { UpdatePasswordRequest } from '../dto/request/update-password-request';
-import { Metadata } from '@grpc/grpc-js';
-import { Roles } from 'src/common/auth';
+import { LogsPublisherService } from '../../infrastructure/logging/logs-publisher.service';
 
 @Injectable()
 export class UsersApplicationService {
+  private readonly logger = new Logger(UsersApplicationService.name);
+
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly repository: UserRepository,
+    private readonly logsPublisher: LogsPublisherService,
   ) { }
 
   async getUserByEmail(
@@ -75,6 +77,19 @@ export class UsersApplicationService {
       passwordHash,
       roleIds: dto.roleIds,
     });
+ 
+    try {
+      await this.logsPublisher.logUserCreated({
+        userId: user.id.toString(),
+        email: user.email,
+        username: user.username,
+        fullName: `${user.firstName} ${user.lastName}`.trim(),
+        message: "Usuario creado",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown log error';
+      this.logger.warn(`Failed to publish user.created log: ${message}`);
+    }
     return UserMapper.toResponse(user);
   }
 

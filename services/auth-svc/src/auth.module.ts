@@ -10,12 +10,14 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VerificationToken } from './entities/verification-token.entity';
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    // Prefer a full DATABASE URL if provided (works well with docker-compose and local mapped ports)
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.AUTH_DB_HOST,
@@ -26,17 +28,22 @@ import { VerificationToken } from './entities/verification-token.entity';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true, // solo para desarrollo
     }),
-    TypeOrmModule.forFeature([VerificationToken]),
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: process.env.JWT_EXPIRES_IN },
     }),
     DiscoveryModule,
+    // Provide the repository for VerificationToken so AuthService can inject it
+    TypeOrmModule.forFeature([VerificationToken]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GrpcClientFactory, {
-    provide: APP_GUARD,
-    useClass: RolesGuard,
-  },],
+  providers: [
+    AuthService,
+    GrpcClientFactory,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AuthModule { }

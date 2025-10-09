@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package logger;
+
+
+enum LogLevel {
+  INFO = 0;
+  WARN = 1;
+  ERROR = 2;
+  DEBUG = 3;
+}
+
+message LogEntry {
+  string id = 1;               // UUID del log
+  LogLevel level = 2;          // Nivel de log
+  string service = 3;          // Nombre del microservicio
+  string message = 4;          // Mensaje principal
+  string context = 5;          // JSON string de metadata adicional      
+}
+
+
+message CreateLogRequest {
+  LogEntry log = 1;
+}
+
+
+message CreateLogResponse {
+  bool success = 1;
+  string error = 2; 
+}
+
+
+service LoggerService {
+  rpc CreateLog(CreateLogRequest) returns (CreateLogResponse);
+}
+
+// Alias oriented to the outbox publisher so clients can target it explicitly
+service PublisherService {
+  rpc CreateLog(CreateLogRequest) returns (CreateLogResponse);
+}

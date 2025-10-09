@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import {
   CreateUserInput,
+  UpdateFullNameInput,
   UpdateUserInput,
   USER_REPOSITORY,
   UserRepository,
@@ -22,6 +23,7 @@ export class PrismaUserRepository implements UserRepository {
   private readonly logger = new Logger(PrismaUserRepository.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
 
 
 
@@ -160,6 +162,20 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
     });
 
     return PrismaUserMapper.toDomain(record as any);
+  }
+
+  async updateFullName(id: number, input: UpdateFullNameInput): Promise<User> {
+    const userId = toBigInt(id);
+    return this.prisma.user.update({
+      where: { id: userId,
+        deletedAt: null
+      },
+      data: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+      },
+      include: INCLUDE_ROLES,
+    }).then((record) => PrismaUserMapper.toDomain(record as any));
   }
 
   async update(id: number, input: UpdateUserInput): Promise<User> {

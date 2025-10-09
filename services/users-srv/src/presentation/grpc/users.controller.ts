@@ -13,6 +13,7 @@ import { FindUserByEmailRequest } from 'src/application/dto/request/find-user-by
 import { InvalidIdentifierException } from 'src/application/exceptions/invalid_id.exception';
 import { UpdatePasswordRequest } from 'src/application/dto/request/update-password-request';
 import { Public, Roles } from 'src/common/auth';
+import { UpdateFullNameUserDto } from 'src/application/dto/request/update-full-name-request';
 
 type StringLike = string | number | bigint | undefined | null;
 
@@ -69,6 +70,14 @@ export class UsersGrpcController {
     const user = await this.service.updateUser(data);
     return UserMapper.toGrpc(user);
   }
+
+  @Roles('ADMIN', 'SUPERVISOR', 'DRIVER')
+  @GrpcMethod('UserService', 'UpdateFullName')
+  async updateFullName(data: UpdateFullNameUserDto) {
+    const user = await this.service.updateFullNameUser(data);
+    return UserMapper.toGrpc(user);
+  }
+
 
   @Public()
   @GrpcMethod('UserService', 'UpdatePassword')

@@ -14,7 +14,7 @@ import { LogsPublisherService } from '../infrastructure/logging/logs-publisher.s
     UsersApplicationService,
     PrismaUserRepositoryProvider,
     GrpcClientFactory,
-    LogsPublisherService,
+    //LogsPublisherService,
   ],
 })
 export class UsersModule {}

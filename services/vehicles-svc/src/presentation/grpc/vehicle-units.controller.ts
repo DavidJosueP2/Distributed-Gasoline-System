@@ -59,7 +59,8 @@ export class VehicleUnitsController {
   async upsertConsumption(dto: UpsertUnitConsumptionDto): Promise<any> {
     const input = UnitDtoMapper.toUpsertConsumptionInput(dto);
     await this.unitSvc.upsertConsumption(input as any);
-    const reloaded = await this.unitSvc.getByIdOrThrow(input.vehicleId);
+    const reloaded = await this.unitSvc.getUnitByAny({ vehicleId: input.vehicleId });
+    if (!reloaded) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Unidad no encontrada' });
     return GrpcUnitMapper.toConsumptionProto(reloaded);
   }
 

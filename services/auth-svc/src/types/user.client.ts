@@ -10,7 +10,7 @@ export interface UserServiceClient {
   createUser(req: CreateUserRequest): Observable<UserResponse>;
   updateUser(req: UpdateUserRequest): Observable<UserResponse>;
   updatePassword(req: UpdatePasswordRequest): Observable<BooleanResponse>;
-  updateFullname(req: UpdateFullnameRequest, metadata?: Metadata): Observable<UserResponse>;
+  updateFullName(req: UpdateFullnameRequest, metadata?: Metadata): Observable<UserResponse>;
 }
 
 // Mensajes (Request / Response)

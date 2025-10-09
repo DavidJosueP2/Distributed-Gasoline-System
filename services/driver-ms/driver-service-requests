@@ -1,0 +1,1594 @@
+{
+	"log": {
+		"version": "1.2",
+		"creator": {
+			"name": "Insomnia REST Client",
+			"version": "insomnia.desktop.app:v11.2.0"
+		},
+		"entries": [
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 877.987,
+				"request": {
+					"method": "POST",
+					"url": "http://localhost:8080/auth/log-in",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\n\t\"email\": \"josuegarcab2@hotmail.com\",\n\t\"password\": \"admin123\"\n}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "383"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"17f-br6cghoMSey9PzUEfn/ZvIv3mxw\""
+						},
+						{
+							"name": "Date",
+							"value": "Sun, 05 Oct 2025 16:28:24 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 383,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"accessToken\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJlbWFpbCI6Impvc3VlZ2FyY2FiMkBob3RtYWlsLmNvbSIsInJvbGVzIjpbeyJyb2xlSWQiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJuYW1lIjoiQURNSU4ifV0sImlhdCI6MTc1OTY4MTcwNCwiZXhwIjoxNzU5Njg1MzA0fQ.D7CABo1Ccc2lDaDlZtKW1xJC3YJJ46jT6k29VYzwCUw\",\"tokenType\":\"Bearer\",\"expiresIn\":\"1h\"}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 877.987,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Login"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 796.547,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:3100/license-types",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Authorization",
+							"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJlbWFpbCI6Impvc3VlZ2FyY2FiMkBob3RtYWlsLmNvbSIsInJvbGVzIjpbeyJyb2xlSWQiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJuYW1lIjoiQURNSU4ifV0sImlhdCI6MTc1OTY4MTcwNCwiZXhwIjoxNzU5Njg1MzA0fQ.D7CABo1Ccc2lDaDlZtKW1xJC3YJJ46jT6k29VYzwCUw"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "1446"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"5a6-ABiAeru41sUht7qImyma8hvkp2Y\""
+						},
+						{
+							"name": "Date",
+							"value": "Sun, 05 Oct 2025 16:29:55 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 1446,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "[{\"license_type_id\":4,\"code\":\"B\",\"description\":\"Licencia tipo A\",\"is_professional\":true,\"created_at\":\"2025-09-30T20:07:18.099Z\",\"parentIncludes\":[{\"parent_license_type_id\":4,\"child_license_type_id\":9}],\"childIncludes\":[{\"parent_license_type_id\":1,\"child_license_type_id\":4}]},{\"license_type_id\":7,\"code\":\"F\",\"description\":\"Nueva Licencia F\",\"is_professional\":false,\"created_at\":\"2025-10-04T04:38:03.803Z\",\"parentIncludes\":[],\"childIncludes\":[{\"parent_license_type_id\":1,\"child_license_type_id\":7}]},{\"license_type_id\":9,\"code\":\"G\",\"description\":\"Nueva Licencia F\",\"is_professional\":false,\"created_at\":\"2025-10-04T04:42:51.405Z\",\"parentIncludes\":[{\"parent_license_type_id\":9,\"child_license_type_id\":11}],\"childIncludes\":[{\"parent_license_type_id\":4,\"child_license_type_id\":9}]},{\"license_type_id\":11,\"code\":\"j\",\"description\":\"Licencia tipo A\",\"is_professional\":true,\"created_at\":\"2025-10-04T04:46:04.094Z\",\"parentIncludes\":[],\"childIncludes\":[{\"parent_license_type_id\":9,\"child_license_type_id\":11}]},{\"license_type_id\":1,\"code\":\"A\",\"description\":\"Licencia tipo A\",\"is_professional\":true,\"created_at\":\"2025-09-30T20:00:22.813Z\",\"parentIncludes\":[{\"parent_license_type_id\":1,\"child_license_type_id\":7},{\"parent_license_type_id\":1,\"child_license_type_id\":4}],\"childIncludes\":[]},{\"license_type_id\":13,\"code\":\"L\",\"description\":\"Nueva Licencia L\",\"is_professional\":false,\"created_at\":\"2025-10-04T06:12:13.974Z\",\"parentIncludes\":[],\"childIncludes\":[]}]"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 796.547,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Get license types"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 846.6,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:8080/license-types/1",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Authorization",
+							"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJlbWFpbCI6Impvc3VlZ2FyY2FiMkBob3RtYWlsLmNvbSIsInJvbGVzIjpbeyJyb2xlSWQiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJuYW1lIjoiQURNSU4ifV0sImlhdCI6MTc1OTY3Njk0OCwiZXhwIjoxNzU5NjgwNTQ4fQ.NvyPa9-qKP8eKihZ42LrRbi28dpolBgcglYZLXDtd5g"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "67"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"43-oalWReX0bkXTTXrZS000PO0XO2Y\""
+						},
+						{
+							"name": "Date",
+							"value": "Sun, 05 Oct 2025 15:13:21 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 67,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"code\":\"A\",\"description\":\"Licencia tipo A\",\"isProfessional\":false}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 846.6,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Get license types by id"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 52.178000000000004,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:3001/license-types/by-code?code=A",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{ \n\t\"code\": \"A\", \n\t\"description\":\"Licencia tipo A\", \n\t\"is_professional\": true \n}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "220"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"dc-IMWzpJOPZxmvRZj/FIfqfnQ83Zs\""
+						},
+						{
+							"name": "Date",
+							"value": "Thu, 02 Oct 2025 06:08:40 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 220,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"license_type_id\":1,\"code\":\"A\",\"description\":\"Licencia tipo A\",\"is_professional\":true,\"created_at\":\"2025-09-30T20:00:22.813Z\",\"parentIncludes\":[{\"parent_license_type_id\":1,\"child_license_type_id\":4}],\"childIncludes\":[]}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 52.178000000000004,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Get license types by code"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 198.265,
+				"request": {
+					"method": "POST",
+					"url": "http://localhost:3001/license-types",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{ \n\t\"code\": \"j\", \n\t\"description\":\"Licencia tipo A\", \n\t\"is_professional\": true \n}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 201,
+					"statusText": "Created",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "128"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"80-ektTx9OhTzpouwCGBjxp8/gCOBs\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 04:46:04 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 128,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"license_type_id\":11,\"code\":\"j\",\"description\":\"Licencia tipo A\",\"is_professional\":true,\"created_at\":\"2025-10-04T04:46:04.094Z\"}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 198.265,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Create license types"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 307.65700000000004,
+				"request": {
+					"method": "PUT",
+					"url": "http://localhost:3001/license-types/12",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\n\t\"code\": \"l\",\n\t\"description\":\"Nueva Licencia k\",\n\t\"is_professional\": true\n}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "188"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"bc-CF2DjD0xOPGXcppEK0O/XIqk1VY\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 04:51:40 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 188,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"license_type_id\":12,\"code\":\"l\",\"description\":\"Nueva Licencia k\",\"is_professional\":true,\"created_at\":\"2025-10-04T04:47:15.737Z\",\"parentIncludes\":[],\"childIncludes\":[],\"driverLicenses\":[]}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 307.65700000000004,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Update license types"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 11.414,
+				"request": {
+					"method": "DELETE",
+					"url": "http://localhost:3001/license-types/5",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Date",
+							"value": "Tue, 30 Sep 2025 21:04:31 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"name": "Content-Length",
+							"value": "0"
+						}
+					],
+					"content": {
+						"size": 0,
+						"mimeType": "",
+						"text": ""
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 11.414,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Delete license types"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 492.61199999999997,
+				"request": {
+					"method": "POST",
+					"url": "http://localhost:3001/license-types/7/includes",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\"childId\":9}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 201,
+					"statusText": "Created",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "54"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"36-k9wGaC9rPoFfQuAurQEvLMR2JdY\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 05:53:14 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 54,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"parent_license_type_id\":7,\"child_license_type_id\":9}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 492.61199999999997,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Create License inclusion"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 87.67099999999999,
+				"request": {
+					"method": "DELETE",
+					"url": "http://localhost:3001/license-types/7/includes/9",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 05:16:41 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"name": "Content-Length",
+							"value": "0"
+						}
+					],
+					"content": {
+						"size": 0,
+						"mimeType": "",
+						"text": ""
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 87.67099999999999,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Delete License inclusion"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 242.91,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:3001/license-types/11/closure",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "2"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 16:14:25 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 2,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "[]"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 242.91,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Get License inclusion"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 1031.029,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:8080/drivers",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Authorization",
+							"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJlbWFpbCI6Impvc3VlZ2FyY2FiMkBob3RtYWlsLmNvbSIsInJvbGVzIjpbeyJyb2xlSWQiOnsibG93IjoxLCJoaWdoIjowLCJ1bnNpZ25lZCI6ZmFsc2V9LCJuYW1lIjoiQURNSU4ifV0sImlhdCI6MTc1OTY4MTcwNCwiZXhwIjoxNzU5Njg1MzA0fQ.D7CABo1Ccc2lDaDlZtKW1xJC3YJJ46jT6k29VYzwCUw"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "2825"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"b09-cTS1lMye0CJn8yD6blS4dSfL0+A\""
+						},
+						{
+							"name": "Date",
+							"value": "Sun, 05 Oct 2025 16:34:07 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 2825,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"drivers\":[{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"licenses\":[{\"driverLicenseId\":0,\"driverId\":0,\"licenseTypeId\":0,\"number\":\"ALFA-1234\",\"status\":\"SUSPENDED\",\"version\":0}],\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"licenses\":[{\"driverLicenseId\":0,\"driverId\":0,\"licenseTypeId\":0,\"number\":\"DELTA-12345\",\"status\":\"SUSPENDED\",\"version\":0}],\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"AVAILABLE\",\"version\":1,\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}},{\"driverId\":0,\"userId\":0,\"availability\":\"LICENSE_EXPIRED\",\"version\":3,\"licenses\":[{\"driverLicenseId\":0,\"driverId\":0,\"licenseTypeId\":0,\"number\":\"BETA-12345\",\"status\":\"VALID\",\"version\":0}],\"summary\":{\"totalLicenses\":0,\"activeLicenses\":0,\"expiredLicenses\":0,\"suspendedLicenses\":0,\"licenseTypes\":[]}}],\"total\":14}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 1031.029,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "get drivers"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 169.725,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:3001/drivers/2",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "530"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"212-yR7vgXE/SBZlQiBQ1lN8XTlU+iI\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 17:29:51 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 530,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"driver_id\":2,\"user_id\":\"123\",\"availability\":\"AVAILABLE\",\"version\":\"1\",\"created_at\":\"2025-10-01T00:19:59.424Z\",\"updated_at\":\"2025-10-01T00:19:59.424Z\",\"licenses\":[{\"driver_license_id\":1,\"license_type_id\":1,\"license_type_code\":\"A\",\"license_type_description\":\"Licencia tipo A\",\"number\":\"ALFA-123\",\"issued_at\":\"2025-09-30\",\"expires_at\":\"2030-09-30\",\"status\":\"SUSPENDED\",\"is_active\":false,\"days_until_expiry\":1822}],\"summary\":{\"total_licenses\":1,\"active_licenses\":0,\"expired_licenses\":0,\"suspended_licenses\":1,\"license_types\":[\"A\"]}}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 169.725,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "get driver by id"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 76.344,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:3001/drivers/2/can-drive?licenseTypeId=1",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "110"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"6e-tyGWLl2PVnvXrOQe8n9RTXsqWZA\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 17:35:00 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 110,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"can_drive\":false,\"reason\":\"Driver does not have valid license for this vehicle type\",\"matching_licenses\":[]}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 76.344,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "get driver ability"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 303.539,
+				"request": {
+					"method": "POST",
+					"url": "http://localhost:3001/drivers",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\n\t\"user_id\": 138,\n  \"availability\": \"AVAILABLE\",\n\t\"version\": 1\n}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 201,
+					"statusText": "Created",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "281"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"119-UqRCGx3kpOkYZBkE7ojTh8ZS5ic\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 19:08:24 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 281,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"driver_id\":23,\"user_id\":\"138\",\"availability\":\"AVAILABLE\",\"version\":\"1\",\"created_at\":\"2025-10-04T19:08:23.980Z\",\"updated_at\":\"2025-10-04T19:08:23.980Z\",\"licenses\":[],\"summary\":{\"total_licenses\":0,\"active_licenses\":0,\"expired_licenses\":0,\"suspended_licenses\":0,\"license_types\":[]}}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 303.539,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Create driver"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 179.92,
+				"request": {
+					"method": "PUT",
+					"url": "http://localhost:3001/drivers/1",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\n\t\"user_id\": 1234,\n  \"availability\": \"AVAILABLE\",\n\t\"version\": 1\n}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "163"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"a3-JCi0BYXYpI5Pu5iaJhwBP8S+JZM\""
+						},
+						{
+							"name": "Date",
+							"value": "Wed, 01 Oct 2025 00:19:26 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 163,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"driver_id\":1,\"user_id\":1234,\"availability\":\"AVAILABLE\",\"version\":1,\"created_at\":\"2025-10-01T00:15:58.556Z\",\"updated_at\":\"2025-10-01T00:19:26.749Z\",\"licenses\":[]}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 179.92,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Update driver"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 181.211,
+				"request": {
+					"method": "DELETE",
+					"url": "http://localhost:3001/drivers/1",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\n\t\"user_id\": 1234,\n  \"availability\": \"AVAILABLE\",\n\t\"version\": 1\n}"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Date",
+							"value": "Wed, 01 Oct 2025 00:19:50 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"name": "Content-Length",
+							"value": "0"
+						}
+					],
+					"content": {
+						"size": 0,
+						"mimeType": "",
+						"text": ""
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 181.211,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Delete driver"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 0,
+				"request": {
+					"method": "POST",
+					"url": "http://localhost:3001/drivers/4/licenses",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\n  \"license_type_id\": 7,\n  \"number\": \"ALFA-1234\",\n  \"issued_at\": \"2025-10-01\",\n  \"expires_at\": \"2030-10-01\"\n}\n"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 0,
+					"statusText": "Cancelled",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [],
+					"content": {
+						"size": 0,
+						"mimeType": "",
+						"text": ""
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 0,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Add license to driver"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 281.448,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:3100/drivers/4/licenses",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": "{\n  \"license_type_id\": 1,\n  \"number\": \"ALFA-123\",\n  \"issued_at\": \"2025-10-01\",\n  \"expires_at\": \"2030-10-01\"\n}\n"
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "309"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"135-op4+pe9gjqfnBij2cXmfBuFqddc\""
+						},
+						{
+							"name": "Date",
+							"value": "Sun, 05 Oct 2025 15:53:07 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 309,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "[{\"driver_license_id\":5,\"driver_id\":4,\"license_type\":{\"license_type_id\":7,\"code\":\"F\",\"description\":\"Nueva Licencia F\",\"is_professional\":false,\"created_at\":\"2025-10-04T04:38:03.803Z\"},\"license_type_id\":7,\"number\":\"ALFA-1234\",\"issued_at\":\"2025-09-30\",\"expires_at\":\"2030-09-30\",\"status\":\"SUSPENDED\",\"version\":0}]"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 281.448,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Get licenses from driver"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 60.436,
+				"request": {
+					"method": "GET",
+					"url": "http://localhost:3001/drivers/15/licenses/active",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 200,
+					"statusText": "OK",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "308"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"134-EF13cnhL3TELafVKMZtprjZCh/8\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 22:20:36 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 308,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "[{\"driver_license_id\":7,\"driver_id\":15,\"license_type\":{\"license_type_id\":11,\"code\":\"j\",\"description\":\"Licencia tipo A\",\"is_professional\":true,\"created_at\":\"2025-10-04T04:46:04.094Z\"},\"license_type_id\":11,\"number\":\"DELTA-12345\",\"issued_at\":\"2025-09-30\",\"expires_at\":\"2030-09-30\",\"status\":\"VALID\",\"version\":0}]"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 60.436,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Get active licenses from driver"
+			},
+			{
+				"startedDateTime": "2025-10-08T20:28:51.909Z",
+				"time": 142.464,
+				"request": {
+					"method": "POST",
+					"url": "http://localhost:3001/drivers/7/licenses/4/suspend",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"name": "User-Agent",
+							"value": "insomnia/11.2.0"
+						}
+					],
+					"queryString": [],
+					"postData": {
+						"mimeType": "application/json",
+						"text": ""
+					},
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"response": {
+					"status": 404,
+					"statusText": "Not Found",
+					"httpVersion": "HTTP/1.1",
+					"cookies": [],
+					"headers": [
+						{
+							"name": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"name": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"name": "Content-Length",
+							"value": "84"
+						},
+						{
+							"name": "ETag",
+							"value": "W/\"54-7EW7he0oJuwQ48O/bPSbLbRIe4w\""
+						},
+						{
+							"name": "Date",
+							"value": "Sat, 04 Oct 2025 22:26:08 GMT"
+						},
+						{
+							"name": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"name": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"content": {
+						"size": 84,
+						"mimeType": "application/json; charset=utf-8",
+						"text": "{\"message\":\"License not found for this driver\",\"error\":\"Not Found\",\"statusCode\":404}"
+					},
+					"redirectURL": "",
+					"headersSize": -1,
+					"bodySize": -1
+				},
+				"cache": {},
+				"timings": {
+					"blocked": -1,
+					"dns": -1,
+					"connect": -1,
+					"send": 0,
+					"wait": 142.464,
+					"receive": 0,
+					"ssl": -1
+				},
+				"comment": "Update active license status for a driver"
+			}
+		]
+	}
+}

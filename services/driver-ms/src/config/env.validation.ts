@@ -40,20 +40,17 @@ class EnvironmentVariables {
 
 
 
-  @IsString({ message: 'POSTGRES_HOST must be a string' })
-  POSTGRES_HOST: string;
+  @IsString({ message: 'DRIVER_DB_HOST must be a string' })
+  DRIVER_DB_HOST: string;
 
-  @IsNumber({}, { message: 'POSTGRES_PORT must be a valid number' })
-  POSTGRES_PORT: number;
+  @IsString({ message: 'DRIVER_DB_USER must be a string' })
+  DRIVER_DB_USER: string;
 
-  @IsString({ message: 'POSTGRES_USER must be a string' })
-  POSTGRES_USER: string;
+  @IsString({ message: 'DRIVER_DB_PASS must be a string' })
+  DRIVER_DB_PASS: string;
 
-  @IsString({ message: 'POSTGRES_PASSWORD must be a string' })
-  POSTGRES_PASSWORD: string;
-
-  @IsString({ message: 'DRIVER_DB must be a string' })
-  DRIVER_DB: string;
+  @IsString({ message: 'DRIVER_DB_NAME must be a string' })
+  DRIVER_DB_NAME: string;
 
   @IsOptional()
   @IsNumber({}, { message: 'DRIVER_DB_PORT must be a valid number' })

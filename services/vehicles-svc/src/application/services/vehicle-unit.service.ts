@@ -51,7 +51,7 @@ export class VehicleUnitService {
 
     const tankCapacity = input.tankCapacityL ?? 0;
     if (tankCapacity <= 0) {
-      throw new RpcException({ code: GrpcStatus.INVALID_ARGUMENT, message: 'tankCapacityL debe ser mayor a 0' });
+      throw new RpcException({ code: GrpcStatus.INVALID_ARGUMENT, message: 'La capacidad del tanque debe ser mayor a 0' });
     }
 
     // TODO: Validar cada licencia (input.extraLicenses) vía gRPC al microservicio de licencias/conductores
@@ -61,7 +61,7 @@ export class VehicleUnitService {
     return this.txm.runInTx(async (tx) => {
       // 1. Validar que el modelo exista
       const model = await this.modelRepo.findById(input.modelId, tx);
-      if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Modelo no existe' });
+      if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'El modelo de vehículo no existe' });
 
       const modelBaseline = model.engine?.baselineLPer100km;
       if (!modelBaseline) {
@@ -70,12 +70,12 @@ export class VehicleUnitService {
 
       // 2. Validar unicidad de VIN (DENTRO de la transacción)
       if (serialVin && await this.unitRepo.existsSerialVin(serialVin, tx)) {
-        throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'Serial VIN ya registrado' });
+        throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'El número de serie VIN ya está registrado' });
       }
 
       // 3. Validar unicidad de placa (DENTRO de la transacción)
       if (await this.unitRepo.existsPlate(input.plate, tx)) {
-        throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'Placa ya registrada' });
+        throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'La placa ya está registrada' });
       }
 
       // 4. Crear la unidad
@@ -122,8 +122,8 @@ export class VehicleUnitService {
 
   async updateStatus(input: UpdateUnitStatusInput): Promise<void> {
     const unit = await this.unitRepo.findById(input.vehicleId);
-    if (!unit) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Unidad no encontrada' });
-    if (!input.newStatus) throw this.invalid('Estado requerido');
+    if (!unit) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'La unidad de vehículo no fue encontrada' });
+    if (!input.newStatus) throw this.invalid('El estado es requerido');
 
     // Validar que el estado sea válido usando la función de validación
     if (!isValidOperationalStatus(input.newStatus)) {
@@ -136,19 +136,19 @@ export class VehicleUnitService {
 
   async upsertConsumption(input: UpsertConsumptionInput): Promise<void> {
     const unit = await this.unitRepo.findById(input.vehicleId);
-    if (!unit) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Unidad no encontrada' });
+    if (!unit) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'La unidad de vehículo no fue encontrada' });
 
     let baselineOverride = input.baselineOverrideLPer100Km;
     if (baselineOverride == null) {
       const model = await this.modelRepo.findById(unit.modelId);
       if (!model?.engine?.baselineLPer100km) {
-        throw new RpcException({ code: GrpcStatus.FAILED_PRECONDITION, message: 'El modelo no tiene especificaciones de motor y no se proporcionó baseline override' });
+        throw new RpcException({ code: GrpcStatus.FAILED_PRECONDITION, message: 'El modelo no tiene especificaciones de motor y no se proporcionó un valor de consumo base' });
       }
       baselineOverride = model.engine.baselineLPer100km;
     }
 
     const model = await this.modelRepo.findById(unit.modelId);
-    if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Modelo no existe' });
+    if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'El modelo de vehículo no existe' });
 
     const calibrationK = CalibrationKCalculator.calculate(model.yearFrom, unit.odometerKm ?? 0);
     const calcDetails = CalibrationKCalculator.calculateWithDetails(model.yearFrom, unit.odometerKm ?? 0);
@@ -164,14 +164,14 @@ export class VehicleUnitService {
 
   async updateUnit(input: UpdateUnitInput): Promise<VehicleUnit> {
     const unit = await this.unitRepo.findById(input.vehicleId);
-    if (!unit) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Unidad no encontrada' });
+    if (!unit) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'La unidad de vehículo no fue encontrada' });
     let changed = false;
     let odometerChanged = false;
 
     if (input.plate && input.plate !== unit.plate) {
       const newPlate = input.plate.toUpperCase();
       if (await this.unitRepo.existsPlate(newPlate)) {
-        throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'Placa ya registrada' });
+        throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'La placa ya está registrada en otra unidad' });
       }
       unit.plate = createPlate(newPlate);
       changed = true;
@@ -188,7 +188,7 @@ export class VehicleUnitService {
       if (input.odometerKm < currentOdometer) {
         throw new RpcException({
           code: GrpcStatus.INVALID_ARGUMENT,
-          message: `El odómetro no puede decrecer. Valor actual: ${currentOdometer} km, valor enviado: ${input.odometerKm} km`
+          message: `El odómetro no puede ser menor al valor actual. Valor actual: ${currentOdometer} km, valor enviado: ${input.odometerKm} km`
         });
       }
 
@@ -246,12 +246,6 @@ export class VehicleUnitService {
     return null;
   }
 
-  async getByIdOrThrow(id: bigint) {
-    const u = await this.unitRepo.findById(id);
-    if (!u) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Unidad no encontrada' });
-    return u;
-  }
-
   async deleteUnit(params: { vehicleId?: bigint; plate?: string }): Promise<Date> {
     let unit: VehicleUnit | null = null;
     if (params.vehicleId) {
@@ -259,7 +253,7 @@ export class VehicleUnitService {
     } else if (params.plate) {
       unit = await this.unitRepo.findByPlate(params.plate.toUpperCase());
     } else {
-      throw this.invalid('Debe proporcionar vehicleId o plate');
+      throw this.invalid('Debe proporcionar el ID del vehículo o la placa');
     }
     if (!unit) {
       return new Date();
@@ -278,16 +272,16 @@ export class VehicleUnitService {
     } else if (params.plate) {
       unit = await this.unitRepo.findByPlate(params.plate.toUpperCase());
     } else {
-      throw this.invalid('Debe proporcionar vehicleId o plate');
+      throw this.invalid('Debe proporcionar el ID del vehículo o la placa');
     }
 
     if (!unit) {
-      throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Unidad no encontrada' });
+      throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'La unidad de vehículo no fue encontrada' });
     }
 
     const model = await this.modelRepo.findById(unit.modelId);
     if (!model) {
-      throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Modelo no encontrado' });
+      throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'El modelo de vehículo no fue encontrado' });
     }
 
     const baselineModel = unit.consumption?.modelBaselineLPer100Km ?? 0;

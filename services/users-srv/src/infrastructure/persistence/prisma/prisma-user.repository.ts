@@ -124,13 +124,25 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
     return PrismaUserMapper.toDomain(record as any);
   }
 
+  async findAllInactiveUsers(): Promise<User[]> {
+    const records = await this.prisma.user.findMany({
+      where: {
+        status: 'INACTIVE',
+      },
+      include: INCLUDE_ROLES,
+    });
+    const users = records.map((record) => PrismaUserMapper.toDomain(record as any));
+    return users;
+  }
+
+
  async findAll(): Promise<User[]> {
   const records = await this.prisma.user.findMany({
     where: {
       deletedAt: null
     },
     include: INCLUDE_ROLES,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { id: 'asc' },
   });
 
 
@@ -200,8 +212,6 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
         email: input.email,
         phone: input.phone,
         username: input.username,
-        passwordHash: input.passwordHash,
-        status: input.status,
       };
 
       Object.keys(data).forEach((key) => {

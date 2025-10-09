@@ -51,6 +51,11 @@ export class UsersApplicationService {
     return UserMapper.toList(users);
   }
 
+  async getAllInactiveUsers(): Promise<UserResponseDto[]> {
+    const users = await this.repository.findAllInactiveUsers();
+    return UserMapper.toList(users);
+  }
+
   async createUser(dto: CreateUserDto): Promise<UserResponseDto> {
     if (await this.repository.findByEmail(dto.email)) {
       throw new DataAlreadyExistsException(
@@ -117,17 +122,12 @@ export class UsersApplicationService {
       );
     }
 
-
-    const newPasswordHash = await hash(dto.password, 10);
-
     const updated = await this.repository.update(existing.id, {
       firstName: dto.firstName,
       lastName: dto.lastName,
       email: dto.email,
       phone: dto.phone,
       username: dto.username,
-      passwordHash: newPasswordHash,
-      status: dto.status ? ensureUserStatus(dto.status) : existing.status,
       roleIds: dto.roleIds,
     });
 

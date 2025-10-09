@@ -101,4 +101,12 @@ export class UsersGrpcController {
     const result = await this.service.undeleteUser(userId);
     return result;
   }
+
+  @Roles('ADMIN')
+  @GrpcMethod('UserService', 'GetAllInactiveUsers')
+  async getAllInactiveUsers() {
+    const users = await this.service.getAllInactiveUsers();
+    const grpcResult = UserMapper.toGrpcList(users);
+    return grpcResult;
+  }
 }

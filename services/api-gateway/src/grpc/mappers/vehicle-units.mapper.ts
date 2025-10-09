@@ -72,6 +72,7 @@ export class VehicleUnitsHttpMapper {
       vehicleId: u.vehicleId,
       modelId: u.modelId,
       plate: u.plate,
+      serialVin: u.serialVin,
       tankCapacityL: u.tankCapacityL,
       odometerKm: u.odometerKm,
       operationalStatus: u.operationalStatus,

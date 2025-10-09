@@ -60,7 +60,7 @@ export class VehicleModelService {
         );
 
         if (exists) {
-            throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'Vehicle model already exists' });
+            throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'Ya existe un modelo con esta identificación' });
         }
 
         const { model, engine, licenses } = ModelDtoMapper.toDomainFromCreate(dto);
@@ -93,14 +93,14 @@ export class VehicleModelService {
 
     async getByIdOrThrow(id: bigint) {
         const model = await this.modelRepo.findById(id);
-        if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Vehicle model not found' });
+        if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'El modelo de vehículo no fue encontrado' });
         return model;
     }
 
     async getByIdentityOrThrow(identity: Identity) {
         const { brand, family, trim, yearFrom, yearTo } = identity;
         const model = await this.modelRepo.findByIdentity(brand, family, trim, yearFrom, yearTo);
-        if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Vehicle model not found' });
+        if (!model) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'El modelo de vehículo no fue encontrado' });
         return model;
     }
 
@@ -180,9 +180,9 @@ export class VehicleModelService {
         input: Partial<Omit<VehicleModel, 'engine'>> & { id: bigint; version?: bigint; engine?: Partial<ModelEngineSpec> | null }
     ): Promise<VehicleModel> {
         const current = await this.modelRepo.findById(input.id);
-        if (!current) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'Vehicle model not found' });
+        if (!current) throw new RpcException({ code: GrpcStatus.NOT_FOUND, message: 'El modelo de vehículo no fue encontrado' });
         if (input.version != null && input.version !== 0n && current.version !== input.version)
-            throw new RpcException({ code: GrpcStatus.ABORTED, message: 'Optimistic lock conflict' });
+            throw new RpcException({ code: GrpcStatus.ABORTED, message: 'El modelo fue modificado por otro usuario. Por favor, recarga los datos e intenta nuevamente' });
 
         const wantsBrand = input.brand != null && input.brand !== '' && input.brand !== current.brand;
         const wantsFamily = input.family != null && input.family !== '' && input.family !== current.family;
@@ -191,20 +191,31 @@ export class VehicleModelService {
         const wantsYearFrom = input.yearFrom != null && input.yearFrom !== 0 && input.yearFrom !== current.yearFrom;
         const wantsMachineType = input.machineType != null && input.machineType !== current.machineType;
         const restrictedChange = wantsBrand || wantsFamily || wantsTrim || wantsYearFrom || wantsMachineType;
-        if (restrictedChange) {
-            const hasUnits = await this.unitRepo.hasUnits(current.id);
-            if (hasUnits) throw new RpcException({ code: GrpcStatus.FAILED_PRECONDITION, message: 'Cannot modify identity fields; model has units' });
-        }
+
+        // REMOVIDO: Ya no validamos si tiene unidades al actualizar campos de identidad
+        // Los campos se pueden actualizar libremente ahora
 
         const updated: VehicleModel = { ...current };
         if (input.status != null) {
             if (!isValidModelStatus(input.status))
-                throw new RpcException({ code: GrpcStatus.INVALID_ARGUMENT, message: 'Invalid status' });
+                throw new RpcException({ code: GrpcStatus.INVALID_ARGUMENT, message: 'Estado inválido' });
+
+            // NUEVA VALIDACIÓN: No permitir cambiar a DEPRECATED si tiene unidades asociadas
+            if (input.status === 'DEPRECATED' && input.status !== current.status) {
+                const hasUnits = await this.unitRepo.hasUnits(current.id);
+                if (hasUnits) {
+                    throw new RpcException({
+                        code: GrpcStatus.FAILED_PRECONDITION,
+                        message: 'No se puede cambiar el estado a DEPRECATED porque el modelo tiene vehículos asociados. Primero elimina o reasigna los vehículos'
+                    });
+                }
+            }
+
             updated.status = input.status;
         }
         if (input.yearTo !== undefined) {
             if (input.yearTo != null && input.yearTo < updated.yearFrom)
-                throw new RpcException({ code: GrpcStatus.INVALID_ARGUMENT, message: 'yearTo cannot be < yearFrom' });
+                throw new RpcException({ code: GrpcStatus.INVALID_ARGUMENT, message: 'El año final no puede ser menor al año inicial' });
             updated.yearTo = input.yearTo === null || input.yearTo === 0 ? null : input.yearTo;
         }
         if (wantsBrand) updated.brand = input.brand!.trim();
@@ -215,10 +226,10 @@ export class VehicleModelService {
 
         if (restrictedChange || (input.yearTo !== undefined && input.yearTo !== current.yearTo)) {
             const other = await this.modelRepo.findByIdentity(updated.brand, updated.family, updated.trim ?? null, updated.yearFrom, updated.yearTo ?? null);
-            if (other && other.id !== updated.id) throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'Conflicting model identity' });
+            if (other && other.id !== updated.id) throw new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: 'Ya existe otro modelo con esta identificación' });
         }
 
-        if (updated.version == null) throw new RpcException({ code: GrpcStatus.ABORTED, message: 'Missing current version for update' });
+        if (updated.version == null) throw new RpcException({ code: GrpcStatus.ABORTED, message: 'Falta la versión actual para actualizar' });
 
         return this.txm.runInTx(async (tx) => {
             await this.modelRepo.update(updated, tx);
@@ -229,7 +240,7 @@ export class VehicleModelService {
                 } else if (Object.keys(input.engine).length > 0) {
                     const currentEngine = current.engine;
                     if (!currentEngine)
-                        throw new RpcException({ code: GrpcStatus.FAILED_PRECONDITION, message: 'Model does not have engine specs to update' });
+                        throw new RpcException({ code: GrpcStatus.FAILED_PRECONDITION, message: 'El modelo no tiene especificaciones de motor para actualizar' });
 
                     const updatedEngine: ModelEngineSpec = {
                         engineType: input.engine.engineType ?? currentEngine.engineType,

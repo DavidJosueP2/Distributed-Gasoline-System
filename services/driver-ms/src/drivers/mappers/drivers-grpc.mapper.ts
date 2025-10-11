@@ -19,13 +19,14 @@ export class DriversGrpcMapper {
   }
 
   static mapCreateDataToDto(data: any): { createDto: any } {
-    // Validar campo obligatorio user_id
-    if (!data.user_id) {
+    // Accept both snake_case and camelCase for incoming IDs and treat 0 as valid
+    const userField = data.user_id ?? data.userId;
+    if (userField === undefined || userField === null) {
       throw new RpcException('Missing required field: user_id');
     }
 
     const createDto = {
-      user_id: this.convertGrpcId(data.user_id),
+      user_id: this.convertGrpcId(userField),
       availability: data.availability || 'AVAILABLE',
       version: data.version ? this.convertGrpcId(data.version) : 0,
     };
@@ -41,8 +42,13 @@ export class DriversGrpcMapper {
 
     const convertedId = this.convertGrpcId(driverId);
 
+    // Accept both snake_case and camelCase for user id on update
+    const userField = data.user_id ?? data.userId;
     const updateDto: any = {
-      user_id: data.user_id ? this.convertGrpcId(data.user_id) : undefined,
+      user_id:
+        userField !== undefined && userField !== null
+          ? this.convertGrpcId(userField)
+          : undefined,
       availability: data.availability,
       version: data.version ? this.convertGrpcId(data.version) : undefined,
     };
@@ -114,10 +120,10 @@ export class DriversGrpcMapper {
   }
 
   static mapCanDriveData(data: any): { driverId: number; licenseTypeId: number } {
-    const driverId = data.driver_id || data.driverId;
-    const licenseTypeId = data.license_type_id || data.licenseTypeId;
+    const driverId = data.driver_id ?? data.driverId;
+    const licenseTypeId = data.license_type_id ?? data.licenseTypeId;
 
-    if (!driverId || !licenseTypeId) {
+    if (driverId === undefined || driverId === null || licenseTypeId === undefined || licenseTypeId === null) {
       throw new RpcException('driver_id and license_type_id are required');
     }
 

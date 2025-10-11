@@ -1,11 +1,12 @@
 /**
  * Convierte objetos Long de gRPC a number
+ * No usa fallback a 0 para que valores inválidos sean detectados por validaciones
  */
 function convertGrpcLong(id: any): number {
   if (typeof id === 'object' && id !== null && 'low' in id) {
-    return Number(id.low) || 0;
+    return Number(id.low);
   }
-  return Number(id) || 0;
+  return Number(id);
 }
 
 /**
@@ -54,12 +55,12 @@ function fromLicenseStatusEnum(val: any): string {
 export class DriversHttpMapper {
   /**
    * Convierte HTTP body (camelCase) a gRPC CreateDriverRequest
-   * Según DriversGrpcMapper.mapCreateDataToDto (solo user_id)
-   * Cliente espera: { user_id, availability?, version? }
+   * Según DriversGrpcMapper.mapCreateDataToDto (acepta user_id o userId)
+   * Cliente espera: { user_id o userId, availability?, version? }
    */
   static toCreateDriver(src: any) {
     return {
-      user_id: convertGrpcLong(src.userId || src.user_id),
+      userId: convertGrpcLong(src.userId || src.user_id),
       availability: src.availability || 'AVAILABLE',
       version: src.version !== undefined ? convertGrpcLong(src.version) : undefined,
     };
@@ -67,8 +68,8 @@ export class DriversHttpMapper {
 
   /**
    * Convierte HTTP body (camelCase) a gRPC UpdateDriverRequest
-   * Según DriversGrpcMapper.mapUpdateDataToDto (solo user_id)
-   * Cliente espera: { id, user_id?, availability?, version? }
+   * Según DriversGrpcMapper.mapUpdateDataToDto (acepta user_id o userId)
+   * Cliente espera: { id, userId?, availability?, version? }
    */
   static toUpdateDriver(id: string | number, src: any) {
     const payload: any = {
@@ -77,7 +78,7 @@ export class DriversHttpMapper {
 
     // Campos del conductor (todos opcionales)
     if (src.userId !== undefined || src.user_id !== undefined) {
-      payload.user_id = convertGrpcLong(src.userId || src.user_id);
+      payload.userId = convertGrpcLong(src.userId || src.user_id);
     }
     if (src.availability !== undefined) {
       payload.availability = src.availability;

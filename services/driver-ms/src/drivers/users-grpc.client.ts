@@ -5,7 +5,8 @@ import { GrpcClientFactory } from '../grpc/grpc-client.factory';
 
 // Interfaces basadas en users.proto
 export interface UserIdRequest {
-  user_id: number;
+  // users-srv expects camelCase `userId` (string|number|bigint)
+  userId: string | number | bigint;
 }
 
 export interface RoleResponse {
@@ -24,7 +25,7 @@ export interface UserResponse {
 }
 
 export interface IUserService {
-  getUser(request: UserIdRequest): Observable<UserResponse>;
+  getUser(request: UserIdRequest, metadata?: any): Observable<UserResponse>;
 }
 
 @Injectable()
@@ -51,21 +52,34 @@ export class UsersGrpcClient implements OnModuleInit {
     }
   }
 
-  async getUser(userId: number): Promise<UserResponse> {
-    this.logger.log(`Validating user via gRPC: ${userId}`);
-    
+  async getUser(userId: any, metadata?: any): Promise<UserResponse> {
+    this.logger.log(`Validating user via gRPC: ${JSON.stringify(userId)}`);
+
     try {
-      const response = await firstValueFrom(
-        this.userService.getUser({ user_id: userId }).pipe(
+      // Coerce long-like objects to primitive number and send camelCase field
+      let outgoingId: string | number | bigint = userId;
+      if (typeof userId === 'object' && userId !== null && Object.prototype.hasOwnProperty.call(userId, 'low')) {
+        // protobuf Long-like from grpc can have { low, high }
+        outgoingId = Number((userId as any).low);
+      } else if (typeof userId !== 'string' && typeof userId !== 'number' && typeof userId !== 'bigint') {
+        // fallback: try to coerce to number
+        outgoingId = Number(userId);
+      }
+
+      // If metadata is provided, pass it as second argument to the gRPC method
+      const call$: Observable<UserResponse> = metadata 
+        ? this.userService.getUser({ userId: outgoingId }, metadata)
+        : this.userService.getUser({ userId: outgoingId });
+
+      const response = (await firstValueFrom(
+        call$.pipe(
           timeout(this.timeoutMs),
           catchError((error) => {
             this.logger.error('Error getting user via gRPC', error);
             return throwError(() => error);
           }),
         ),
-      );
-      
-      return response;
+      )) as UserResponse;      return response;
     } catch (error) {
       this.logger.error(`Failed to get user ${userId}`, error);
       throw error;

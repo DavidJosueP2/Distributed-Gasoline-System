@@ -9,6 +9,7 @@ import {
   Query,
   Req,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { Observable, from, switchMap, map } from 'rxjs';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
@@ -40,6 +41,11 @@ export class DriversHttpController {
     },
     @Req() req: any,
   ): Observable<any> {
+    // Accept snake_case or camelCase and validate userId
+    const incomingUserId = (dto as any).userId ?? (dto as any).user_id;
+    if (incomingUserId === undefined || incomingUserId === null || Number(incomingUserId) <= 0) {
+      throw new BadRequestException('userId inválido');
+    }
     const payload = DriversHttpMapper.toCreateDriver(dto);
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Create(payload, req._grpcMetadata)),
@@ -79,6 +85,11 @@ export class DriversHttpController {
     },
     @Req() req: any,
   ): Observable<any> {
+    // If userId provided, validate it
+    const incomingUserId = (dto as any).userId ?? (dto as any).user_id;
+    if (incomingUserId !== undefined && incomingUserId !== null && Number(incomingUserId) <= 0) {
+      throw new BadRequestException('userId inválido');
+    }
     const payload = DriversHttpMapper.toUpdateDriver(id, dto);
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Update(payload, req._grpcMetadata)),

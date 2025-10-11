@@ -68,14 +68,16 @@ export interface CanDriveResponse {
 }
 
 export interface CreateDriverRequest {
-    user_id: number;
+    user_id?: number;  // snake_case (legacy)
+    userId?: number;   // camelCase (preferred)
     availability?: DriverAvailability;
     version?: number;
 }
 
 export interface UpdateDriverRequest {
     id: number;
-    user_id?: number;
+    user_id?: number;  // snake_case (legacy)
+    userId?: number;   // camelCase (preferred)
     availability?: DriverAvailability;
     version?: number;
 }

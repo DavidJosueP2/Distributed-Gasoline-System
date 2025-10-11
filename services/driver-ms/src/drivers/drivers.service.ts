@@ -27,13 +27,27 @@ export class DriversService {
     return Number(id) || 0;
   }
 
-  async create(createDriverDto: CreateDriverDto): Promise<Driver> {
+  async create(createDriverDto: CreateDriverDto, metadata?: any): Promise<Driver> {
     this.logger.log(`Creating driver for user_id: ${createDriverDto.user_id}`);
-    
+
+    // Normalize and validate user_id before calling users service
+    let outgoingUserId: any = createDriverDto.user_id;
+    if (typeof outgoingUserId === 'object' && outgoingUserId !== null && Object.prototype.hasOwnProperty.call(outgoingUserId, 'low')) {
+      outgoingUserId = Number((outgoingUserId as any).low);
+    } else {
+      outgoingUserId = Number(outgoingUserId);
+    }
+
+    if (!Number.isFinite(outgoingUserId) || outgoingUserId <= 0) {
+      this.logger.error(`Invalid user_id provided: ${createDriverDto.user_id}`);
+      throw new BadRequestException('userId inválido');
+    }
+
     try {
       // Validar que el user_id existe en users-srv
-      await this.usersGrpcClient.getUser(createDriverDto.user_id);
-      this.logger.log(`User ${createDriverDto.user_id} validated successfully`);
+  this.logger.log(`Validating user via users-srv gRPC: ${outgoingUserId}`);
+  await this.usersGrpcClient.getUser(outgoingUserId, metadata);
+      this.logger.log(`User ${outgoingUserId} validated successfully`);
 
       // Crear el conductor localmente
       const driver = this.driverRepository.create({
@@ -89,7 +103,7 @@ export class DriversService {
   }
 
   // Cambiar a any pero convertir antes de usar
-  async update(id: any, updateDriverDto: UpdateDriverDto): Promise<Driver> {
+  async update(id: any, updateDriverDto: UpdateDriverDto, metadata?: any): Promise<Driver> {
     const convertedId = this.convertGrpcId(id);
     this.logger.log(`Updating driver with ID: ${convertedId}`);
 
@@ -103,10 +117,23 @@ export class DriversService {
     try {
       // Si se actualiza el user_id, validar que existe en users-srv
       if (updateDriverDto.user_id !== undefined && updateDriverDto.user_id !== driver.user_id) {
-        this.logger.log(`Validating new user_id ${updateDriverDto.user_id} via gRPC`);
-        await this.usersGrpcClient.getUser(updateDriverDto.user_id);
-        driver.user_id = updateDriverDto.user_id;
-        this.logger.log(`User ${updateDriverDto.user_id} validated successfully`);
+        // normalize
+        let newUserId: any = updateDriverDto.user_id;
+        if (typeof newUserId === 'object' && newUserId !== null && Object.prototype.hasOwnProperty.call(newUserId, 'low')) {
+          newUserId = Number((newUserId as any).low);
+        } else {
+          newUserId = Number(newUserId);
+        }
+
+        if (!Number.isFinite(newUserId) || newUserId <= 0) {
+          this.logger.error(`Invalid new user_id provided: ${updateDriverDto.user_id}`);
+          throw new BadRequestException('userId inválido');
+        }
+
+  this.logger.log(`Validating new user_id ${newUserId} via gRPC`);
+  await this.usersGrpcClient.getUser(newUserId, metadata);
+        driver.user_id = newUserId;
+        this.logger.log(`User ${newUserId} validated successfully`);
       }
 
       // Actualizar campos del conductor

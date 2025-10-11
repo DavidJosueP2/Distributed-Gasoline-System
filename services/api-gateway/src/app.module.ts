@@ -1,7 +1,7 @@
 import { Module, Provider } from '@nestjs/common';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 
 import { DiscoveryModule } from './discovery/discovery.module';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
@@ -35,10 +35,13 @@ const globalProviders: Provider[] = [
 
         JwtModule.registerAsync({
             inject: [ConfigService],
-            useFactory: (config: ConfigService) => ({
+            useFactory: (config: ConfigService): JwtModuleOptions => ({
                 secret: config.get<string>('JWT_SECRET'),
                 signOptions: {
-                    expiresIn: config.get<string | number>('JWT_EXPIRES_IN'),
+                    // jsonwebtoken accepts number or string (e.g. '1h'),
+                    // cast to any to satisfy the JwtModuleOptions type which
+                    // may use a different StringValue type.
+                    expiresIn: config.get<string | number>('JWT_EXPIRES_IN') as any,
                 },
             }),
         }),

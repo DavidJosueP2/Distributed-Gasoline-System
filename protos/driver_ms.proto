@@ -111,7 +111,7 @@ message FindOneDriverRequest {
 
 message UpdateDriverRequest {
   int64 id = 1;                        // driver_id
-  optional int64 user_id = 2;          // presence-aware in proto3
+  optional int64 user_id = 2;
   optional DriverAvailability availability = 3;
   optional int64 version = 4;
 }

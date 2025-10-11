@@ -33,7 +33,11 @@ export class DriversHttpController {
   @Post()
   @GrpcTimeout(3000)
   create(
-    @Body() dto: { userId: number; availability?: string; version?: number },
+    @Body() dto: {
+      userId: number;
+      availability?: string;
+      version?: number;
+    },
     @Req() req: any,
   ): Observable<any> {
     const payload = DriversHttpMapper.toCreateDriver(dto);
@@ -68,7 +72,11 @@ export class DriversHttpController {
   @GrpcTimeout(3000)
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { userId?: number; availability?: string; version?: number },
+    @Body() dto: {
+      userId?: number;
+      availability?: string;
+      version?: number;
+    },
     @Req() req: any,
   ): Observable<any> {
     const payload = DriversHttpMapper.toUpdateDriver(id, dto);

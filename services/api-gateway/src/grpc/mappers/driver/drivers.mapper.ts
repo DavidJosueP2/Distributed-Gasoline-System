@@ -54,8 +54,8 @@ function fromLicenseStatusEnum(val: any): string {
 export class DriversHttpMapper {
   /**
    * Convierte HTTP body (camelCase) a gRPC CreateDriverRequest
-   * Según DriversGrpcMapper.mapCreateDataToDto
-   * Cliente espera: { user_id: number; availability?: DriverAvailability; version?: number }
+   * Según DriversGrpcMapper.mapCreateDataToDto (solo user_id)
+   * Cliente espera: { user_id, availability?, version? }
    */
   static toCreateDriver(src: any) {
     return {
@@ -67,16 +67,26 @@ export class DriversHttpMapper {
 
   /**
    * Convierte HTTP body (camelCase) a gRPC UpdateDriverRequest
-   * Según DriversGrpcMapper.mapUpdateDataToDto
-   * Cliente espera: { id: number; user_id?: number; availability?: DriverAvailability; version?: number }
+   * Según DriversGrpcMapper.mapUpdateDataToDto (solo user_id)
+   * Cliente espera: { id, user_id?, availability?, version? }
    */
   static toUpdateDriver(id: string | number, src: any) {
-    return {
+    const payload: any = {
       id: convertGrpcLong(id),
-      user_id: src.userId !== undefined ? convertGrpcLong(src.userId || src.user_id) : undefined,
-      availability: src.availability,
-      version: src.version !== undefined ? convertGrpcLong(src.version) : undefined,
     };
+
+    // Campos del conductor (todos opcionales)
+    if (src.userId !== undefined || src.user_id !== undefined) {
+      payload.user_id = convertGrpcLong(src.userId || src.user_id);
+    }
+    if (src.availability !== undefined) {
+      payload.availability = src.availability;
+    }
+    if (src.version !== undefined) {
+      payload.version = convertGrpcLong(src.version);
+    }
+
+    return payload;
   }
 
   /**

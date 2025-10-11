@@ -18,19 +18,19 @@ export class DriversGrpcMapper {
     };
   }
 
-  static mapCreateDataToDto(data: any): { createDto: any; userId: number } {
-    const userId = this.convertGrpcId(data.userId);
-    if (!userId || userId === 0) {
-      throw new RpcException('Invalid user_id: must be a positive number');
+  static mapCreateDataToDto(data: any): { createDto: any } {
+    // Validar campo obligatorio user_id
+    if (!data.user_id) {
+      throw new RpcException('Missing required field: user_id');
     }
 
     const createDto = {
-      user_id: userId,
+      user_id: this.convertGrpcId(data.user_id),
       availability: data.availability || 'AVAILABLE',
-      version: data.version ? this.convertGrpcId(data.version) : 1,
+      version: data.version ? this.convertGrpcId(data.version) : 0,
     };
 
-    return { createDto, userId };
+    return { createDto };
   }
 
   static mapUpdateDataToDto(data: any): { updateDto: any; driverId: number } {
@@ -41,11 +41,18 @@ export class DriversGrpcMapper {
 
     const convertedId = this.convertGrpcId(driverId);
 
-    const updateDto = {
-      user_id: data.userId ? this.convertGrpcId(data.userId) : undefined,
+    const updateDto: any = {
+      user_id: data.user_id ? this.convertGrpcId(data.user_id) : undefined,
       availability: data.availability,
       version: data.version ? this.convertGrpcId(data.version) : undefined,
     };
+
+    // Limpiar campos undefined
+    Object.keys(updateDto).forEach(key => {
+      if (updateDto[key] === undefined) {
+        delete updateDto[key];
+      }
+    });
 
     return { updateDto, driverId: convertedId };
   }

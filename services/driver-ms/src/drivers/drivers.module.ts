@@ -9,6 +9,7 @@ import { Driver } from './entities/driver.entity';
 import { DriverLicense } from './entities/driver-license.entity';
 import { LicenseTypesModule } from '../license-types/license-types.module';
 import { DiscoveryModule } from '../discovery/discovery.module';
+import { UsersGrpcClient } from './users-grpc.client';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { DiscoveryModule } from '../discovery/discovery.module';
     DriversGrpcController,
     DriversHttpController,
   ],
-  providers: [DriversService, DriverTransformService],
+  providers: [DriversService, DriverTransformService, UsersGrpcClient],
   exports: [DriversService],
 })
 export class DriversModule {}

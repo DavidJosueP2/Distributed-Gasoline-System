@@ -18,19 +18,20 @@ export class DriversGrpcMapper {
     };
   }
 
-  static mapCreateDataToDto(data: any): { createDto: any; userId: number } {
-    const userId = this.convertGrpcId(data.userId);
-    if (!userId || userId === 0) {
-      throw new RpcException('Invalid user_id: must be a positive number');
+  static mapCreateDataToDto(data: any): { createDto: any } {
+    // Accept both snake_case and camelCase for incoming IDs and treat 0 as valid
+    const userField = data.user_id ?? data.userId;
+    if (userField === undefined || userField === null) {
+      throw new RpcException('Missing required field: user_id');
     }
 
     const createDto = {
-      user_id: userId,
+      user_id: this.convertGrpcId(userField),
       availability: data.availability || 'AVAILABLE',
-      version: data.version ? this.convertGrpcId(data.version) : 1,
+      version: data.version ? this.convertGrpcId(data.version) : 0,
     };
 
-    return { createDto, userId };
+    return { createDto };
   }
 
   static mapUpdateDataToDto(data: any): { updateDto: any; driverId: number } {
@@ -41,11 +42,23 @@ export class DriversGrpcMapper {
 
     const convertedId = this.convertGrpcId(driverId);
 
-    const updateDto = {
-      user_id: data.userId ? this.convertGrpcId(data.userId) : undefined,
+    // Accept both snake_case and camelCase for user id on update
+    const userField = data.user_id ?? data.userId;
+    const updateDto: any = {
+      user_id:
+        userField !== undefined && userField !== null
+          ? this.convertGrpcId(userField)
+          : undefined,
       availability: data.availability,
       version: data.version ? this.convertGrpcId(data.version) : undefined,
     };
+
+    // Limpiar campos undefined
+    Object.keys(updateDto).forEach(key => {
+      if (updateDto[key] === undefined) {
+        delete updateDto[key];
+      }
+    });
 
     return { updateDto, driverId: convertedId };
   }
@@ -107,10 +120,10 @@ export class DriversGrpcMapper {
   }
 
   static mapCanDriveData(data: any): { driverId: number; licenseTypeId: number } {
-    const driverId = data.driver_id || data.driverId;
-    const licenseTypeId = data.license_type_id || data.licenseTypeId;
+    const driverId = data.driver_id ?? data.driverId;
+    const licenseTypeId = data.license_type_id ?? data.licenseTypeId;
 
-    if (!driverId || !licenseTypeId) {
+    if (driverId === undefined || driverId === null || licenseTypeId === undefined || licenseTypeId === null) {
       throw new RpcException('driver_id and license_type_id are required');
     }
 

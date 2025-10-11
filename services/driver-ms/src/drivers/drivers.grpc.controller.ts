@@ -8,12 +8,12 @@ export class DriversGrpcController {
   constructor(private readonly service: DriversService) {}
 
   @GrpcMethod('DriversService', 'Create')
-  async create(data: any) {
+  async create(data: any, metadata: any) {
     try {
       console.log('📨 Create Driver - Data:', JSON.stringify(data, null, 2));
 
       const { createDto } = DriversGrpcMapper.mapCreateDataToDto(data);
-      const drv = await this.service.create(createDto);
+      const drv = await this.service.create(createDto, metadata);
 
       const response = DriversGrpcMapper.mapDriverToResponse(drv);
 
@@ -64,14 +64,14 @@ export class DriversGrpcController {
   }
 
   @GrpcMethod('DriversService', 'Update')
-  async update(data: any) {
+  async update(data: any, metadata: any) {
     try {
       console.log('📨 Update Driver - Data:', JSON.stringify(data, null, 2));
 
       const { updateDto, driverId } = DriversGrpcMapper.mapUpdateDataToDto(data);
       console.log('🔍 Update Data:', updateDto);
 
-      const updatedDriver = await this.service.update(driverId, updateDto);
+      const updatedDriver = await this.service.update(driverId, updateDto, metadata);
       const response = DriversGrpcMapper.mapDriverToResponse(updatedDriver);
 
       console.log('✅ Driver Updated - Response:', JSON.stringify(response, null, 2));

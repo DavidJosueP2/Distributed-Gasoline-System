@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { AuthController } from './auth.controller';
@@ -28,9 +28,11 @@ import { VerificationToken } from './entities/verification-token.entity';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true, // solo para desarrollo
     }),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN },
+    JwtModule.registerAsync({
+      useFactory: (): JwtModuleOptions => ({
+        secret: process.env.JWT_SECRET,
+        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN as any },
+      }),
     }),
     DiscoveryModule,
     // Provide the repository for VerificationToken so AuthService can inject it

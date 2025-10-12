@@ -123,7 +123,7 @@ export class LicenseTypesGrpcController {
       console.log('🔍 Response structure for gRPC:', {
         raw: responseProto,
         stringified: JSON.stringify(responseProto),
-        type: typeof responseProto.child_ids[0]
+        type: typeof responseProto.childIds?.[0]
       });
       return responseProto;
     } catch (error) {

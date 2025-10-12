@@ -14,8 +14,7 @@ function convertGrpcLong(id: any): number {
  */
 export class LicenseTypesHttpMapper {
   /**
-   * Convierte HTTP body (camelCase) a gRPC CreateLicenseTypeRequest
-   * Según LicenseTypesGrpcController.create
+   * Convierte HTTP body (camelCase) a gRPC CreateLicenseTypeRequest (snake_case)
    */
   static toCreateLicenseType(src: any) {
     return {
@@ -26,8 +25,7 @@ export class LicenseTypesHttpMapper {
   }
 
   /**
-   * Convierte HTTP body (camelCase) a gRPC UpdateLicenseTypeRequest
-   * Según LicenseTypesGrpcController.update
+   * Convierte HTTP body (camelCase) a gRPC UpdateLicenseTypeRequest (snake_case)
    */
   static toUpdateLicenseType(id: string | number, src: any) {
     return {
@@ -39,9 +37,7 @@ export class LicenseTypesHttpMapper {
   }
 
   /**
-   * Convierte HTTP body a gRPC AddInclusionRequest
-   * Según LicenseTypesGrpcController.addInclusion
-   * Cliente espera: { parent_id: number; child_id: number }
+   * Convierte HTTP body (camelCase) a gRPC AddInclusionRequest (snake_case)
    */
   static toAddInclusionRequest(src: any) {
     return {
@@ -51,9 +47,7 @@ export class LicenseTypesHttpMapper {
   }
 
   /**
-   * Convierte HTTP body a gRPC RemoveInclusionRequest
-   * Según LicenseTypesGrpcController.removeInclusion
-   * Cliente espera: { parent_id: number; child_id: number }
+   * Convierte HTTP body (camelCase) a gRPC RemoveInclusionRequest (snake_case)
    */
   static toRemoveInclusionRequest(src: any) {
     return {
@@ -132,27 +126,27 @@ export class LicenseTypesHttpMapper {
   }
 
   /**
-   * Convierte GetClosureResponse de gRPC (snake_case) a HTTP response (camelCase)
-   * Según LicenseTypesGrpcMapper.mapGetClosureResponse
+   * Convierte GetClosureResponse de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toGetClosureResponse(response: any) {
     if (!response) return { childIds: [] };
 
     return {
-      childIds: response.child_ids || [],
+      childIds: response.childIds || [],
     };
   }
 
   /**
-   * Convierte AddInclusionResponse de gRPC (snake_case) a HTTP response (camelCase)
-   * Según LicenseTypesGrpcMapper.mapAddInclusionResponse
+   * Convierte AddInclusionResponse de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toAddInclusionResponse(response: any) {
     if (!response) return null;
 
     return {
-      parentLicenseTypeId: response.parent_license_type_id,
-      childLicenseTypeId: response.child_license_type_id,
+      parentLicenseTypeId: response.parentLicenseTypeId,
+      childLicenseTypeId: response.childLicenseTypeId,
     };
   }
 

@@ -1,12 +1,12 @@
 /**
- * Convierte objetos Long de gRPC a number
- * No usa fallback a 0 para que valores inválidos sean detectados por validaciones
+ * Convierte valores de gRPC a number
+ * Con longs: Number en ambos lados, debería recibir números directamente
  */
 function convertGrpcLong(id: any): number {
-  if (typeof id === 'object' && id !== null && 'low' in id) {
-    return Number(id.low);
+  if (id === null || id === undefined) {
+    return 0;
   }
-  return Number(id);
+  return Number(id) || 0;
 }
 
 /**
@@ -22,30 +22,52 @@ function createLongObject(value: any): any {
 }
 
 /**
- * Helper para convertir enum numérico de gRPC a string
+ * Helper para convertir enum de gRPC a string
+ * gRPC ya convierte automáticamente el enum numérico a string (ON_ROUTE, AVAILABLE, etc.)
  */
 function fromAvailabilityEnum(val: any): string {
-  const num = Number(val);
-  switch (num) {
-    case 1: return 'AVAILABLE';
-    case 2: return 'ON_ROUTE';
-    case 3: return 'LICENSE_EXPIRED';
-    case 4: return 'INACTIVE';
-    default: return 'AVAILABLE';
+  // gRPC ya devuelve el string directamente, solo necesitamos validarlo
+  if (typeof val === 'string' && val) {
+    return val;
   }
+  
+  // Si viene como número (fallback), convertirlo
+  const num = Number(val);
+  if (!isNaN(num)) {
+    switch (num) {
+      case 1: return 'AVAILABLE';
+      case 2: return 'ON_ROUTE';
+      case 3: return 'LICENSE_EXPIRED';
+      case 4: return 'INACTIVE';
+    }
+  }
+  
+  // Default
+  return 'AVAILABLE';
 }
 
 /**
- * Helper para convertir enum numérico de gRPC a string
+ * Helper para convertir enum de gRPC a string
+ * gRPC ya convierte automáticamente el enum numérico a string (VALID, EXPIRED, SUSPENDED)
  */
 function fromLicenseStatusEnum(val: any): string {
-  const num = Number(val);
-  switch (num) {
-    case 1: return 'VALID';
-    case 2: return 'EXPIRED';
-    case 3: return 'SUSPENDED';
-    default: return 'VALID';
+  // gRPC ya devuelve el string directamente, solo necesitamos validarlo
+  if (typeof val === 'string' && val) {
+    return val;
   }
+  
+  // Si viene como número (fallback), convertirlo
+  const num = Number(val);
+  if (!isNaN(num)) {
+    switch (num) {
+      case 1: return 'VALID';
+      case 2: return 'EXPIRED';
+      case 3: return 'SUSPENDED';
+    }
+  }
+  
+  // Default
+  return 'VALID';
 }
 
 /**
@@ -54,22 +76,18 @@ function fromLicenseStatusEnum(val: any): string {
  */
 export class DriversHttpMapper {
   /**
-   * Convierte HTTP body (camelCase) a gRPC CreateDriverRequest
-   * Según DriversGrpcMapper.mapCreateDataToDto (acepta user_id o userId)
-   * Cliente espera: { user_id o userId, availability?, version? }
+   * Convierte HTTP body (camelCase) a gRPC CreateDriverRequest (snake_case)
    */
   static toCreateDriver(src: any) {
     return {
-      userId: convertGrpcLong(src.userId || src.user_id),
+      user_id: convertGrpcLong(src.userId || src.user_id),
       availability: src.availability || 'AVAILABLE',
       version: src.version !== undefined ? convertGrpcLong(src.version) : undefined,
     };
   }
 
   /**
-   * Convierte HTTP body (camelCase) a gRPC UpdateDriverRequest
-   * Según DriversGrpcMapper.mapUpdateDataToDto (acepta user_id o userId)
-   * Cliente espera: { id, userId?, availability?, version? }
+   * Convierte HTTP body (camelCase) a gRPC UpdateDriverRequest (snake_case)
    */
   static toUpdateDriver(id: string | number, src: any) {
     const payload: any = {
@@ -78,7 +96,7 @@ export class DriversHttpMapper {
 
     // Campos del conductor (todos opcionales)
     if (src.userId !== undefined || src.user_id !== undefined) {
-      payload.userId = convertGrpcLong(src.userId || src.user_id);
+      payload.user_id = convertGrpcLong(src.userId || src.user_id);
     }
     if (src.availability !== undefined) {
       payload.availability = src.availability;
@@ -91,9 +109,7 @@ export class DriversHttpMapper {
   }
 
   /**
-   * Convierte HTTP query params a gRPC CanDriveRequest
-   * Según DriversGrpcMapper.mapCanDriveData (usa snake_case)
-   * Cliente espera: { driver_id: number; license_type_id: number }
+   * Convierte HTTP query params a gRPC CanDriveRequest (snake_case)
    */
   static toCanDriveRequest(driverId: string | number, licenseTypeId: string | number) {
     return {
@@ -103,73 +119,59 @@ export class DriversHttpMapper {
   }
 
   /**
-   * Convierte DriverLicense de gRPC (snake_case) a HTTP response (camelCase)
-   * Según DriversGrpcMapper.mapDriverToProto
+   * Convierte DriverLicense de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toDriverLicenseResponse(license: any) {
     if (!license) return undefined;
 
     return {
-      driverLicenseId: convertGrpcLong(license.driver_license_id),
-      driverId: convertGrpcLong(license.driver_id),
-      licenseTypeId: convertGrpcLong(license.license_type_id),
+      driverLicenseId: convertGrpcLong(license.driverLicenseId),
+      driverId: convertGrpcLong(license.driverId),
+      licenseTypeId: convertGrpcLong(license.licenseTypeId),
       number: license.number,
-      issuedAt: license.issued_at,
-      expiresAt: license.expires_at,
+      issuedAt: license.issuedAt,
+      expiresAt: license.expiresAt,
       status: fromLicenseStatusEnum(license.status),
       version: convertGrpcLong(license.version),
-      licenseTypeCode: license.license_type_code || undefined,
-      licenseTypeDescription: license.license_type_description || undefined,
-      isActive: license.is_active !== undefined ? license.is_active : undefined,
-      daysUntilExpiry: license.days_until_expiry !== undefined ? convertGrpcLong(license.days_until_expiry) : undefined,
+      licenseTypeCode: license.licenseTypeCode || undefined,
+      licenseTypeDescription: license.licenseTypeDescription || undefined,
+      isActive: license.isActive !== undefined ? license.isActive : undefined,
+      daysUntilExpiry: license.daysUntilExpiry !== undefined ? convertGrpcLong(license.daysUntilExpiry) : undefined,
     };
   }
 
   /**
-   * Convierte DriverSummary de gRPC (snake_case) a HTTP response (camelCase)
-   * Según DriversGrpcMapper.mapDriverToProto
+   * Convierte DriverSummary de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toDriverSummaryResponse(summary: any) {
     if (!summary) return undefined;
 
     return {
-      totalLicenses: convertGrpcLong(summary.total_licenses),
-      activeLicenses: convertGrpcLong(summary.active_licenses),
-      expiredLicenses: convertGrpcLong(summary.expired_licenses),
-      suspendedLicenses: convertGrpcLong(summary.suspended_licenses),
-      licenseTypes: summary.license_types || [],
+      totalLicenses: convertGrpcLong(summary.totalLicenses),
+      activeLicenses: convertGrpcLong(summary.activeLicenses),
+      expiredLicenses: convertGrpcLong(summary.expiredLicenses),
+      suspendedLicenses: convertGrpcLong(summary.suspendedLicenses),
+      licenseTypes: Array.isArray(summary.licenseTypes) ? summary.licenseTypes : [],
     };
   }
 
   /**
    * Convierte Driver de gRPC a HTTP response (camelCase)
-   * Según DriversGrpcMapper.mapDriverToResponse (Create/Update) y mapDriverToProto (FindOne/FindAll)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toDriverResponse(driver: any) {
     if (!driver) return null;
 
-    // Para responses de Create/Update que usan mapDriverToResponse (formato camelCase)
-    if (driver.driverId !== undefined) {
-      return {
-        driverId: convertGrpcLong(driver.driverId),
-        userId: convertGrpcLong(driver.userId),
-        availability: fromAvailabilityEnum(driver.availability),
-        version: convertGrpcLong(driver.version),
-        createdAt: driver.createdAt,
-        updatedAt: driver.updatedAt,
-        licenses: driver.licenses || [],
-      };
-    }
-
-    // Para responses de FindOne/FindAll que usan mapDriverToProto (formato snake_case)
     return {
-      driverId: convertGrpcLong(driver.driver_id),
-      userId: convertGrpcLong(driver.user_id),
+      driverId: convertGrpcLong(driver.driverId),
+      userId: convertGrpcLong(driver.userId),
       availability: fromAvailabilityEnum(driver.availability),
       version: convertGrpcLong(driver.version),
-      createdAt: driver.created_at,
-      updatedAt: driver.updated_at,
-      licenses: driver.licenses ? driver.licenses.map((l: any) => this.toDriverLicenseResponse(l)) : undefined,
+      createdAt: driver.createdAt || '',
+      updatedAt: driver.updatedAt || '',
+      licenses: Array.isArray(driver.licenses) ? driver.licenses.map((l: any) => this.toDriverLicenseResponse(l)) : [],
       summary: driver.summary ? this.toDriverSummaryResponse(driver.summary) : undefined,
     };
   }
@@ -182,37 +184,37 @@ export class DriversHttpMapper {
     if (!response) return { drivers: [], total: 0 };
 
     return {
-      drivers: response.drivers ? response.drivers.map((d: any) => this.toDriverResponse(d)) : [],
+      drivers: Array.isArray(response.drivers) ? response.drivers.map((d: any) => this.toDriverResponse(d)) : [],
       total: convertGrpcLong(response.total),
     };
   }
 
   /**
-   * Convierte MatchingLicense de gRPC (snake_case) a HTTP response (camelCase)
-   * Según DriversGrpcMapper.mapCanDriveResponse
+   * Convierte MatchingLicense de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toMatchingLicenseResponse(license: any) {
     if (!license) return undefined;
 
     return {
-      licenseId: convertGrpcLong(license.license_id),
-      licenseType: license.license_type,
-      expiresAt: license.expires_at,
+      licenseId: convertGrpcLong(license.licenseId),
+      licenseType: license.licenseType,
+      expiresAt: license.expiresAt,
     };
   }
 
   /**
-   * Convierte CanDriveResponse de gRPC (snake_case) a HTTP response (camelCase)
-   * Según DriversGrpcMapper.mapCanDriveResponse
+   * Convierte CanDriveResponse de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toCanDriveResponse(response: any) {
     if (!response) return null;
 
     return {
-      canDrive: response.can_drive,
+      canDrive: response.canDrive,
       reason: response.reason || '',
-      matchingLicenses: response.matching_licenses 
-        ? response.matching_licenses.map((l: any) => this.toMatchingLicenseResponse(l)) 
+      matchingLicenses: response.matchingLicenses 
+        ? response.matchingLicenses.map((l: any) => this.toMatchingLicenseResponse(l)) 
         : [],
     };
   }

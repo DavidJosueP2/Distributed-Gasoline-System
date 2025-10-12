@@ -81,7 +81,7 @@ export class GrpcClientFactory {
                 package: pkg,
                 protoPath: join(this.protosDir, protoFile),
                 loader: {
-                    longs: Number,
+                    longs: Number, // ⬅️ Volver a Number (driver-ms ahora devuelve números)
                     enums: String,
                     defaults: true,
                     oneofs: true,

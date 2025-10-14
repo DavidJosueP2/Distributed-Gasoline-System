@@ -9,11 +9,25 @@ export class LicenseTypesGrpcController {
 
   @GrpcMethod('LicenseTypesService', 'Create')
   async create(data: any) {
-    console.log("creating license type");
-    const result = await this.service.create(data).then(mapLicenseTypeFlat as any);
-    console.log(result);
+    console.log("📨 Create - Incoming data:", JSON.stringify(data, null, 2));
+    console.log("📨 Create - isProfessional (camelCase):", data.isProfessional, "type:", typeof data.isProfessional);
+    console.log("📨 Create - is_professional (snake_case):", data.is_professional, "type:", typeof data.is_professional);
+    
+    // gRPC convierte automáticamente snake_case del proto a camelCase
+    // Necesitamos convertir de vuelta a snake_case para el DTO
+    const dto = {
+      code: data.code,
+      description: data.description,
+      is_professional: data.isProfessional ?? data.is_professional,
+    };
+    
+    console.log("📨 Create - DTO transformed:", JSON.stringify(dto, null, 2));
+    
+    const result = await this.service.create(dto).then(mapLicenseTypeFlat as any);
+    console.log("✅ Create - Service result:", result);
+    
     const beforeResponse = LicenseTypesGrpcMapper.mapLicenseTypeForGrpc(result);
-    console.log(beforeResponse);
+    console.log("📤 Create - Final response:", beforeResponse);
     return beforeResponse;
   }
 
@@ -63,7 +77,24 @@ export class LicenseTypesGrpcController {
 
   @GrpcMethod('LicenseTypesService', 'Update')
   async update(data: any) {
-    const result = await this.service.update(data.id, data);
+    console.log("📨 Update - Incoming data:", JSON.stringify(data, null, 2));
+    console.log("📨 Update - isProfessional (camelCase):", data.isProfessional, "type:", typeof data.isProfessional);
+    console.log("📨 Update - is_professional (snake_case):", data.is_professional, "type:", typeof data.is_professional);
+    
+    // gRPC convierte automáticamente snake_case del proto a camelCase
+    // Necesitamos convertir de vuelta a snake_case para el DTO
+    const dto = {
+      code: data.code,
+      description: data.description,
+      is_professional: data.isProfessional ?? data.is_professional,
+    };
+    
+    console.log("📨 Update - DTO transformed:", JSON.stringify(dto, null, 2));
+    
+    const result = await this.service.update(data.id, dto);
+    
+    console.log("✅ Update - Service result:", JSON.stringify(result, null, 2));
+    
     return LicenseTypesGrpcMapper.mapLicenseTypeForGrpc(result);
   }
 
@@ -123,7 +154,7 @@ export class LicenseTypesGrpcController {
       console.log('🔍 Response structure for gRPC:', {
         raw: responseProto,
         stringified: JSON.stringify(responseProto),
-        type: typeof responseProto.child_ids[0]
+        type: typeof responseProto.childIds?.[0]
       });
       return responseProto;
     } catch (error) {

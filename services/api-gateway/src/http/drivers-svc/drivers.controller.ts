@@ -58,7 +58,12 @@ export class DriversHttpController {
   findAll(@Req() req: any): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((s) => s.FindAll({}, req._grpcMetadata)),
-      map((response) => DriversHttpMapper.toDriversListResponse(response)),
+      map((response) => {
+        console.log('🔍 GRPC RESPONSE TYPE:', typeof response?.drivers?.[0]?.driver_id);
+        console.log('🔍 FIRST DRIVER_ID VALUE:', response?.drivers?.[0]?.driver_id);
+        console.log('🔍 FIRST TOTAL VALUE:', response?.total);
+        return DriversHttpMapper.toDriversListResponse(response);
+      }),
     );
   }
 
@@ -109,11 +114,11 @@ export class DriversHttpController {
     );
   }
 
-  @Get(':id/can-drive')
+  @Get(':driverId/can-drive/:licenseTypeId')
   @GrpcTimeout(2000)
   canDrive(
-    @Param('id', ParseIntPipe) driverId: number,
-    @Query('licenseTypeId', ParseIntPipe) licenseTypeId: number,
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseTypeId', ParseIntPipe) licenseTypeId: number,
     @Req() req: any,
   ): Observable<any> {
     const payload = DriversHttpMapper.toCanDriveRequest(driverId, licenseTypeId);

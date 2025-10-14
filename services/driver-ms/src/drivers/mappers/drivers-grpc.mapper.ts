@@ -10,12 +10,8 @@ export class DriversGrpcMapper {
   }
 
   static createLongObject(value: any): any {
-    const numValue = Number(value) || 0;
-    return {
-      low: numValue,
-      high: 0,
-      unsigned: false,
-    };
+    // ⬅️ Con longs: Number en el servidor, devolver número directamente
+    return Number(value) || 0;
   }
 
   static mapCreateDataToDto(data: any): { createDto: any } {
@@ -86,35 +82,35 @@ export class DriversGrpcMapper {
     const summary = this.calculateDriverSummary(d);
 
     return {
-      driver_id: this.createLongObject(d.driver_id),
-      user_id: this.createLongObject(d.user_id),
+      driverId: this.createLongObject(d.driver_id),
+      userId: this.createLongObject(d.user_id),
       availability: this.mapAvailabilityToProto(d.availability),
       version: this.createLongObject(d.version),
-      created_at: d.created_at ? new Date(d.created_at).toISOString() : '',
-      updated_at: d.updated_at ? new Date(d.updated_at).toISOString() : '',
+      createdAt: d.created_at ? new Date(d.created_at).toISOString() : '',
+      updatedAt: d.updated_at ? new Date(d.updated_at).toISOString() : '',
       licenses: licenses.map((l: any) => ({
-        driver_license_id: this.createLongObject(l.driver_license_id),
-        driver_id: this.createLongObject(l.driver_id),
-        license_type_id: this.createLongObject(l.license_type_id),
+        driverLicenseId: this.createLongObject(l.driver_license_id),
+        driverId: this.createLongObject(l.driver_id),
+        licenseTypeId: this.createLongObject(l.license_type_id),
         number: l.number || '',
-        issued_at: l.issued_at ? this.toDateString(l.issued_at) : '',
-        expires_at: l.expires_at ? this.toDateString(l.expires_at) : '',
+        issuedAt: l.issued_at ? this.toDateString(l.issued_at) : '',
+        expiresAt: l.expires_at ? this.toDateString(l.expires_at) : '',
         status: this.mapLicenseStatusToProto(l.status),
         version: this.createLongObject(l.version),
-        license_type_code: l.license_type?.code || l.license_type_code || '',
-        license_type_description:
+        licenseTypeCode: l.license_type?.code || l.license_type_code || '',
+        licenseTypeDescription:
           l.license_type?.description || l.license_type_description || '',
-        is_active: l.status === 'VALID',
-        days_until_expiry: this.createLongObject(
+        isActive: l.status === 'VALID',
+        daysUntilExpiry: this.createLongObject(
           this.calculateDaysUntilExpiry(l.expires_at),
         ),
       })),
       summary: {
-        total_licenses: this.createLongObject(summary.total_licenses),
-        active_licenses: this.createLongObject(summary.active_licenses),
-        expired_licenses: this.createLongObject(summary.expired_licenses),
-        suspended_licenses: this.createLongObject(summary.suspended_licenses),
-        license_types: summary.license_types || [],
+        totalLicenses: this.createLongObject(summary.total_licenses),
+        activeLicenses: this.createLongObject(summary.active_licenses),
+        expiredLicenses: this.createLongObject(summary.expired_licenses),
+        suspendedLicenses: this.createLongObject(summary.suspended_licenses),
+        licenseTypes: summary.license_types || [],
       },
     };
   }
@@ -135,12 +131,12 @@ export class DriversGrpcMapper {
 
   static mapCanDriveResponse(result: any) {
     return {
-      can_drive: result.can_drive,
+      canDrive: result.can_drive,
       reason: result.reason || '',
-      matching_licenses: (result.matching_licenses || []).map((license: any) => ({
-        license_id: this.createLongObject(license.license_id),
-        license_type: license.license_type || '',
-        expires_at: license.expires_at || '',
+      matchingLicenses: (result.matching_licenses || []).map((license: any) => ({
+        licenseId: this.createLongObject(license.license_id),
+        licenseType: license.license_type || '',
+        expiresAt: license.expires_at || '',
       })),
     };
   }

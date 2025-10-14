@@ -40,7 +40,6 @@ function fromLicenseStatusEnum(val: any): string {
 export class DriverLicensesHttpMapper {
   /**
    * Convierte HTTP body (camelCase) a gRPC CreateDriverLicenseRequest (snake_case)
-   * Según DriverLicensesGrpcMapper.mapCreateDataToDto
    */
   static toCreateDriverLicense(src: any) {
     return {
@@ -55,7 +54,6 @@ export class DriverLicensesHttpMapper {
 
   /**
    * Convierte HTTP params a gRPC SuspendLicenseRequest (snake_case)
-   * Según DriverLicensesGrpcMapper.mapSuspendData
    */
   static toSuspendLicenseRequest(driverId: string | number, licenseId: string | number) {
     return {
@@ -66,7 +64,6 @@ export class DriverLicensesHttpMapper {
 
   /**
    * Convierte HTTP params a gRPC FindByDriverRequest (snake_case)
-   * Según DriverLicensesGrpcMapper.mapFindByDriverData
    */
   static toFindByDriverRequest(driverId: string | number) {
     return {
@@ -75,24 +72,24 @@ export class DriverLicensesHttpMapper {
   }
 
   /**
-   * Convierte DriverLicense de gRPC (camelCase) a HTTP response (camelCase)
+   * Convierte DriverLicense de gRPC (snake_case) a HTTP response (camelCase)
    * Según DriverLicensesGrpcMapper.mapDriverLicenseToProto
    */
   static toDriverLicenseResponse(license: any) {
     if (!license) return null;
 
     return {
-      driverLicenseId: convertGrpcLong(license.driverLicenseId),
-      driverId: convertGrpcLong(license.driverId),
-      licenseTypeId: convertGrpcLong(license.licenseTypeId),
+      driverLicenseId: convertGrpcLong(license.driver_license_id || license.driverLicenseId),
+      driverId: convertGrpcLong(license.driver_id || license.driverId),
+      licenseTypeId: convertGrpcLong(license.license_type_id || license.licenseTypeId),
       number: license.number,
-      issuedAt: license.issuedAt,
-      expiresAt: license.expiresAt,
+      issuedAt: license.issued_at || license.issuedAt,
+      expiresAt: license.expires_at || license.expiresAt,
       status: fromLicenseStatusEnum(license.status),
       version: convertGrpcLong(license.version),
-      licenseTypeCode: license.licenseTypeCode || undefined,
-      licenseTypeDescription: license.licenseTypeDescription || undefined,
-      isActive: license.isActive !== undefined ? license.isActive : undefined,
+      licenseTypeCode: license.license_type_code || license.licenseTypeCode || undefined,
+      licenseTypeDescription: license.license_type_description || license.licenseTypeDescription || undefined,
+      isActive: license.is_active !== undefined ? license.is_active : (license.isActive !== undefined ? license.isActive : undefined),
     };
   }
 

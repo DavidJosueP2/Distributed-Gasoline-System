@@ -157,7 +157,7 @@ service DriversService {
 message CreateLicenseTypeRequest {
   string code = 1;                // required
   string description = 2;         // optional
-  bool is_professional = 3;       // optional (false by default)
+  optional bool is_professional = 3;       // optional (false by default)
 }
 
 message LicenseTypeWithIncludes{

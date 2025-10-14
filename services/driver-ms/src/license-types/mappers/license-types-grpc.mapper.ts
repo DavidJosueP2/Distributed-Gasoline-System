@@ -70,15 +70,15 @@ export class LicenseTypesGrpcMapper {
   // Mapper para el método GetClosure
   static mapGetClosureResponse(child_ids: any[]) {
     return { 
-      child_ids: child_ids.map(id => id.toString())
+      childIds: child_ids.map(id => Number(id) || 0)
     };
   }
 
   // Mapper para el método AddInclusion
   static mapAddInclusionResponse(result: any) {
     return {
-      parent_license_type_id: result.parent_license_type_id.toString(),
-      child_license_type_id: result.child_license_type_id.toString()
+      parentLicenseTypeId: Number(result.parent_license_type_id) || 0,
+      childLicenseTypeId: Number(result.child_license_type_id) || 0
     };
   }
 

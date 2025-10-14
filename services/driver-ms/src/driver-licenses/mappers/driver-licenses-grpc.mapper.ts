@@ -11,12 +11,8 @@ export class DriverLicensesGrpcMapper {
   }
 
   static createLongObject(value: any): any {
-    const numValue = Number(value) || 0;
-    return {
-      low: numValue,
-      high: 0,
-      unsigned: false
-    };
+    // ⬅️ Con longs: Number en el servidor, devolver número directamente
+    return Number(value) || 0;
   }
 
   // Mapper para crear DTO desde datos gRPC

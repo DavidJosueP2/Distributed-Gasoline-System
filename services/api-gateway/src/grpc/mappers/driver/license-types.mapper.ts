@@ -17,23 +17,46 @@ export class LicenseTypesHttpMapper {
    * Convierte HTTP body (camelCase) a gRPC CreateLicenseTypeRequest (snake_case)
    */
   static toCreateLicenseType(src: any) {
-    return {
+    console.log('🔵 API Gateway - toCreateLicenseType INPUT:', JSON.stringify(src, null, 2));
+    console.log('🔵 API Gateway - src.isProfessional:', src.isProfessional, 'type:', typeof src.isProfessional);
+    
+    // Use nullish coalescing (??) instead of logical OR (||) to preserve false values
+    const isProfessional = src.isProfessional ?? src.is_professional ?? false;
+    console.log('🔵 API Gateway - isProfessional after conversion:', isProfessional, 'type:', typeof isProfessional);
+    
+    const result = {
       code: src.code,
       description: src.description || '',
-      is_professional: src.isProfessional !== undefined ? Boolean(src.isProfessional || src.is_professional) : undefined,
+      // Enviar ambas variantes porque proto-loader transforma snake_case a camelCase
+      is_professional: isProfessional,
+      isProfessional,
     };
+    
+    console.log('🔵 API Gateway - toCreateLicenseType OUTPUT:', JSON.stringify(result, null, 2));
+    return result;
   }
 
   /**
    * Convierte HTTP body (camelCase) a gRPC UpdateLicenseTypeRequest (snake_case)
    */
   static toUpdateLicenseType(id: string | number, src: any) {
-    return {
+    console.log('🔵 API Gateway - toUpdateLicenseType INPUT:', JSON.stringify(src, null, 2));
+    console.log('🔵 API Gateway - src.isProfessional:', src.isProfessional, 'type:', typeof src.isProfessional);
+    
+    // Use nullish coalescing (??) instead of logical OR (||) to preserve false values
+    const isProfessional = src.isProfessional ?? src.is_professional;
+    console.log('🔵 API Gateway - isProfessional after conversion:', isProfessional, 'type:', typeof isProfessional);
+    
+    const result = {
       id: Number(id),
       code: src.code,
       description: src.description,
-      is_professional: src.isProfessional !== undefined ? Boolean(src.isProfessional || src.is_professional) : undefined,
+      is_professional: isProfessional,
+      isProfessional,
     };
+    
+    console.log('🔵 API Gateway - toUpdateLicenseType OUTPUT:', JSON.stringify(result, null, 2));
+    return result;
   }
 
   /**

@@ -37,10 +37,25 @@ export class LicenseTypesHttpController {
     dto: { code: string; description?: string; isProfessional?: boolean },
     @Req() req: any,
   ): Observable<any> {
+    console.log('🌐 HTTP Controller - Received DTO:', JSON.stringify(dto, null, 2));
+    console.log('🌐 HTTP Controller - isProfessional:', dto.isProfessional, 'type:', typeof dto.isProfessional);
+    
     const payload = LicenseTypesHttpMapper.toCreateLicenseType(dto);
+    
+    console.log('🌐 HTTP Controller - Payload to gRPC:', JSON.stringify(payload, null, 2));
+    console.log('🌐 HTTP Controller - Payload.is_professional:', payload.is_professional, 'type:', typeof payload.is_professional);
+    
     return from(this.svc(req)).pipe(
-      switchMap((s) => s.Create(payload, req._grpcMetadata)),
-      map((licenseType) => LicenseTypesHttpMapper.toLicenseTypeResponse(licenseType)),
+      switchMap((s) => {
+        console.log('🔌 JUST BEFORE gRPC CALL - Payload:', JSON.stringify(payload, null, 2));
+        console.log('🔌 Verifying is_professional field exists:', 'is_professional' in payload);
+        console.log('🔌 Payload keys:', Object.keys(payload));
+        return s.Create(payload, req._grpcMetadata);
+      }),
+      map((licenseType) => {
+        console.log('🌐 HTTP Controller - Response from gRPC:', JSON.stringify(licenseType, null, 2));
+        return LicenseTypesHttpMapper.toLicenseTypeResponse(licenseType);
+      }),
     );
   }
 
@@ -85,10 +100,19 @@ export class LicenseTypesHttpController {
     dto: { code?: string; description?: string; isProfessional?: boolean },
     @Req() req: any,
   ): Observable<any> {
+    console.log('🌐 HTTP Controller - Update DTO:', JSON.stringify(dto, null, 2));
+    console.log('🌐 HTTP Controller - isProfessional:', dto.isProfessional, 'type:', typeof dto.isProfessional);
+    
     const payload = LicenseTypesHttpMapper.toUpdateLicenseType(id, dto);
+    
+    console.log('🌐 HTTP Controller - Update Payload to gRPC:', JSON.stringify(payload, null, 2));
+    
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Update(payload, req._grpcMetadata)),
-      map((licenseType) => LicenseTypesHttpMapper.toLicenseTypeResponse(licenseType)),
+      map((licenseType) => {
+        console.log('🌐 HTTP Controller - Update Response from gRPC:', JSON.stringify(licenseType, null, 2));
+        return LicenseTypesHttpMapper.toLicenseTypeResponse(licenseType);
+      }),
     );
   }
 

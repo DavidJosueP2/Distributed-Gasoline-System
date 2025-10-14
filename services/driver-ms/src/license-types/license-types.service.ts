@@ -78,12 +78,22 @@ private convertGrpcId(id: any): number {
 }
 
 
-  async create(
-    createLicenseTypeDto: CreateLicenseTypeDto,
-  ): Promise<LicenseType> {
-    const licenseType = this.licenseTypeRepository.create(createLicenseTypeDto);
-    return await this.licenseTypeRepository.save(licenseType);
-  }
+  async create(dto: CreateLicenseTypeDto): Promise<LicenseType> {
+  console.log("🔧 Service.create - DTO received:", JSON.stringify(dto, null, 2));
+  console.log("🔧 Service.create - is_professional:", dto.is_professional, "type:", typeof dto.is_professional);
+  
+  const licenseType = this.licenseTypeRepository.create({
+    code: dto.code,
+    description: dto.description,
+    is_professional: dto.is_professional ?? false,
+  });
+
+  console.log("🔧 Service.create - Entity before save:", JSON.stringify(licenseType, null, 2));
+  const saved = await this.licenseTypeRepository.save(licenseType);
+  console.log("🔧 Service.create - Entity after save:", JSON.stringify(saved, null, 2));
+  
+  return saved;
+}
 
   async findAll(): Promise<LicenseType[]> {
     return await this.licenseTypeRepository.find({
@@ -138,8 +148,16 @@ private convertGrpcId(id: any): number {
     }
   }
 
-  // Update the entity
-  Object.assign(licenseType, updateLicenseTypeDto);
+  // Map DTO properties to Entity (both use snake_case)
+  if (updateLicenseTypeDto.code !== undefined) {
+    licenseType.code = updateLicenseTypeDto.code;
+  }
+  if (updateLicenseTypeDto.description !== undefined) {
+    licenseType.description = updateLicenseTypeDto.description;
+  }
+  if (updateLicenseTypeDto.is_professional !== undefined) {
+    licenseType.is_professional = updateLicenseTypeDto.is_professional;
+  }
   
   // Save the updated entity
   return await this.licenseTypeRepository.save(licenseType);

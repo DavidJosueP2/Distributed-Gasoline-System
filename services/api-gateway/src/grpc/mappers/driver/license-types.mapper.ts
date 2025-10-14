@@ -63,9 +63,15 @@ export class LicenseTypesHttpMapper {
    * Convierte HTTP body (camelCase) a gRPC AddInclusionRequest (snake_case)
    */
   static toAddInclusionRequest(src: any) {
+    const parentId = Number(src.parentId ?? src.parent_id);
+    const childId = Number(src.childId ?? src.child_id);
+    
     return {
-      parent_id: Number(src.parentId || src.parent_id),
-      child_id: Number(src.childId || src.child_id),
+      // Enviar ambas variantes porque proto-loader puede usar camelCase
+      parent_id: parentId,
+      parentId: parentId,
+      child_id: childId,
+      childId: childId,
     };
   }
 
@@ -73,9 +79,15 @@ export class LicenseTypesHttpMapper {
    * Convierte HTTP body (camelCase) a gRPC RemoveInclusionRequest (snake_case)
    */
   static toRemoveInclusionRequest(src: any) {
+    const parentId = Number(src.parentId ?? src.parent_id);
+    const childId = Number(src.childId ?? src.child_id);
+    
     return {
-      parent_id: Number(src.parentId || src.parent_id),
-      child_id: Number(src.childId || src.child_id),
+      // Enviar ambas variantes porque proto-loader puede usar camelCase
+      parent_id: parentId,
+      parentId: parentId,
+      child_id: childId,
+      childId: childId,
     };
   }
 

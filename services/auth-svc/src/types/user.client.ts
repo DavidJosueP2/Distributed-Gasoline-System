@@ -10,6 +10,7 @@ export interface UserServiceClient {
   createUser(req: CreateUserRequest): Observable<UserResponse>;
   updateUser(req: UpdateUserRequest): Observable<UserResponse>;
   updatePassword(req: UpdatePasswordRequest): Observable<BooleanResponse>;
+  updateFullName(req: UpdateFullnameRequest, metadata?: Metadata): Observable<UserResponse>;
 }
 
 // Mensajes (Request / Response)
@@ -85,4 +86,10 @@ export interface UpdatePasswordRequest {
 
 export interface BooleanResponse {
   success: boolean;
+}
+
+export interface UpdateFullnameRequest {
+  userId: number;
+  firstName: string;
+  lastName: string;
 }

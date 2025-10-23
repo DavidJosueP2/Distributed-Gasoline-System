@@ -6,8 +6,10 @@ service UserService {
   rpc GetUser (UserIdRequest) returns (UserResponse);
   rpc GetUserByEmail (GetUserByEmailRequest) returns (GetUserByEmailResponse);
   rpc GetAllUsers (Empty) returns (UserList);
+  rpc GetAllInactiveUsers (Empty) returns (UserList);
   rpc CreateUser (CreateUserRequest) returns (UserResponse);
   rpc UpdateUser (UpdateUserRequest) returns (UserResponse);
+  rpc UpdateFullName (UpdateFullNameRequest) returns (UserResponse);
   rpc DeleteUser (UserIdRequest) returns (BooleanResponse);
   rpc UnDeleteUser (UserIdRequest) returns (BooleanResponse);
   rpc UpdatePassword (UpdatePasswordRequest) returns (BooleanResponse);
@@ -53,9 +55,7 @@ message UpdateUserRequest {
   string email = 4;
   string phone = 5;
   string username = 6;
-  string password = 7;
-  string status = 8;
-  repeated int64 role_ids = 9;
+  repeated int64 role_ids = 7;
 }
 
 message RoleResponse {
@@ -87,3 +87,10 @@ message UpdatePasswordRequest {
   int64 user_id = 1;
   string new_password = 2;
 }
+
+message UpdateFullNameRequest {
+  int64 user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+}
+

@@ -2,13 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import {
   CreateUserInput,
+  UpdateFullNameInput,
   UpdateUserInput,
   USER_REPOSITORY,
   UserRepository,
 } from '../../../domain/repositories/user.repository';
 import { PrismaUserMapper } from './prisma-user.mapper';
 import { User } from '../../../domain/entities/user.entity';
-import { hash } from 'crypto';
 
 const INCLUDE_ROLES = {
   userRoles: { include: { role: true } },
@@ -23,6 +23,7 @@ export class PrismaUserRepository implements UserRepository {
   private readonly logger = new Logger(PrismaUserRepository.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
 
 
 
@@ -123,13 +124,25 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
     return PrismaUserMapper.toDomain(record as any);
   }
 
+  async findAllInactiveUsers(): Promise<User[]> {
+    const records = await this.prisma.user.findMany({
+      where: {
+        status: 'INACTIVE',
+      },
+      include: INCLUDE_ROLES,
+    });
+    const users = records.map((record) => PrismaUserMapper.toDomain(record as any));
+    return users;
+  }
+
+
  async findAll(): Promise<User[]> {
   const records = await this.prisma.user.findMany({
     where: {
       deletedAt: null
     },
     include: INCLUDE_ROLES,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { id: 'asc' },
   });
 
 
@@ -139,26 +152,42 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
   return users;
 }
   async create(input: CreateUserInput): Promise<User> {
-    const record = await this.prisma.user.create({
-      data: {
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: input.email,
-        phone: input.phone,
-        username: input.username,
-        passwordHash: input.passwordHash,
-        userRoles: input.roleIds?.length
-          ? {
-              create: input.roleIds.map((roleId) => ({
-                role: { connect: { id: toBigInt(roleId) } },
-              })),
-            }
-          : undefined,
-      },
-      include: INCLUDE_ROLES,
+    const record = await this.prisma.$transaction(async (tx) => {
+      return tx.user.create({
+        data: {
+          firstName: input.firstName,
+          lastName: input.lastName,
+          email: input.email,
+          phone: input.phone,
+          username: input.username,
+          passwordHash: input.passwordHash,
+          userRoles: input.roleIds?.length
+            ? {
+                create: input.roleIds.map((roleId) => ({
+                  role: { connect: { id: toBigInt(roleId) } },
+                })),
+              }
+            : undefined,
+        },
+        include: INCLUDE_ROLES,
+      });
     });
 
     return PrismaUserMapper.toDomain(record as any);
+  }
+
+  async updateFullName(id: number, input: UpdateFullNameInput): Promise<User> {
+    const userId = toBigInt(id);
+    return this.prisma.user.update({
+      where: { id: userId,
+        deletedAt: null
+      },
+      data: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+      },
+      include: INCLUDE_ROLES,
+    }).then((record) => PrismaUserMapper.toDomain(record as any));
   }
 
   async update(id: number, input: UpdateUserInput): Promise<User> {
@@ -183,8 +212,6 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
         email: input.email,
         phone: input.phone,
         username: input.username,
-        passwordHash: input.passwordHash,
-        status: input.status,
       };
 
       Object.keys(data).forEach((key) => {

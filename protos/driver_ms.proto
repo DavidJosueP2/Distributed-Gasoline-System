@@ -111,7 +111,7 @@ message FindOneDriverRequest {
 
 message UpdateDriverRequest {
   int64 id = 1;                        // driver_id
-  optional int64 user_id = 2;          // presence-aware in proto3
+  optional int64 user_id = 2;
   optional DriverAvailability availability = 3;
   optional int64 version = 4;
 }
@@ -157,7 +157,7 @@ service DriversService {
 message CreateLicenseTypeRequest {
   string code = 1;                // required
   string description = 2;         // optional
-  bool is_professional = 3;       // optional (false by default)
+  optional bool is_professional = 3;       // optional (false by default)
 }
 
 message LicenseTypeWithIncludes{

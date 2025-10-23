@@ -13,6 +13,7 @@ import { FindUserByEmailRequest } from 'src/application/dto/request/find-user-by
 import { InvalidIdentifierException } from 'src/application/exceptions/invalid_id.exception';
 import { UpdatePasswordRequest } from 'src/application/dto/request/update-password-request';
 import { Public, Roles } from 'src/common/auth';
+import { UpdateFullNameUserDto } from 'src/application/dto/request/update-full-name-request';
 
 type StringLike = string | number | bigint | undefined | null;
 
@@ -37,13 +38,7 @@ export class UsersGrpcController {
     return UserMapper.toGrpc(user);
   }
 
-  @Public()
-  @GrpcMethod('UserService', 'GetUser')
-  async getUserService(data: { userId: StringLike }) {
-    const id = this.coerceId(data.userId);
-    const user = await this.service.getUserById(id);
-    return UserMapper.toGrpc(user);
-  }
+ 
 
   @Public()
   @GrpcMethod('UserService', 'GetUserByEmail')
@@ -62,7 +57,7 @@ export class UsersGrpcController {
     return grpcResult;
   }
 
-  @Roles('ADMIN')
+  @Public()
   @GrpcMethod('UserService', 'CreateUser')
   async create(data: CreateUserDto) {
     const user = await this.service.createUser(data);
@@ -75,6 +70,14 @@ export class UsersGrpcController {
     const user = await this.service.updateUser(data);
     return UserMapper.toGrpc(user);
   }
+
+  @Roles('ADMIN', 'SUPERVISOR', 'DRIVER')
+  @GrpcMethod('UserService', 'UpdateFullName')
+  async updateFullName(data: UpdateFullNameUserDto) {
+    const user = await this.service.updateFullNameUser(data);
+    return UserMapper.toGrpc(user);
+  }
+
 
   @Public()
   @GrpcMethod('UserService', 'UpdatePassword')
@@ -97,5 +100,13 @@ export class UsersGrpcController {
     const userId = this.coerceId(data.userId);
     const result = await this.service.undeleteUser(userId);
     return result;
+  }
+
+  @Roles('ADMIN')
+  @GrpcMethod('UserService', 'GetAllInactiveUsers')
+  async getAllInactiveUsers() {
+    const users = await this.service.getAllInactiveUsers();
+    const grpcResult = UserMapper.toGrpcList(users);
+    return grpcResult;
   }
 }

@@ -2,13 +2,6 @@
 
 Proyecto de microservicios para gestionar conductores, tipos de licencia y su integración mediante Eureka y gRPC.
 
-## Arquitectura (resumen)
-- api-gateway: gateway HTTP que actúa como proxy y traduce llamadas REST a RPC gRPC hacia los microservicios registrados en Eureka.
-- driver-ms: microservicio que expone HTTP (REST) y gRPC para gestión de drivers, tipos de licencias y licencias de conductor.
-- Eureka (service registry): servicio de descubrimiento (contenedor Docker configurado en `Docker-compose.yml`).
-
-Cada microservicio expone sus RPCs en gRPC y wrappers HTTP en caso de que el gateway centralice el acceso.
-
 ## Requisitos
 - Node.js >= 18
 - npm
@@ -34,7 +27,7 @@ cd services/driver-ms && npm run build
 ## Cómo ejecutar localmente (rápido)
 Voy a describir dos opciones: arrancar todo (Eureka + driver-ms + gateway) o ejecutar cada servicio por separado.
 
-A. Levantar Eureka con Docker (recomendado antes de iniciar los servicios):
+A. Levantar Eureka con Docker:
 
 ```bash
 # desde la raíz del repo (usa Docker)
@@ -123,12 +116,6 @@ curl -X POST http://localhost:8080/drivers/1/licenses -H "Content-Type: applicat
 ```
 
 ## Troubleshooting
-- Si el gateway no encuentra `DRIVER-SERVICE`, verifica que Eureka esté corriendo (`http://localhost:8761`) y que `driver-ms` se haya registrado (logs del servicio muestran registro de Eureka).
+- Si el gateway no encuentra `DRIVER-SERVICE`, verifica que Eureka esté corriendo como contenedor (`http://localhost:8761`) y que `driver-ms` se haya registrado (logs del servicio muestran registro de Eureka).
 - Si `npm run start:dev` falla en Windows por `cross-env`, prueba `npx nest start --watch` o instala `cross-env` globalmente.
 
----
-Si quieres, puedo:
-- Ejecutar una prueba end-to-end levantando Eureka + driver-ms + api-gateway y haciendo una petición de ejemplo (necesito permiso para ejecutar docker-compose y arrancar procesos aquí), o
-- Añadir documentación adicional del proto y payloads exactos.
-
-*** End Patch

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { AuthController } from './auth.controller';
@@ -10,12 +10,14 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VerificationToken } from './entities/verification-token.entity';
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    // Prefer a full DATABASE URL if provided (works well with docker-compose and local mapped ports)
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.AUTH_DB_HOST,
@@ -26,21 +28,24 @@ import { VerificationToken } from './entities/verification-token.entity';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true, // solo para desarrollo
     }),
-    TypeOrmModule.forFeature([VerificationToken]),
-      JwtModule.register({
-          secret: process.env.JWT_SECRET as string,
-          signOptions: {
-              expiresIn: /^\d+$/.test(process.env.JWT_EXPIRES_IN ?? '')
-                  ? Number(process.env.JWT_EXPIRES_IN)
-                  : ((process.env.JWT_EXPIRES_IN as `${number}${'ms'|'s'|'m'|'h'|'d'}`) ?? '15m'),
-          },
+    JwtModule.registerAsync({
+      useFactory: (): JwtModuleOptions => ({
+        secret: process.env.JWT_SECRET,
+        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN as any },
       }),
+    }),
     DiscoveryModule,
+    // Provide the repository for VerificationToken so AuthService can inject it
+    TypeOrmModule.forFeature([VerificationToken]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GrpcClientFactory, {
-    provide: APP_GUARD,
-    useClass: RolesGuard,
-  },],
+  providers: [
+    AuthService,
+    GrpcClientFactory,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AuthModule { }

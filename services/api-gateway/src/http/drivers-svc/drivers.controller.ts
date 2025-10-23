@@ -9,6 +9,7 @@ import {
   Query,
   Req,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { Observable, from, switchMap, map } from 'rxjs';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
@@ -33,9 +34,18 @@ export class DriversHttpController {
   @Post()
   @GrpcTimeout(3000)
   create(
-    @Body() dto: { userId: number; availability?: string; version?: number },
+    @Body() dto: {
+      userId: number;
+      availability?: string;
+      version?: number;
+    },
     @Req() req: any,
   ): Observable<any> {
+    // Accept snake_case or camelCase and validate userId
+    const incomingUserId = (dto as any).userId ?? (dto as any).user_id;
+    if (incomingUserId === undefined || incomingUserId === null || Number(incomingUserId) <= 0) {
+      throw new BadRequestException('userId inválido');
+    }
     const payload = DriversHttpMapper.toCreateDriver(dto);
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Create(payload, req._grpcMetadata)),
@@ -48,7 +58,12 @@ export class DriversHttpController {
   findAll(@Req() req: any): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((s) => s.FindAll({}, req._grpcMetadata)),
-      map((response) => DriversHttpMapper.toDriversListResponse(response)),
+      map((response) => {
+        console.log('🔍 GRPC RESPONSE TYPE:', typeof response?.drivers?.[0]?.driver_id);
+        console.log('🔍 FIRST DRIVER_ID VALUE:', response?.drivers?.[0]?.driver_id);
+        console.log('🔍 FIRST TOTAL VALUE:', response?.total);
+        return DriversHttpMapper.toDriversListResponse(response);
+      }),
     );
   }
 
@@ -68,9 +83,18 @@ export class DriversHttpController {
   @GrpcTimeout(3000)
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { userId?: number; availability?: string; version?: number },
+    @Body() dto: {
+      userId?: number;
+      availability?: string;
+      version?: number;
+    },
     @Req() req: any,
   ): Observable<any> {
+    // If userId provided, validate it
+    const incomingUserId = (dto as any).userId ?? (dto as any).user_id;
+    if (incomingUserId !== undefined && incomingUserId !== null && Number(incomingUserId) <= 0) {
+      throw new BadRequestException('userId inválido');
+    }
     const payload = DriversHttpMapper.toUpdateDriver(id, dto);
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Update(payload, req._grpcMetadata)),
@@ -90,11 +114,11 @@ export class DriversHttpController {
     );
   }
 
-  @Get(':id/can-drive')
+  @Get(':driverId/can-drive/:licenseTypeId')
   @GrpcTimeout(2000)
   canDrive(
-    @Param('id', ParseIntPipe) driverId: number,
-    @Query('licenseTypeId', ParseIntPipe) licenseTypeId: number,
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseTypeId', ParseIntPipe) licenseTypeId: number,
     @Req() req: any,
   ): Observable<any> {
     const payload = DriversHttpMapper.toCanDriveRequest(driverId, licenseTypeId);

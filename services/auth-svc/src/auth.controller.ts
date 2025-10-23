@@ -3,7 +3,7 @@ import { GrpcMethod } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
 
 // Esto le dice a typescript: este import solo es de tipo, no lo intentes meter en los metadatos de los decoradores
-import { LoginRequest, PasswordRecoveryRequest, ResetPasswordRequest } from './types/auth.types';
+import { LoginRequest, PasswordRecoveryRequest, ResetPasswordRequest, UpdateFullnameRequest } from './types/auth.types';
 import type { LoginResponse, PasswordRecoveryResponse, ResetPasswordResponse, UserResponse } from "./types/auth.types";
 import { Observable } from 'rxjs';
 import { Roles } from './common/auth/decorators/roles.decorator';
@@ -38,6 +38,12 @@ export class AuthController {
   @GrpcMethod('AuthService', 'Me')
   public me(data: {}, metadata: Metadata): Promise<UserResponse> {
     return this.auth.me(data, metadata);
+  }
+
+  @Roles('ADMIN', 'SUPERVISOR', 'DRIVER')
+  @GrpcMethod('AuthService', 'UpdateFullname')
+  public updateFullname(data: UpdateFullnameRequest, metadata: Metadata): Promise<UserResponse> {
+    return this.auth.updateFullname(data, metadata);
   }
 
   @Roles('ADMIN')

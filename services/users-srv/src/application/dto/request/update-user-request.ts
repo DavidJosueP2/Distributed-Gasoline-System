@@ -37,14 +37,6 @@ export class UpdateUserDto {
   @Length(4, 60, { message: 'El nombre de usuario debe tener entre 4 y 60 caracteres' })
   username!: string;
 
-  @IsString({ message: 'La nueva contraseña debe ser un texto' })
-  @MinLength(8, { message: 'La nueva contraseña debe tener al menos 8 caracteres' })
-  @Matches(/(?=.*[A-Z])/, { message: 'La nueva contraseña debe contener al menos una letra mayúscula' })
-  @Matches(/(?=.*\d)/, { message: 'La nueva contraseña debe contener al menos un número' })
-  password!: string;
-
-  @IsString({ message: 'El estado debe ser un texto' })
-  status!: string;
 
   @IsOptional()
   @IsArray({ message: 'Los roles deben ser un arreglo de números' })

@@ -14,51 +14,80 @@ function convertGrpcLong(id: any): number {
  */
 export class LicenseTypesHttpMapper {
   /**
-   * Convierte HTTP body (camelCase) a gRPC CreateLicenseTypeRequest
-   * Según LicenseTypesGrpcController.create
+   * Convierte HTTP body (camelCase) a gRPC CreateLicenseTypeRequest (snake_case)
    */
   static toCreateLicenseType(src: any) {
-    return {
+    console.log('🔵 API Gateway - toCreateLicenseType INPUT:', JSON.stringify(src, null, 2));
+    console.log('🔵 API Gateway - src.isProfessional:', src.isProfessional, 'type:', typeof src.isProfessional);
+    
+    // Use nullish coalescing (??) instead of logical OR (||) to preserve false values
+    const isProfessional = src.isProfessional ?? src.is_professional ?? false;
+    console.log('🔵 API Gateway - isProfessional after conversion:', isProfessional, 'type:', typeof isProfessional);
+    
+    const result = {
       code: src.code,
       description: src.description || '',
-      is_professional: src.isProfessional !== undefined ? Boolean(src.isProfessional || src.is_professional) : undefined,
+      // Enviar ambas variantes porque proto-loader transforma snake_case a camelCase
+      is_professional: isProfessional,
+      isProfessional,
     };
+    
+    console.log('🔵 API Gateway - toCreateLicenseType OUTPUT:', JSON.stringify(result, null, 2));
+    return result;
   }
 
   /**
-   * Convierte HTTP body (camelCase) a gRPC UpdateLicenseTypeRequest
-   * Según LicenseTypesGrpcController.update
+   * Convierte HTTP body (camelCase) a gRPC UpdateLicenseTypeRequest (snake_case)
    */
   static toUpdateLicenseType(id: string | number, src: any) {
-    return {
+    console.log('🔵 API Gateway - toUpdateLicenseType INPUT:', JSON.stringify(src, null, 2));
+    console.log('🔵 API Gateway - src.isProfessional:', src.isProfessional, 'type:', typeof src.isProfessional);
+    
+    // Use nullish coalescing (??) instead of logical OR (||) to preserve false values
+    const isProfessional = src.isProfessional ?? src.is_professional;
+    console.log('🔵 API Gateway - isProfessional after conversion:', isProfessional, 'type:', typeof isProfessional);
+    
+    const result = {
       id: Number(id),
       code: src.code,
       description: src.description,
-      is_professional: src.isProfessional !== undefined ? Boolean(src.isProfessional || src.is_professional) : undefined,
+      is_professional: isProfessional,
+      isProfessional,
     };
+    
+    console.log('🔵 API Gateway - toUpdateLicenseType OUTPUT:', JSON.stringify(result, null, 2));
+    return result;
   }
 
   /**
-   * Convierte HTTP body a gRPC AddInclusionRequest
-   * Según LicenseTypesGrpcController.addInclusion
-   * Cliente espera: { parent_id: number; child_id: number }
+   * Convierte HTTP body (camelCase) a gRPC AddInclusionRequest (snake_case)
    */
   static toAddInclusionRequest(src: any) {
+    const parentId = Number(src.parentId ?? src.parent_id);
+    const childId = Number(src.childId ?? src.child_id);
+    
     return {
-      parent_id: Number(src.parentId || src.parent_id),
-      child_id: Number(src.childId || src.child_id),
+      // Enviar ambas variantes porque proto-loader puede usar camelCase
+      parent_id: parentId,
+      parentId: parentId,
+      child_id: childId,
+      childId: childId,
     };
   }
 
   /**
-   * Convierte HTTP body a gRPC RemoveInclusionRequest
-   * Según LicenseTypesGrpcController.removeInclusion
-   * Cliente espera: { parent_id: number; child_id: number }
+   * Convierte HTTP body (camelCase) a gRPC RemoveInclusionRequest (snake_case)
    */
   static toRemoveInclusionRequest(src: any) {
+    const parentId = Number(src.parentId ?? src.parent_id);
+    const childId = Number(src.childId ?? src.child_id);
+    
     return {
-      parent_id: Number(src.parentId || src.parent_id),
-      child_id: Number(src.childId || src.child_id),
+      // Enviar ambas variantes porque proto-loader puede usar camelCase
+      parent_id: parentId,
+      parentId: parentId,
+      child_id: childId,
+      childId: childId,
     };
   }
 
@@ -132,27 +161,27 @@ export class LicenseTypesHttpMapper {
   }
 
   /**
-   * Convierte GetClosureResponse de gRPC (snake_case) a HTTP response (camelCase)
-   * Según LicenseTypesGrpcMapper.mapGetClosureResponse
+   * Convierte GetClosureResponse de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toGetClosureResponse(response: any) {
     if (!response) return { childIds: [] };
 
     return {
-      childIds: response.child_ids || [],
+      childIds: response.childIds || [],
     };
   }
 
   /**
-   * Convierte AddInclusionResponse de gRPC (snake_case) a HTTP response (camelCase)
-   * Según LicenseTypesGrpcMapper.mapAddInclusionResponse
+   * Convierte AddInclusionResponse de gRPC a HTTP response (camelCase)
+   * gRPC ya convierte snake_case del proto a camelCase automáticamente
    */
   static toAddInclusionResponse(response: any) {
     if (!response) return null;
 
     return {
-      parentLicenseTypeId: response.parent_license_type_id,
-      childLicenseTypeId: response.child_license_type_id,
+      parentLicenseTypeId: response.parentLicenseTypeId,
+      childLicenseTypeId: response.childLicenseTypeId,
     };
   }
 

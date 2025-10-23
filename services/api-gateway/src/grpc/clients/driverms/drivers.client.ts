@@ -67,11 +67,26 @@ export interface CanDriveResponse {
     matching_licenses: MatchingLicense[];
 }
 
+export interface CreateDriverRequest {
+    user_id?: number;  // snake_case (legacy)
+    userId?: number;   // camelCase (preferred)
+    availability?: DriverAvailability;
+    version?: number;
+}
+
+export interface UpdateDriverRequest {
+    id: number;
+    user_id?: number;  // snake_case (legacy)
+    userId?: number;   // camelCase (preferred)
+    availability?: DriverAvailability;
+    version?: number;
+}
+
 export interface DriversServiceClient {
-    Create(data: { user_id: number; availability?: DriverAvailability; version?: number }, metadata?: any): Observable<Driver>;
+    Create(data: CreateDriverRequest, metadata?: any): Observable<Driver>;
     FindAll(data: {}, metadata?: any): Observable<DriversList>;
     FindOne(data: { id: number }, metadata?: any): Observable<Driver>;
-    Update(data: { id: number; user_id?: number; availability?: DriverAvailability; version?: number }, metadata?: any): Observable<Driver>;
+    Update(data: UpdateDriverRequest, metadata?: any): Observable<Driver>;
     Remove(data: { id: number }, metadata?: any): Observable<{ success: boolean }>;
     CanDrive(data: { driver_id: number; license_type_id: number }, metadata?: any): Observable<CanDriveResponse>;
 }

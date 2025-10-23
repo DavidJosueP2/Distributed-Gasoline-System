@@ -83,7 +83,7 @@ export class GrpcClientFactory {
                 loader: {
                     longs: Number,
                     enums: String,
-                    defaults: true,
+                    defaults: false,  // ⬅️ Cambiado a false para preservar campos opcionales
                     oneofs: true,
                 },
             },

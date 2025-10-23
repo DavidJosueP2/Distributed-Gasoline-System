@@ -35,12 +35,17 @@ const globalProviders: Provider[] = [
 
         JwtModule.registerAsync({
             inject: [ConfigService],
-            useFactory: (config: ConfigService) => ({
-                secret: config.get<string>('JWT_SECRET'),
-                signOptions: {
-                    expiresIn: config.get<string | number>('JWT_EXPIRES_IN'),
-                },
-            }),
+            useFactory: (config: ConfigService) => {
+                const raw = config.get<string>('JWT_EXPIRES_IN') ?? '15m';
+
+                const expiresIn: number | `${number}${'ms'|'s'|'m'|'h'|'d'}` =
+                    /^\d+$/.test(raw) ? Number(raw) : (raw as `${number}${'ms'|'s'|'m'|'h'|'d'}`);
+
+                return {
+                    secret: config.getOrThrow<string>('JWT_SECRET'),
+                    signOptions: { expiresIn },
+                };
+            },
         }),
 
         DiscoveryModule,

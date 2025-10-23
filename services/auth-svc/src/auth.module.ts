@@ -27,10 +27,14 @@ import { VerificationToken } from './entities/verification-token.entity';
       synchronize: true, // solo para desarrollo
     }),
     TypeOrmModule.forFeature([VerificationToken]),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN },
-    }),
+      JwtModule.register({
+          secret: process.env.JWT_SECRET as string,
+          signOptions: {
+              expiresIn: /^\d+$/.test(process.env.JWT_EXPIRES_IN ?? '')
+                  ? Number(process.env.JWT_EXPIRES_IN)
+                  : ((process.env.JWT_EXPIRES_IN as `${number}${'ms'|'s'|'m'|'h'|'d'}`) ?? '15m'),
+          },
+      }),
     DiscoveryModule,
   ],
   controllers: [AuthController],

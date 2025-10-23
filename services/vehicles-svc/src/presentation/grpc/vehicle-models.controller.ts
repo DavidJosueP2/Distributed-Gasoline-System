@@ -5,8 +5,7 @@ import { GrpcModelMapper } from '../../infra/grpc/mappers/model-grpc.mapper';
 import { CreateModelDto } from '../../application/dto/vehicles-models/create-model.dto';
 import { UpdateModelDto } from '../../application/dto/vehicles-models/update-model.dto';
 import { GetModelByIdentityDto } from '../../application/dto/vehicles-models/get-model-by-identity.dto';
-import { SetModelLicensesDto } from '../../application/dto/vehicles-models/set-model-licenses.dto';
-import { DeleteModelLicenseDto } from '../../application/dto/vehicles-models/delete-model-license.dto';
+
 import { ModelDtoMapper } from '../../application/mappers/model-dto.mapper';
 import { LicenseDtoMapper } from '../../application/mappers/license-dto.mapper';
 

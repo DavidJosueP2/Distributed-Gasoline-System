@@ -322,10 +322,10 @@ service VehiclesService {
   rpc CreateModel (CreateModelRequest) returns (CreateModelResponse);
   rpc DeprecateModel (DeprecateModelRequest) returns (.google.protobuf.Timestamp);
   rpc GetModel (GetModelRequest) returns (GetModelResponse);
-  rpc GetModelByIdentity (GetModelByIdentityRequest) returns (GetModelByIdentityResponse); // NUEVO: Búsqueda por identidad
+  rpc GetModelByIdentity (GetModelByIdentityRequest) returns (GetModelByIdentityResponse);
   rpc ListModels (ListModelsRequest) returns (ListModelsResponse);
   rpc UpdateModel (UpdateModelRequest) returns (VehicleModel);
-  rpc DeleteModel (DeleteModelRequest) returns (DeleteModelResponse); // NUEVO: Borrado lógico de modelo
+  rpc DeleteModel (DeleteModelRequest) returns (DeleteModelResponse);
 
   // ----- Model License Requirements -----
   rpc ListModelLicenseRequirements (ListModelLicenseRequirementsRequest) returns (ListModelLicenseRequirementsResponse);
@@ -341,7 +341,7 @@ service VehiclesService {
 
   rpc GetUnit (GetUnitRequest) returns (GetUnitResponse);
   rpc ListUnits (ListUnitsRequest) returns (ListUnitsResponse);
-  rpc GetUnitConsumptionProfile (GetUnitConsumptionProfileRequest) returns (GetUnitConsumptionProfileResponse); // NUEVO
+  rpc GetUnitConsumptionProfile (GetUnitConsumptionProfileRequest) returns (GetUnitConsumptionProfileResponse);
 
   // ----- Domain queries -----
   rpc GetUnitRequiredLicenses (GetUnitRequest) returns (stream LicenseRef);

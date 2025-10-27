@@ -17,6 +17,8 @@ import { VehicleModelsHttpController } from './http/vehicles-svc/vehicle-models.
 import { VehicleUnitsHttpController } from './http/vehicles-svc/vehicle-units.controller';
 import { UsersController } from './http/users-srv/users.controller';
 import { AuthController } from './http/auth-srv/auth.controller';
+import { RoutesController } from './http/routes-srv/routes.controller';
+import { TripsController } from './http/routes-srv/trips.controller';
 import { JwtAuthGuard } from './common/auth/guards/jwt.auth.guard';
 
 const globalProviders: Provider[] = [
@@ -57,6 +59,8 @@ const globalProviders: Provider[] = [
         VehicleUnitsHttpController,
         UsersController,
         AuthController,
+        RoutesController,
+        TripsController,
     ],
     providers: [
         GrpcClientFactory,

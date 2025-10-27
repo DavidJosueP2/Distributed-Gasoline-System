@@ -20,8 +20,9 @@
     "dev:hello": "npm --workspace services/hello-svc run --if-present start:dev",
     "dev:users": "npm --workspace services/users-srv run --if-present start:dev",
     "dev:vehicles": "npm --workspace services/vehicles-svc run --if-present start:dev",
+    "dev:routes": "npm --workspace services/routes-srv run --if-present start:dev",
 
-    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,HELLO-SVC,USERS-SVC,VEHICLES-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:hello\" \"npm run dev:users\" \"npm run dev:vehicles\"",
+    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,HELLO-SVC,USERS-SVC,VEHICLES-SVC,ROUTES-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:hello\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:routes\"",
 
     "setup": "npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
     "dev": "npm run infra:up && npm run infra:ready && npm run dev:services",

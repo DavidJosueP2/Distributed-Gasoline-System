@@ -2,9 +2,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RouteRepository } from '../../../domain/repositories/route.repository';
-import { Route } from '../../../domain/entities/route.entity';
-import { VehicleType } from '../../../domain/value-objects/vehicle-type.vo';
+import { RouteRepository } from 'src/domain/repositories/route.repository';
+import { Route } from 'src/domain/entities/route.entity';
+import { VehicleType } from 'src/domain/value-objects/vehicle-type.vo';
 import { RouteEntity } from '../entities/route.entity';
 
 @Injectable()
@@ -15,7 +15,7 @@ export class TypeOrmRouteRepository implements RouteRepository {
   ) {}
 
   async findById(id: bigint): Promise<Route | null> {
-    const entity = await this.repository.findOne({ where: { id } });
+    const entity = await this.repository.findOne({ where: { id: id.toString() } });
     return entity ? this.toDomain(entity) : null;
   }
 
@@ -28,23 +28,23 @@ export class TypeOrmRouteRepository implements RouteRepository {
   async create(route: Omit<Route, 'id' | 'createdAt' | 'updatedAt'>): Promise<bigint> {
     const entity = this.toEntity(route);
     const saved = await this.repository.save(entity);
-    return saved.id;
+    return BigInt(saved.id);
   }
 
   async update(id: bigint, route: Partial<Omit<Route, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Route> {
-    await this.repository.update(id, route);
-    const updated = await this.repository.findOne({ where: { id } });
+    await this.repository.update(id.toString(), route);
+    const updated = await this.repository.findOne({ where: { id: id.toString() } });
     if (!updated) throw new Error('Route not found after update');
     return this.toDomain(updated);
   }
 
   async delete(id: bigint): Promise<void> {
-    await this.repository.delete(id);
+    await this.repository.delete(id.toString());
   }
 
   private toDomain(entity: RouteEntity): Route {
     return {
-      id: entity.id,
+      id: BigInt(entity.id),
       name: entity.name,
       originLat: Number(entity.originLat),
       originLng: Number(entity.originLng),

@@ -5,19 +5,19 @@ import { RouteEntity } from './route.entity';
 @Entity('trips')
 export class TripEntity {
   @PrimaryGeneratedColumn('increment')
-  id: bigint;
+  id: string;
 
   @Column({ type: 'bigint' })
-  routeId: bigint;
+  routeId: string;
 
   @Column({ type: 'bigint' })
-  supervisorId: bigint;
+  supervisorId: string;
 
   @Column({ type: 'bigint' })
-  driverId: bigint;
+  driverId: string;
 
   @Column({ type: 'bigint' })
-  vehicleId: bigint;
+  vehicleId: string;
 
   @Column({ type: 'timestamptz', nullable: true })
   startTime: Date | null;

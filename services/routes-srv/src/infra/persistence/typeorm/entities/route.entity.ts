@@ -5,7 +5,7 @@ import { TripEntity } from './trip.entity';
 @Entity('routes')
 export class RouteEntity {
   @PrimaryGeneratedColumn('increment')
-  id: bigint;
+  id: string;
 
   @Column({ type: 'varchar', length: 255 })
   name: string;

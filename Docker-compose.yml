@@ -79,7 +79,7 @@ services:
       POSTGRES_PASSWORD: ${DRIVER_DB_PASS:-admin}
       POSTGRES_DB: ${DRIVER_DB_NAME:-drivers}
     ports:
-      - "5436:5432"
+      - "5438:5432"
     volumes:
       - driver-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -107,6 +107,26 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # ---------- Routes Database ----------
+  routes-db:
+    image: postgres:16
+    container_name: fuelhub-routes-db
+    environment:
+      POSTGRES_USER: ${ROUTES_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ROUTES_DB_PASS:-admin}
+      POSTGRES_DB: ${ROUTES_DB_NAME:-routes}
+    ports:
+      - "5500:5432"
+    volumes:
+      - routes-db-data:/var/lib/postgresql/data
+      - ./services/routes-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ROUTES_DB_USER} -d ${ROUTES_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
   # ---------- PGAdmin ----------
   pgadmin:
     image: dpage/pgadmin4:8
@@ -122,6 +142,8 @@ services:
       driver-db:
         condition: service_healthy
       auth-db:
+        condition: service_healthy
+      routes-db:
         condition: service_healthy
     ports:
       - "5050:80"
@@ -166,4 +188,5 @@ volumes:
   driver-db-data:
   vehicles-db-data:
   auth-db-data:
+  routes-db-data:
   elasticsearch-data:

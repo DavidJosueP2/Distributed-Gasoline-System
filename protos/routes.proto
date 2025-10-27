@@ -1,0 +1,223 @@
+syntax = "proto3";
+
+package routes.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// =====================================================
+// Enums
+// =====================================================
+
+enum VehicleType {
+  VEHICLE_TYPE_UNSPECIFIED = 0;
+  LIVIANO = 1;
+  PESADO = 2;
+}
+
+enum TripStatus {
+  TRIP_STATUS_UNSPECIFIED = 0;
+  CREADO = 1;
+  EN_RUTA = 2;
+  EN_REVISION = 3;
+  TERMINADO = 4;
+}
+
+// =====================================================
+// Value Objects
+// =====================================================
+
+// =====================================================
+// Route Messages
+// =====================================================
+
+message Route {
+  int64 id = 1;
+  string name = 2;
+  double origin_lat = 3;
+  double origin_lng = 4;
+  double destination_lat = 5;
+  double destination_lng = 6;
+  double distance_km = 7;
+  VehicleType vehicle_type = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateRouteRequest {
+  string name = 1;
+  double origin_lat = 2;
+  double origin_lng = 3;
+  double destination_lat = 4;
+  double destination_lng = 5;
+  double distance_km = 6;
+  VehicleType vehicle_type = 7;
+}
+
+message CreateRouteResponse {
+  int64 id = 1;
+}
+
+message GetRouteRequest {
+  int64 id = 1;
+}
+
+message GetRouteResponse {
+  Route route = 1;
+}
+
+message ListRoutesRequest {
+  VehicleType vehicle_type_filter = 1; // opcional
+}
+
+message ListRoutesResponse {
+  repeated Route routes = 1;
+}
+
+message UpdateRouteRequest {
+  int64 id = 1;
+  string name = 2;
+  double origin_lat = 3;
+  double origin_lng = 4;
+  double destination_lat = 5;
+  double destination_lng = 6;
+  double distance_km = 7;
+  VehicleType vehicle_type = 8;
+}
+
+message DeleteRouteRequest {
+  int64 id = 1;
+}
+
+message DeleteRouteResponse {}
+
+// =====================================================
+// Trip Messages
+// =====================================================
+
+message Trip {
+  int64 id = 1;
+  int64 route_id = 2;
+  int64 supervisor_id = 3;
+  int64 driver_id = 4;
+  int64 vehicle_id = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+  TripStatus status = 8;
+  double odometer_start = 9;
+  double odometer_end = 10;
+  double distance_km_real = 11;
+  double distance_km_planned = 12;
+  double fuel_estimated = 13;
+  double fuel_actual = 14;
+  string review_comment = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+message CreateTripRequest {
+  int64 route_id = 1;
+  int64 supervisor_id = 2;
+  int64 driver_id = 3;
+  int64 vehicle_id = 4;
+  double odometer_start = 5; // desde VehiclesService
+}
+
+message CreateTripResponse {
+  int64 id = 1;
+  double fuel_estimated = 2; // calculado automáticamente
+}
+
+message GetTripRequest {
+  int64 id = 1;
+}
+
+message GetTripResponse {
+  Trip trip = 1;
+}
+
+message ListTripsRequest {
+  TripStatus status_filter = 1; // opcional
+  int64 driver_id_filter = 2; // opcional
+}
+
+message ListTripsResponse {
+  repeated Trip trips = 1;
+}
+
+message UpdateTripRequest {
+  int64 id = 1;
+  int64 driver_id = 2;
+  int64 vehicle_id = 3;
+}
+
+message StartTripRequest {
+  int64 id = 1;
+}
+
+message StartTripResponse {
+  google.protobuf.Timestamp start_time = 1;
+}
+
+message FinishTripRequest {
+  int64 id = 1;
+  double odometer_end = 2;
+}
+
+message FinishTripResponse {
+  double distance_km_real = 1;
+  double fuel_actual = 2;
+  google.protobuf.Timestamp end_time = 3;
+}
+
+message ReviewTripRequest {
+  int64 id = 1;
+  string review_comment = 2; // obligatorio si desviación > 3%
+}
+
+message ReviewTripResponse {
+  google.protobuf.Timestamp reviewed_at = 1;
+}
+
+// =====================================================
+// Assignment Messages
+// =====================================================
+
+message AssignVehicleToRouteRequest {
+  int64 route_id = 1;
+  int64 vehicle_id = 2;
+  int64 driver_id = 3;
+}
+
+message AssignVehicleToRouteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// =====================================================
+// Services
+// =====================================================
+
+service RoutesService {
+  // Routes CRUD
+  rpc CreateRoute (CreateRouteRequest) returns (CreateRouteResponse);
+  rpc GetRoute (GetRouteRequest) returns (GetRouteResponse);
+  rpc ListRoutes (ListRoutesRequest) returns (ListRoutesResponse);
+  rpc UpdateRoute (UpdateRouteRequest) returns (Route);
+  rpc DeleteRoute (DeleteRouteRequest) returns (DeleteRouteResponse);
+  
+  // Assignments
+  rpc AssignVehicleToRoute (AssignVehicleToRouteRequest) returns (AssignVehicleToRouteResponse);
+}
+
+service TripsService {
+  // Trips CRUD
+  rpc CreateTrip (CreateTripRequest) returns (CreateTripResponse);
+  rpc GetTrip (GetTripRequest) returns (GetTripResponse);
+  rpc ListTrips (ListTripsRequest) returns (ListTripsResponse);
+  rpc UpdateTrip (UpdateTripRequest) returns (Trip);
+  
+  // Trip Flow
+  rpc StartTrip (StartTripRequest) returns (StartTripResponse);
+  rpc FinishTrip (FinishTripRequest) returns (FinishTripResponse);
+  rpc ReviewTrip (ReviewTripRequest) returns (ReviewTripResponse);
+}

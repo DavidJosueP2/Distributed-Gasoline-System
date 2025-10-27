@@ -2,12 +2,6 @@
 -- Routes Service Database Initialization
 -- ============================================================
 
--- Crear base de datos si no existe
-CREATE DATABASE routes;
-
--- Usar la base de datos
-\c routes;
-
 -- ============================================================
 -- Tabla de Rutas
 -- ============================================================
@@ -68,44 +62,29 @@ BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Trigger para routes
-DROP TRIGGER IF EXISTS update_routes_updated_at ON routes;
 CREATE TRIGGER update_routes_updated_at
     BEFORE UPDATE ON routes
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Trigger para trips
-DROP TRIGGER IF EXISTS update_trips_updated_at ON trips;
 CREATE TRIGGER update_trips_updated_at
     BEFORE UPDATE ON trips
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================
--- Datos de ejemplo (opcional)
+-- Datos de ejemplo
 -- ============================================================
+INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Centro - Norte', 4.6097, -74.0817, 4.7110, -74.0721, 15.5, 'LIVIANO'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Centro - Norte');
 
--- Insertar rutas de ejemplo
-INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type) VALUES
-('Ruta Centro - Norte', 4.6097, -74.0817, 4.7110, -74.0721, 15.5, 'LIVIANO'),
-('Ruta Sur - Aeropuerto', 4.6097, -74.0817, 4.7016, -74.1469, 25.8, 'PESADO'),
-('Ruta Este - Oeste', 4.6097, -74.0817, 4.6097, -74.2000, 18.2, 'LIVIANO')
-ON CONFLICT DO NOTHING;
+INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Sur - Aeropuerto', 4.6097, -74.0817, 4.7016, -74.1469, 25.8, 'PESADO'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Sur - Aeropuerto');
 
--- ============================================================
--- Comentarios de tabla
--- ============================================================
-COMMENT ON TABLE routes IS 'Tabla de rutas disponibles en el sistema';
-COMMENT ON TABLE trips IS 'Tabla de viajes realizados por conductores';
-
-COMMENT ON COLUMN routes.vehicle_type IS 'Tipo de vehículo permitido: LIVIANO o PESADO';
-COMMENT ON COLUMN trips.status IS 'Estado del viaje: CREADO, EN_RUTA, EN_REVISION, TERMINADO';
-COMMENT ON COLUMN trips.odometer_start IS 'Lectura inicial del odómetro del vehículo';
-COMMENT ON COLUMN trips.odometer_end IS 'Lectura final del odómetro del vehículo';
-COMMENT ON COLUMN trips.distance_km_real IS 'Distancia real calculada: odometer_end - odometer_start';
-COMMENT ON COLUMN trips.fuel_estimated IS 'Consumo estimado calculado con 5% de holgura';
-COMMENT ON COLUMN trips.fuel_actual IS 'Consumo real calculado basado en distancia real';
-COMMENT ON COLUMN trips.review_comment IS 'Comentario obligatorio si desviación > 3%';
+INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Este - Oeste', 4.6097, -74.0817, 4.6097, -74.2000, 18.2, 'LIVIANO'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Este - Oeste');

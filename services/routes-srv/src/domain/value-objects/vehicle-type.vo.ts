@@ -1,7 +1,8 @@
 // src/domain/value-objects/vehicle-type.vo.ts
 export enum VehicleType {
   LIVIANO = 'LIVIANO',
-  PESADO = 'PESADO'
+  PESADO = 'PESADO',
+  CUALQUIERA = 'CUALQUIERA'
 }
 
 export function isValidVehicleType(type: string): boolean {

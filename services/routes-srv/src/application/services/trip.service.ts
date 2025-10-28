@@ -6,7 +6,10 @@ import { RouteRepository } from '../../domain/repositories/route.repository';
 import { Trip } from '../../domain/entities/trip.entity';
 import { TripStatus, canTransitionTo } from '../../domain/value-objects/trip-status.vo';
 import { FuelCalculatorService } from '../../domain/services/fuel-calculator.service';
-import { VehiclesServiceClient } from '../../infra/clients/vehicles.client';
+import { VehiclesClient } from '../../infra/clients/vehicles.client';
+import { DriversClient } from '../../infra/clients/drivers.client';
+import { UsersClient } from '../../infra/clients/users.client';
+import { TripEnriched } from '../interfaces/trip-enriched.interface';
 import { GrpcClientFactory } from '../../infra/grpc/grpc-client.factory';
 import { 
   NotFoundException,
@@ -28,13 +31,31 @@ export class TripService {
     private readonly grpcFactory: GrpcClientFactory,
   ) {}
 
-  private async vehiclesClient(): Promise<VehiclesServiceClient> {
+  private async vehiclesClient(): Promise<VehiclesClient> {
     const client = await this.grpcFactory.clientFor(
       'VEHICLES-SERVICE',
       'vehicles.v1',
       'vehicles.proto',
     );
-    return client.getService<VehiclesServiceClient>('VehiclesService');
+    return new VehiclesClient(client);
+  }
+
+  private async driversClient(): Promise<DriversClient> {
+    const client = await this.grpcFactory.clientFor(
+      'DRIVER-MS',
+      'driverms.v1',
+      'driver_ms.proto',
+    );
+    return new DriversClient(client);
+  }
+
+  private async usersClient(): Promise<UsersClient> {
+    const client = await this.grpcFactory.clientFor(
+      'USERS-SERVICE',
+      'users.v1',
+      'users.proto',
+    );
+    return new UsersClient(client);
   }
 
   async createTrip(input: {
@@ -42,7 +63,6 @@ export class TripService {
     supervisorId: bigint;
     driverId: bigint;
     vehicleId: bigint;
-    odometerStart: number;
   }): Promise<{ id: bigint; fuelEstimated: number }> {
     // Validar que la ruta existe
     const route = await this.routeRepo.findById(input.routeId);
@@ -50,12 +70,13 @@ export class TripService {
       throw new NotFoundException('Ruta no encontrada');
     }
 
-    // Obtener consumo efectivo del vehículo
+    // Obtener datos del vehículo
     try {
       const vehiclesClient = await this.vehiclesClient();
-      const consumptionProfile = await lastValueFrom(
-        vehiclesClient.getUnitConsumptionProfile({ vehicleId: input.vehicleId })
-      );
+      const [odometerStart, consumptionProfile] = await Promise.all([
+        vehiclesClient.getVehicleOdometer(input.vehicleId),
+        vehiclesClient.getConsumptionProfile(input.vehicleId)
+      ]);
 
       // Calcular consumo estimado
       const fuelEstimated = FuelCalculatorService.calculateEstimatedFuel(
@@ -65,13 +86,13 @@ export class TripService {
 
       const trip: Omit<Trip, 'id' | 'createdAt' | 'updatedAt'> = {
         routeId: input.routeId,
-        supervisorId: input.supervisorId,
+        supervisorId: input.supervisorId, // Supervisor asignado desde el inicio
         driverId: input.driverId,
         vehicleId: input.vehicleId,
         startTime: null,
         endTime: null,
         status: TripStatus.CREADO,
-        odometerStart: input.odometerStart,
+        odometerStart, // Obtener odómetro actual del vehículo
         odometerEnd: null,
         distanceKmReal: null,
         distanceKmPlanned: route.distanceKm,
@@ -87,12 +108,25 @@ export class TripService {
     }
   }
 
-  async getTrip(id: bigint): Promise<Trip> {
+  async getTripEnriched(id: bigint): Promise<TripEnriched> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
     }
-    return trip;
+
+    // Obtener información enriquecida de todos los servicios
+    const [vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
+      this.vehiclesClient().then(client => client.getVehicleInfo(trip.vehicleId)),
+      this.driversClient().then(client => client.getDriverInfo(trip.driverId)),
+      this.usersClient().then(client => client.getUserInfo(trip.supervisorId))
+    ]);
+
+    return {
+      ...trip,
+      vehicleInfo,
+      driverInfo,
+      supervisorInfo
+    };
   }
 
   async listTrips(statusFilter?: TripStatus, driverIdFilter?: bigint): Promise<Trip[]> {
@@ -136,6 +170,18 @@ export class TripService {
       startTime,
     });
 
+    // Actualizar status de driver y vehicle a ON_ROUTE
+    try {
+      const driversClient = await this.driversClient();
+      const vehiclesClient = await this.vehiclesClient();
+      
+      await driversClient.updateDriverToOnRoute(trip.driverId);
+      await vehiclesClient.updateVehicleToOnRoute(trip.vehicleId);
+    } catch (error) {
+      // Log error pero no fallar el viaje
+      console.error('Error updating driver/vehicle status:', error);
+    }
+
     return startTime;
   }
 
@@ -167,9 +213,7 @@ export class TripService {
     // Obtener consumo efectivo del vehículo
     try {
       const vehiclesClient = await this.vehiclesClient();
-      const consumptionProfile = await lastValueFrom(
-        vehiclesClient.getUnitConsumptionProfile({ vehicleId: trip.vehicleId })
-      );
+      const consumptionProfile = await vehiclesClient.getConsumptionProfile(trip.vehicleId);
 
       // Calcular consumo real
       const fuelActual = FuelCalculatorService.calculateActualFuel(
@@ -185,6 +229,18 @@ export class TripService {
         fuelActual,
         endTime,
       });
+
+      // Actualizar status de driver y vehicle a AVAILABLE/ACTIVE
+      try {
+        const driversClient = await this.driversClient();
+        const vehiclesClient = await this.vehiclesClient();
+        
+        await driversClient.updateDriverToAvailable(trip.driverId);
+        await vehiclesClient.updateVehicleToActive(trip.vehicleId);
+      } catch (error) {
+        // Log error pero no fallar el viaje
+        console.error('Error updating driver/vehicle status:', error);
+      }
 
       return { distanceKmReal, fuelActual, endTime };
     } catch (error) {

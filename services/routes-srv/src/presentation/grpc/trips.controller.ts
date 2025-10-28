@@ -5,20 +5,29 @@ import { TripService } from '../../application/services/trip.service';
 import { TripGrpcMapper } from '../../infra/grpc/mappers/trip-grpc.mapper';
 import { TripStatus } from '../../domain/value-objects/trip-status.vo';
 import { status as GrpcStatus } from '@grpc/grpc-js';
+import { 
+  CreateTripDto, 
+  UpdateTripDto, 
+  GetTripDto, 
+  ListTripsDto, 
+  StartTripDto,
+  FinishTripDto,
+  ReviewTripDto,
+  DeleteTripDto 
+} from '../../application/dto/trips';
 
 @Controller()
 export class TripsController {
   constructor(private readonly tripService: TripService) {}
 
   @GrpcMethod('TripsService', 'CreateTrip')
-  async createTrip(request: any): Promise<any> {
+  async createTrip(request: CreateTripDto): Promise<any> {
     try {
       const result = await this.tripService.createTrip({
         routeId: BigInt(request.routeId),
         supervisorId: BigInt(request.supervisorId),
         driverId: BigInt(request.driverId),
         vehicleId: BigInt(request.vehicleId),
-        odometerStart: request.odometerStart,
       });
 
       return {
@@ -37,8 +46,8 @@ export class TripsController {
   @GrpcMethod('TripsService', 'GetTrip')
   async getTrip(request: any): Promise<any> {
     try {
-      const trip = await this.tripService.getTrip(BigInt(request.id));
-      return { trip: TripGrpcMapper.toProto(trip) };
+      const trip = await this.tripService.getTripEnriched(BigInt(request.id));
+      return { trip: TripGrpcMapper.toProtoEnriched(trip) };
     } catch (error) {
       if (error instanceof RpcException) throw error;
       throw new RpcException({

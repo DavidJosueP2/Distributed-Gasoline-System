@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS routes (
     destination_lat DECIMAL(9,6) NOT NULL,
     destination_lng DECIMAL(9,6) NOT NULL,
     distance_km DECIMAL(10,2) NOT NULL,
-    vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('LIVIANO', 'PESADO')),
+    vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('LIVIANO', 'PESADO', 'CUALQUIERA')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -78,7 +78,7 @@ CREATE TRIGGER update_trips_updated_at
 -- Datos de ejemplo
 -- ============================================================
 INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)
-SELECT 'Ruta Centro - Norte', 4.6097, -74.0817, 4.7110, -74.0721, 15.5, 'LIVIANO'
+SELECT 'Ruta Centro - Norte', 4.6097, -74.0817, 4.7110, -74.0721, 15.5, 'CUALQUIERA'
 WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Centro - Norte');
 
 INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)

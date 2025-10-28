@@ -136,21 +136,39 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
   }
 
 
- async findAll(): Promise<User[]> {
-  const records = await this.prisma.user.findMany({
-    where: {
-      deletedAt: null
-    },
-    include: INCLUDE_ROLES,
-    orderBy: { id: 'asc' },
-  });
+  async findByRole(roleName: string): Promise<User[]> {
+    const records = await this.prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        status: 'ACTIVE',
+        userRoles: {
+          some: {
+            role: {
+              name: roleName
+            }
+          }
+        }
+      },
+      include: INCLUDE_ROLES,
+      orderBy: { id: 'asc' },
+    });
+    
+    const users = records.map((record) => PrismaUserMapper.toDomain(record));
+    return users;
+  }
 
+  async findAll(): Promise<User[]> {
+    const records = await this.prisma.user.findMany({
+      where: {
+        deletedAt: null
+      },
+      include: INCLUDE_ROLES,
+      orderBy: { id: 'asc' },
+    });
 
-  const users = records.map((record) => PrismaUserMapper.toDomain(record as any));
-
-
-  return users;
-}
+    const users = records.map((record) => PrismaUserMapper.toDomain(record));
+    return users;
+  }
   async create(input: CreateUserInput): Promise<User> {
     const record = await this.prisma.$transaction(async (tx) => {
       return tx.user.create({

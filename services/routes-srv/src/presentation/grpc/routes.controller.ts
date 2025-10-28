@@ -5,13 +5,20 @@ import { RouteService } from '../../application/services/route.service';
 import { RouteGrpcMapper } from '../../infra/grpc/mappers/route-grpc.mapper';
 import { VehicleType } from '../../domain/value-objects/vehicle-type.vo';
 import { status as GrpcStatus } from '@grpc/grpc-js';
+import { 
+  CreateRouteDto, 
+  UpdateRouteDto, 
+  GetRouteDto, 
+  ListRoutesDto, 
+  DeleteRouteDto 
+} from '../../application/dto/routes';
 
 @Controller()
 export class RoutesController {
   constructor(private readonly routeService: RouteService) {}
 
   @GrpcMethod('RoutesService', 'CreateRoute')
-  async createRoute(request: any): Promise<any> {
+  async createRoute(request: CreateRouteDto): Promise<any> {
     try {
       const id = await this.routeService.createRoute({
         name: request.name,
@@ -20,7 +27,7 @@ export class RoutesController {
         destinationLat: request.destinationLat,
         destinationLng: request.destinationLng,
         distanceKm: request.distanceKm,
-        vehicleType: this.mapVehicleTypeFromProto(request.vehicleType),
+        vehicleType: request.vehicleType as VehicleType,
       });
 
       return { id: id.toString() };
@@ -114,6 +121,8 @@ export class RoutesController {
         return VehicleType.LIVIANO;
       case 2:
         return VehicleType.PESADO;
+      case 3:
+        return VehicleType.CUALQUIERA;
       default:
         throw new RpcException({
           code: GrpcStatus.INVALID_ARGUMENT,

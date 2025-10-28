@@ -1,15 +1,12 @@
-// src/domain/entities/trip.entity.ts
-import { TripStatus } from '../value-objects/trip-status.vo';
-
-export interface Trip {
-  id: bigint;
-  routeId: bigint;
-  supervisorId: bigint; // Supervisor asignado desde el inicio
-  driverId: bigint;
-  vehicleId: bigint;
+export interface TripResponseDto {
+  id: number;
+  routeId: number;
+  supervisorId: number;
+  driverId: number;
+  vehicleId: number;
   startTime?: Date | null;
   endTime?: Date | null;
-  status: TripStatus;
+  status: string;
   odometerStart: number;
   odometerEnd?: number | null;
   distanceKmReal?: number | null;

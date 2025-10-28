@@ -1,6 +1,7 @@
 // src/infra/grpc/mappers/trip-grpc.mapper.ts
 import { Trip } from '../../../domain/entities/trip.entity';
 import { TripStatus } from '../../../domain/value-objects/trip-status.vo';
+import { TripEnriched } from '../../../application/interfaces/trip-enriched.interface';
 
 export class TripGrpcMapper {
   static toProto(trip: Trip): any {
@@ -22,6 +23,48 @@ export class TripGrpcMapper {
       reviewComment: trip.reviewComment || '',
       createdAt: this.mapDateToTimestamp(trip.createdAt),
       updatedAt: this.mapDateToTimestamp(trip.updatedAt),
+    };
+  }
+
+  static toProtoEnriched(trip: TripEnriched): any {
+    return {
+      id: trip.id.toString(),
+      routeId: trip.routeId.toString(),
+      supervisorId: trip.supervisorId.toString(),
+      driverId: trip.driverId.toString(),
+      vehicleId: trip.vehicleId.toString(),
+      startTime: trip.startTime ? this.mapDateToTimestamp(trip.startTime) : null,
+      endTime: trip.endTime ? this.mapDateToTimestamp(trip.endTime) : null,
+      status: this.mapTripStatusToProto(trip.status),
+      odometerStart: trip.odometerStart,
+      odometerEnd: trip.odometerEnd || 0,
+      distanceKmReal: trip.distanceKmReal || 0,
+      distanceKmPlanned: trip.distanceKmPlanned,
+      fuelEstimated: trip.fuelEstimated,
+      fuelActual: trip.fuelActual || 0,
+      reviewComment: trip.reviewComment || '',
+      createdAt: this.mapDateToTimestamp(trip.createdAt),
+      updatedAt: this.mapDateToTimestamp(trip.updatedAt),
+      // Información enriquecida
+      vehicleInfo: {
+        id: trip.vehicleInfo.id,
+        plate: trip.vehicleInfo.plate,
+        brand: trip.vehicleInfo.brand,
+        family: trip.vehicleInfo.family,
+        year: trip.vehicleInfo.year,
+      },
+      driverInfo: {
+        id: trip.driverInfo.id,
+        firstName: trip.driverInfo.firstName,
+        lastName: trip.driverInfo.lastName,
+        email: trip.driverInfo.email,
+      },
+      supervisorInfo: {
+        id: trip.supervisorInfo.id,
+        firstName: trip.supervisorInfo.firstName,
+        lastName: trip.supervisorInfo.lastName,
+        email: trip.supervisorInfo.email,
+      },
     };
   }
 

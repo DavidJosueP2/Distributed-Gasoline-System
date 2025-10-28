@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from 'prisma-client';
 import {ModelEngineSpec} from "../entities/model-engine-spec";
 
 export type Tx = Prisma.TransactionClient;

@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from 'prisma-client';
 import Decimal from 'decimal.js';
 import { LicenseRef } from '../../../domain/value-objects/license-ref';
 import { VehicleModel } from "../../../domain";

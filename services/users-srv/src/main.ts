@@ -16,6 +16,9 @@ async function bootstrap() {
   const BIND_HOST =
     process.env.SERVICE_BIND_HOST || process.env.BIND_HOST || '0.0.0.0';
   const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || './protos';
+    const SHOULD_REGISTER =
+        (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
+        (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.GRPC,
@@ -26,19 +29,21 @@ async function bootstrap() {
     },
   });
 
-app.useGlobalPipes(
-  new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-    transformOptions: { enableImplicitConversion: true },
-    exceptionFactory: (errors) => {
-      
-      return RpcExceptionFromValidationErrors(errors);
-    },
-  }),
-);
-  const eureka = registerInEureka();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+        exceptionFactory: (errors) => {
+
+          return RpcExceptionFromValidationErrors(errors);
+        },
+      }),
+    );
+
+    const eureka = SHOULD_REGISTER ? registerInEureka() : undefined;
+
 
   await app.listen();
   console.log(`[USERS-SERVICE] gRPC on ${BIND_HOST}:${PORT}`);

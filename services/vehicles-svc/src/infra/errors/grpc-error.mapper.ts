@@ -1,6 +1,6 @@
 import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
-import { Prisma as P } from '@prisma/client';
+import { Prisma as P } from 'prisma-client';
 
 export class GrpcErrorMapper {
     static toRpc(e: unknown): RpcException {

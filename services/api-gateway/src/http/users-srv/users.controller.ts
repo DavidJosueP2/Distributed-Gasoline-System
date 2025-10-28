@@ -18,7 +18,7 @@ import type {
   UserResponse,
   UserServiceClient,
   LongObject,
-} from '../../grpc/clients/users.client';
+} from '../../grpc/clients/user-svc/users.client';
 
 type RequestWithGrpc = Request & { _grpcMetadata?: Record<string, unknown> };
 

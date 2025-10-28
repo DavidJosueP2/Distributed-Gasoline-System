@@ -1,0 +1,188 @@
+# ==============================================
+# Docker Compose - SOLO INFRAESTRUCTURA
+# ==============================================
+# Contiene SOLO la infraestructura (DBs, Eureka, RabbitMQ, Elasticsearch)
+# Úsalo cuando desarrolles microservicios localmente en Node.js
+#
+# Uso:
+#   npm run infra:up    (inicia infraestructura)
+#   npm run dev:auth    (corre microservicio local)
+
+version: '3.8'
+
+services:
+  # ---------- Eureka Server ----------
+  eureka-server:
+    image: steeltoeoss/eureka-server
+    container_name: fuel-eureka
+    ports:
+      - "${EUREKA_PORT:-8761}:8761"
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q 'UP'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------- PostgreSQL - Auth DB ----------
+  auth-db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: fuel-auth-db
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASS:-root}
+      POSTGRES_DB: ${AUTH_DB:-auth}
+    ports:
+      - "${AUTH_DB_PORT:-5433}:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres} -d ${AUTH_DB:-auth}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------- PostgreSQL - Users DB ----------
+  users-db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: fuel-users-db
+    environment:
+      POSTGRES_USER: ${USERS_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${USERS_DB_PASS:-admin}
+      POSTGRES_DB: ${USERS_DB_NAME:-users}
+    ports:
+      - "${USERS_DB_PORT:-5434}:5432"
+    volumes:
+      - users_db_data:/var/lib/postgresql/data
+      - ./services/users-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USERS_DB_USER:-postgres} -d ${USERS_DB_NAME:-users}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # ---------- PostgreSQL - Vehicles DB ----------
+  vehicles-db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: fuel-vehicles-db
+    environment:
+      POSTGRES_USER: ${VEHICLES_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${VEHICLES_DB_PASS:-admin}
+      POSTGRES_DB: ${VEHICLES_DB_NAME:-vehicles}
+    ports:
+      - "${VEHICLES_DB_PORT:-5435}:5432"
+    volumes:
+      - vehicles_db_data:/var/lib/postgresql/data
+      - ./services/vehicles-svc/prisma/migrations/20251004143040_init_vehicles/migration.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VEHICLES_DB_USER:-postgres} -d ${VEHICLES_DB_NAME:-vehicles}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # ---------- PostgreSQL - Driver DB ----------
+  driver-db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: fuel-driver-db
+    environment:
+      POSTGRES_USER: ${DRIVER_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DRIVER_DB_PASS:-admin}
+      POSTGRES_DB: ${DRIVER_DB_NAME:-drivers}
+    ports:
+      - "${DRIVER_DB_PORT:-5436}:5432"
+    volumes:
+      - driver_db_data:/var/lib/postgresql/data
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DRIVER_DB_USER:-postgres} -d ${DRIVER_DB_NAME:-drivers}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------- RabbitMQ ----------
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: fuel-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------- Elasticsearch ----------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: fuel-elasticsearch
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------- Kibana ----------
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: fuel-kibana
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    networks:
+      - fuel-network
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  fuel-network:
+    driver: bridge
+
+volumes:
+  auth_db_data:
+  users_db_data:
+  vehicles_db_data:
+  driver_db_data:
+  rabbitmq_data:
+  elasticsearch_data:

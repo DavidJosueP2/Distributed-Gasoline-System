@@ -2,7 +2,7 @@ import { Body, Controller, Post, Logger, Req, Get, UseGuards, HttpCode } from '@
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import {
   AuthServiceClient,
-} from 'src/grpc/auth/auth.client';
+} from 'src/grpc/clients/auth/auth.client';
 import type {
   LoginRequest,
   LoginResponse,
@@ -12,7 +12,7 @@ import type {
   ResetPasswordResponse,
   UpdateFullnameRequest,
   UserResponse,
-} from 'src/grpc/auth/auth.client';
+} from 'src/grpc/clients/auth/auth.client';
 import { lastValueFrom, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Public } from '../../common/auth/decorators/public.decorator';

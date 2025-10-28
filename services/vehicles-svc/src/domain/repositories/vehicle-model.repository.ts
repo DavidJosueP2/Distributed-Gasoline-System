@@ -1,10 +1,11 @@
 import {VehicleModel} from "../entities/vehicle-model";
-import { Prisma } from '@prisma/client';
+import { MachineType } from "../value-objects/machine-type";
+import { Prisma } from 'prisma-client';
 
 export type Tx = Prisma.TransactionClient;
 
 export interface VehicleModelRepository {
-    listAll(): Promise<VehicleModel[]>;
+    listAll(machineTypeFilter?: MachineType): Promise<VehicleModel[]>;
     findById(id: bigint, tx?: Tx): Promise<VehicleModel | null>;
     findByIdentity(
         brand: string,

@@ -2,8 +2,8 @@ import { Controller, Get, Param, Query, Post, Body, Req, Patch, Delete, Put } fr
 import { Observable, from, switchMap, map } from 'rxjs';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import { GrpcTimeout } from '../../grpc/grpc-timeout.interceptor';
-import { VehiclesServiceClient, ListModelsResponse, GetModelResponse } from '../../grpc/clients/vehicles.client';
-import { VehiclesHttpToGrpcMapper } from '../../grpc/mappers/vehicles-models.mapper';
+import { VehiclesServiceClient, ListModelsResponse, GetModelResponse } from '../../grpc/clients/vehicles-svc/vehicles.client';
+import { VehiclesHttpToGrpcMapper } from '../../grpc/mappers/vehicle/vehicles-models.mapper';
 
 @Controller('vehicles/models')
 export class VehicleModelsHttpController {
@@ -17,9 +17,19 @@ export class VehicleModelsHttpController {
 
   @Get()
   @GrpcTimeout(1500)
-  list(@Req() req: any): Observable<any> {
+  list(@Query('machineType') machineType: string | undefined, @Req() req: any): Observable<any> {
+    let machineTypeFilter: number | undefined;
+    if (machineType) {
+      const normalized = machineType.toUpperCase();
+      if (normalized === 'LIGHT' || normalized === '1') {
+        machineTypeFilter = 1;
+      } else if (normalized === 'HEAVY' || normalized === '2') {
+        machineTypeFilter = 2;
+      }
+    }
+
     return from(this.svc(req)).pipe(
-      switchMap(svc => svc.ListModels({}, req._grpcMetadata)),
+      switchMap(svc => svc.ListModels({ machineTypeFilter }, req._grpcMetadata)),
       map(res => VehiclesHttpToGrpcMapper.toListModelsResponse(res.models)),
     );
   }

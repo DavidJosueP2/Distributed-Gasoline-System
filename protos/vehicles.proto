@@ -255,6 +255,7 @@ message ListUnitsRequest {
   OperationalStatus status_filter = 2; // opcional
   string plate_prefix = 3;             // opcional (búsqueda simple)
   int64 model_id_filter = 4;           // opcional
+  MachineType machine_type_filter = 5; // opcional - filtra por tipo de maquinaria del modelo
 }
 
 message ListUnitsResponse {

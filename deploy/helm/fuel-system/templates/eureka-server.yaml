@@ -1,0 +1,63 @@
+{{- if .Values.eurekaServer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fuel-system.fullname" . }}-eureka-server
+  labels:
+    {{- include "fuel-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: eureka-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "fuel-system.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: eureka-server
+  template:
+    metadata:
+      labels:
+        {{- include "fuel-system.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: eureka-server
+    spec:
+      {{- include "fuel-system.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: eureka-server
+        image: "{{ .Values.eurekaServer.image.repository }}:{{ .Values.eurekaServer.image.tag }}"
+        imagePullPolicy: {{ .Values.eurekaServer.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.eurekaServer.service.port }}
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.eurekaServer.resources | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fuel-system.fullname" . }}-eureka-server
+  labels:
+    {{- include "fuel-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: eureka-server
+spec:
+  type: {{ .Values.eurekaServer.service.type }}
+  ports:
+  - port: {{ .Values.eurekaServer.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "fuel-system.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: eureka-server
+{{- end }}
+

@@ -38,9 +38,6 @@ const globalProviders: Provider[] = [
             useFactory: (config: ConfigService): JwtModuleOptions => ({
                 secret: config.get<string>('JWT_SECRET'),
                 signOptions: {
-                    // jsonwebtoken accepts number or string (e.g. '1h'),
-                    // cast to any to satisfy the JwtModuleOptions type which
-                    // may use a different StringValue type.
                     expiresIn: config.get<string | number>('JWT_EXPIRES_IN') as any,
                 },
             }),

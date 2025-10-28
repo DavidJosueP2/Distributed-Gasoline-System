@@ -13,6 +13,7 @@
     "@nestjs/core": "^10.0.0",
     "@nestjs/microservices": "^10.0.0",
     "amqplib": "^0.10.3",
+    "dotenv": "^17.2.3",
     "eureka-js-client": "^4.5.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0"

@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { RoundRobin } from './rr.strategy';
 import { EurekaDiscovery } from './eureka.service';
+import { ServiceLocatorProvider } from './discovery.providers';
 import { GrpcClientFactory } from '../grpc/grpc-client.factory';
 
-// note: we export the RoundRobin, EurekaDiscovery and GrpcClientFactory for client factories
+// note: we export the ServiceLocator-powered GrpcClientFactory as well.
 @Module({
-	providers: [RoundRobin, EurekaDiscovery, GrpcClientFactory],
-	exports: [RoundRobin, EurekaDiscovery, GrpcClientFactory],
+	imports: [ConfigModule],
+	providers: [RoundRobin, EurekaDiscovery, ServiceLocatorProvider, GrpcClientFactory],
+	exports: [RoundRobin, EurekaDiscovery, ServiceLocatorProvider, GrpcClientFactory],
 })
 export class DiscoveryModule {}

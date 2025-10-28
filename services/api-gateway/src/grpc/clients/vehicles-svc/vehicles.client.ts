@@ -148,7 +148,13 @@ export interface VehicleUnit {
     consumption?: VehicleUnitConsumption;
 }
 
-export interface ListUnitsRequest { }
+export interface ListUnitsRequest { 
+    page?: Pagination;
+    statusFilter?: UnitOperationalStatus;
+    platePrefix?: string;
+    modelIdFilter?: number | string;
+    machineTypeFilter?: MachineType;
+}
 export interface ListUnitsResponse {
     units: VehicleUnit[];
     page?: PaginationResult;

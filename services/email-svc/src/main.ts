@@ -18,6 +18,9 @@ async function bootstrap() {
   const PORT = Number(process.env.EMAIL_GRPC_PORT || 50052);
   const BIND_HOST = process.env.EMAIL_SERVICE_REGISTER_HOST || '0.0.0.0';
   const PROTO_ROOT = join(__dirname, '../../../protos');
+    const SHOULD_REGISTER =
+        (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
+        (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     EmailModule,
@@ -48,7 +51,7 @@ async function bootstrap() {
     }),
   );
 
-  const eureka = registerInEureka();
+    const eureka = SHOULD_REGISTER ? registerInEureka() : undefined;
 
   await app.listen();
   console.log(`[EMAIL-SERVICE] gRPC on ${BIND_HOST}:${PORT}`);

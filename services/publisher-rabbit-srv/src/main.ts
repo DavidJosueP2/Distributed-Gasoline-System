@@ -16,7 +16,9 @@ function protoDir() {
 async function bootstrap() {
   const port = Number(process.env.PUBLISHER_GRPC_PORT || process.env.GRPC_PORT || 50090);
   const bindHost = process.env.SERVICE_BIND_HOST || process.env.BIND_HOST || '0.0.0.0';
-
+    const SHOULD_REGISTER =
+        (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
+        (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
   
   const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log', 'debug'] });
 
@@ -29,7 +31,8 @@ async function bootstrap() {
     },
   });
 
-  const eureka = registerInEureka();
+    const eureka = SHOULD_REGISTER ? registerInEureka() : undefined;
+
 
   await app.startAllMicroservices();
   await app.listen(Number(process.env.PUBLISHER_HTTP_PORT || port + 1000), bindHost);

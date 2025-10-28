@@ -1,4 +1,4 @@
-import { CreateUnitRequest, UpdateUnitStatusRequest, UpsertUnitConsumptionRequest, UpdateUnitRequest, VehicleUnit, VehicleUnitConsumption } from '../clients/vehicles.client';
+import { CreateUnitRequest, UpdateUnitStatusRequest, UpsertUnitConsumptionRequest, UpdateUnitRequest, VehicleUnit, VehicleUnitConsumption } from '../../clients/vehicles-svc/vehicles.client';
 
 export class VehicleUnitsHttpMapper {
   static toCreate(src: any): CreateUnitRequest {

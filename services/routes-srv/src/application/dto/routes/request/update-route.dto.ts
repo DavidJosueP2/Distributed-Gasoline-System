@@ -8,8 +8,12 @@ export class UpdateRouteDto {
   id!: number;
 
   @IsOptional()
-  @IsString({ message: 'El nombre debe ser una cadena de texto.' })
+  @IsString({ message: 'El nombre de la ruta debe ser una cadena de texto.' })
   name?: string;
+
+  @IsOptional()
+  @IsString({ message: 'El nombre de origen debe ser una cadena de texto.' })
+  originName?: string;
 
   @IsOptional()
   @IsNumber({}, { message: 'La latitud de origen debe ser un número.' })
@@ -20,6 +24,10 @@ export class UpdateRouteDto {
   @IsNumber({}, { message: 'La longitud de origen debe ser un número.' })
   @Type(() => Number)
   originLng?: number;
+
+  @IsOptional()
+  @IsString({ message: 'El nombre de destino debe ser una cadena de texto.' })
+  destinationName?: string;
 
   @IsOptional()
   @IsNumber({}, { message: 'La latitud de destino debe ser un número.' })

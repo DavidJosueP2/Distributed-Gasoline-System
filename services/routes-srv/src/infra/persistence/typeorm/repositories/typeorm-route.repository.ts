@@ -1,5 +1,5 @@
 // src/infra/persistence/typeorm/repositories/typeorm-route.repository.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RouteRepository } from 'src/domain/repositories/route.repository';
@@ -9,6 +9,8 @@ import { RouteEntity } from '../entities/route.entity';
 
 @Injectable()
 export class TypeOrmRouteRepository implements RouteRepository {
+  private readonly logger = new Logger(TypeOrmRouteRepository.name);
+
   constructor(
     @InjectRepository(RouteEntity)
     private readonly repository: Repository<RouteEntity>,
@@ -20,9 +22,24 @@ export class TypeOrmRouteRepository implements RouteRepository {
   }
 
   async findAll(vehicleTypeFilter?: VehicleType): Promise<Route[]> {
-    const where = vehicleTypeFilter ? { vehicleType: vehicleTypeFilter } : {};
-    const entities = await this.repository.find({ where });
-    return entities.map(entity => this.toDomain(entity));
+    this.logger.log(`findAll called with vehicleTypeFilter: ${vehicleTypeFilter}`);
+    
+    try {
+      const where = vehicleTypeFilter ? { vehicleType: vehicleTypeFilter } : {};
+      this.logger.log(`Query where clause: ${JSON.stringify(where)}`);
+      
+      const entities = await this.repository.find({ where });
+      this.logger.log(`Found ${entities.length} entities in database`);
+      
+      const routes = entities.map(entity => this.toDomain(entity));
+      this.logger.log(`Mapped to ${routes.length} domain routes`);
+      
+      return routes;
+    } catch (error) {
+      this.logger.error(`Error in findAll:`, error);
+      this.logger.error(`Error stack:`, error.stack);
+      throw error;
+    }
   }
 
   async create(route: Omit<Route, 'id' | 'createdAt' | 'updatedAt'>): Promise<bigint> {
@@ -42,12 +59,25 @@ export class TypeOrmRouteRepository implements RouteRepository {
     await this.repository.delete(id.toString());
   }
 
+  async hasTrips(id: bigint): Promise<boolean> {
+    const count = await this.repository
+      .createQueryBuilder('route')
+      .leftJoin('route.trips', 'trip')
+      .where('route.id = :id', { id: id.toString() })
+      .andWhere('trip.id IS NOT NULL')
+      .getCount();
+    
+    return count > 0;
+  }
+
   private toDomain(entity: RouteEntity): Route {
     return {
       id: BigInt(entity.id),
       name: entity.name,
+      originName: entity.originName,
       originLat: Number(entity.originLat),
       originLng: Number(entity.originLng),
+      destinationName: entity.destinationName,
       destinationLat: Number(entity.destinationLat),
       destinationLng: Number(entity.destinationLng),
       distanceKm: Number(entity.distanceKm),
@@ -60,8 +90,10 @@ export class TypeOrmRouteRepository implements RouteRepository {
   private toEntity(route: Omit<Route, 'id' | 'createdAt' | 'updatedAt'>): RouteEntity {
     const entity = new RouteEntity();
     entity.name = route.name;
+    entity.originName = route.originName;
     entity.originLat = route.originLat;
     entity.originLng = route.originLng;
+    entity.destinationName = route.destinationName;
     entity.destinationLat = route.destinationLat;
     entity.destinationLng = route.destinationLng;
     entity.distanceKm = route.distanceKm;

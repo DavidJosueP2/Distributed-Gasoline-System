@@ -8,8 +8,10 @@
 CREATE TABLE IF NOT EXISTS routes (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    origin_name VARCHAR(255) NOT NULL,
     origin_lat DECIMAL(9,6) NOT NULL,
     origin_lng DECIMAL(9,6) NOT NULL,
+    destination_name VARCHAR(255) NOT NULL,
     destination_lat DECIMAL(9,6) NOT NULL,
     destination_lng DECIMAL(9,6) NOT NULL,
     distance_km DECIMAL(10,2) NOT NULL,
@@ -21,6 +23,8 @@ CREATE TABLE IF NOT EXISTS routes (
 -- Índices para rutas
 CREATE INDEX IF NOT EXISTS idx_routes_vehicle_type ON routes(vehicle_type);
 CREATE INDEX IF NOT EXISTS idx_routes_name ON routes(name);
+CREATE INDEX IF NOT EXISTS idx_routes_origin_name ON routes(origin_name);
+CREATE INDEX IF NOT EXISTS idx_routes_destination_name ON routes(destination_name);
 
 -- ============================================================
 -- Tabla de Viajes
@@ -77,14 +81,14 @@ CREATE TRIGGER update_trips_updated_at
 -- ============================================================
 -- Datos de ejemplo
 -- ============================================================
-INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)
-SELECT 'Ruta Centro - Norte', 4.6097, -74.0817, 4.7110, -74.0721, 15.5, 'CUALQUIERA'
-WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Centro - Norte');
+INSERT INTO routes (name, origin_name, origin_lat, origin_lng, destination_name, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Centro-Norte', 'Centro de Bogotá', 4.6097, -74.0817, 'Norte de Bogotá', 4.7110, -74.0721, 15.5, 'CUALQUIERA'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Centro-Norte');
 
-INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)
-SELECT 'Ruta Sur - Aeropuerto', 4.6097, -74.0817, 4.7016, -74.1469, 25.8, 'PESADO'
-WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Sur - Aeropuerto');
+INSERT INTO routes (name, origin_name, origin_lat, origin_lng, destination_name, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Sur-Aeropuerto', 'Sur de Bogotá', 4.6097, -74.0817, 'Aeropuerto El Dorado', 4.7016, -74.1469, 25.8, 'PESADO'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Sur-Aeropuerto');
 
-INSERT INTO routes (name, origin_lat, origin_lng, destination_lat, destination_lng, distance_km, vehicle_type)
-SELECT 'Ruta Este - Oeste', 4.6097, -74.0817, 4.6097, -74.2000, 18.2, 'LIVIANO'
-WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Este - Oeste');
+INSERT INTO routes (name, origin_name, origin_lat, origin_lng, destination_name, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Este-Oeste', 'Este de Bogotá', 4.6097, -74.0817, 'Oeste de Bogotá', 4.6097, -74.2000, 18.2, 'LIVIANO'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Este-Oeste');

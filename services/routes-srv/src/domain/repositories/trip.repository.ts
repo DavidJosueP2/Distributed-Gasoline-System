@@ -8,4 +8,5 @@ export interface TripRepository {
   create(trip: Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>): Promise<bigint>;
   update(id: bigint, trip: Partial<Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Trip>;
   delete(id: bigint): Promise<void>;
+  existsByRouteId(routeId: bigint): Promise<boolean>;
 }

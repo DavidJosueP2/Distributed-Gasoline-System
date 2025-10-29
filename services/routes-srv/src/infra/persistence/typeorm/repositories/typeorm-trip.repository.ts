@@ -49,6 +49,11 @@ export class TypeOrmTripRepository implements TripRepository {
     await this.repository.delete(id.toString());
   }
 
+  async existsByRouteId(routeId: bigint): Promise<boolean> {
+    const count = await this.repository.count({ where: { routeId: routeId.toString() } });
+    return count > 0;
+  }
+
   private toDomain(entity: TripEntity): Trip {
     return {
       id: BigInt(entity.id),

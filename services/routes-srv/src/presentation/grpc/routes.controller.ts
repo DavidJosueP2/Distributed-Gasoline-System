@@ -1,5 +1,5 @@
 // src/presentation/grpc/routes.controller.ts
-import { Controller } from '@nestjs/common';
+import { Controller, Logger } from '@nestjs/common';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
 import { RouteService } from '../../application/services/route.service';
 import { RouteGrpcMapper } from '../../infra/grpc/mappers/route-grpc.mapper';
@@ -15,96 +15,155 @@ import {
 
 @Controller()
 export class RoutesController {
+  private readonly logger = new Logger(RoutesController.name);
+
   constructor(private readonly routeService: RouteService) {}
 
   @GrpcMethod('RoutesService', 'CreateRoute')
   async createRoute(request: CreateRouteDto): Promise<any> {
+    this.logger.log(`CreateRoute called with request: ${JSON.stringify(request)}`);
+    
     try {
-      const id = await this.routeService.createRoute({
-        name: request.name,
-        originLat: request.originLat,
-        originLng: request.originLng,
-        destinationLat: request.destinationLat,
-        destinationLng: request.destinationLng,
-        distanceKm: request.distanceKm,
-        vehicleType: request.vehicleType as VehicleType,
-      });
+        const id = await this.routeService.createRoute({
+          name: request.name,
+          originName: request.originName,
+          originLat: request.originLat,
+          originLng: request.originLng,
+          destinationName: request.destinationName,
+          destinationLat: request.destinationLat,
+          destinationLng: request.destinationLng,
+          distanceKm: request.distanceKm,
+          vehicleType: request.vehicleType as VehicleType,
+        });
 
+      this.logger.log(`Route created with ID: ${id}`);
       return { id: id.toString() };
     } catch (error) {
-      if (error instanceof RpcException) throw error;
+      this.logger.error(`Error in CreateRoute:`, error);
+      this.logger.error(`Error stack:`, error.stack);
+      
+      if (error instanceof RpcException) {
+        this.logger.error(`RpcException thrown:`, error.getError());
+        throw error;
+      }
+      
       throw new RpcException({
         code: GrpcStatus.INTERNAL,
-        message: 'Error interno del servidor',
+        message: `Error interno del servidor: ${error.message || 'Error desconocido'}`,
       });
     }
   }
 
   @GrpcMethod('RoutesService', 'GetRoute')
   async getRoute(request: any): Promise<any> {
+    this.logger.log(`GetRoute called with ID: ${request.id}`);
+    
     try {
       const route = await this.routeService.getRoute(BigInt(request.id));
-      return { route: RouteGrpcMapper.toProto(route) };
+      const hasTrips = await this.routeService.hasTrips(BigInt(request.id));
+      this.logger.log(`Route found: ${route.name} (${route.originName} -> ${route.destinationName}), hasTrips: ${hasTrips}`);
+      return { route: RouteGrpcMapper.toProto(route, hasTrips) };
     } catch (error) {
-      if (error instanceof RpcException) throw error;
+      this.logger.error(`Error in GetRoute:`, error);
+      this.logger.error(`Error stack:`, error.stack);
+      
+      if (error instanceof RpcException) {
+        this.logger.error(`RpcException thrown:`, error.getError());
+        throw error;
+      }
+      
       throw new RpcException({
         code: GrpcStatus.INTERNAL,
-        message: 'Error interno del servidor',
+        message: `Error interno del servidor: ${error.message || 'Error desconocido'}`,
       });
     }
   }
 
   @GrpcMethod('RoutesService', 'ListRoutes')
-  async listRoutes(request: any): Promise<any> {
+  async listRoutes(request: ListRoutesDto): Promise<any> {
+    this.logger.log(`ListRoutes called with request: ${JSON.stringify(request)}`);
+    
     try {
-      const vehicleTypeFilter = request.vehicleTypeFilter 
-        ? this.mapVehicleTypeFromProto(request.vehicleTypeFilter)
-        : undefined;
+      this.logger.log(`Vehicle type filter: ${request.vehicleTypeFilter}`);
       
-      const routes = await this.routeService.listRoutes(vehicleTypeFilter);
-      return { routes: routes.map(RouteGrpcMapper.toProto) };
+      const routes = await this.routeService.listRoutes(request.vehicleTypeFilter);
+      this.logger.log(`Found ${routes.length} routes`);
+      
+      return { routes: routes.map(RouteGrpcMapper.toListItemProto) };
     } catch (error) {
-      if (error instanceof RpcException) throw error;
+      this.logger.error(`Error in ListRoutes:`, error);
+      this.logger.error(`Error stack:`, error.stack);
+      this.logger.error(`Error message:`, error.message);
+      
+      if (error instanceof RpcException) {
+        this.logger.error(`RpcException thrown:`, error.getError());
+        throw error;
+      }
+      
+      this.logger.error(`Unknown error type: ${typeof error}`);
       throw new RpcException({
         code: GrpcStatus.INTERNAL,
-        message: 'Error interno del servidor',
+        message: `Error interno del servidor: ${error.message || 'Error desconocido'}`,
       });
     }
   }
 
   @GrpcMethod('RoutesService', 'UpdateRoute')
   async updateRoute(request: any): Promise<any> {
+    this.logger.log(`UpdateRoute called with ID: ${request.id}`);
+    
     try {
-      const route = await this.routeService.updateRoute(BigInt(request.id), {
-        name: request.name,
-        originLat: request.originLat,
-        originLng: request.originLng,
-        destinationLat: request.destinationLat,
-        destinationLng: request.destinationLng,
-        distanceKm: request.distanceKm,
-        vehicleType: this.mapVehicleTypeFromProto(request.vehicleType),
-      });
+        const route = await this.routeService.updateRoute(BigInt(request.id), {
+          name: request.name,
+          originName: request.originName,
+          originLat: request.originLat,
+          originLng: request.originLng,
+          destinationName: request.destinationName,
+          destinationLat: request.destinationLat,
+          destinationLng: request.destinationLng,
+          distanceKm: request.distanceKm,
+          vehicleType: this.mapVehicleTypeFromProto(request.vehicleType),
+        });
 
-      return RouteGrpcMapper.toProto(route);
+      this.logger.log(`Route updated: ${route.name} (${route.originName} -> ${route.destinationName})`);
+      const hasTrips = await this.routeService.hasTrips(BigInt(request.id));
+      return RouteGrpcMapper.toProto(route, hasTrips);
     } catch (error) {
-      if (error instanceof RpcException) throw error;
+      this.logger.error(`Error in UpdateRoute:`, error);
+      this.logger.error(`Error stack:`, error.stack);
+      
+      if (error instanceof RpcException) {
+        this.logger.error(`RpcException thrown:`, error.getError());
+        throw error;
+      }
+      
       throw new RpcException({
         code: GrpcStatus.INTERNAL,
-        message: 'Error interno del servidor',
+        message: `Error interno del servidor: ${error.message || 'Error desconocido'}`,
       });
     }
   }
 
   @GrpcMethod('RoutesService', 'DeleteRoute')
   async deleteRoute(request: any): Promise<any> {
+    this.logger.log(`DeleteRoute called with ID: ${request.id}`);
+    
     try {
       await this.routeService.deleteRoute(BigInt(request.id));
+      this.logger.log(`Route deleted successfully: ${request.id}`);
       return {};
     } catch (error) {
-      if (error instanceof RpcException) throw error;
+      this.logger.error(`Error in DeleteRoute:`, error);
+      this.logger.error(`Error stack:`, error.stack);
+      
+      if (error instanceof RpcException) {
+        this.logger.error(`RpcException thrown:`, error.getError());
+        throw error;
+      }
+      
       throw new RpcException({
         code: GrpcStatus.INTERNAL,
-        message: 'Error interno del servidor',
+        message: `Error interno del servidor: ${error.message || 'Error desconocido'}`,
       });
     }
   }

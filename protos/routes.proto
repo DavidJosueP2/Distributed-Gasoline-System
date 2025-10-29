@@ -34,24 +34,41 @@ enum TripStatus {
 message Route {
   int64 id = 1;
   string name = 2;
-  double origin_lat = 3;
-  double origin_lng = 4;
-  double destination_lat = 5;
-  double destination_lng = 6;
-  double distance_km = 7;
-  VehicleType vehicle_type = 8;
-  google.protobuf.Timestamp created_at = 9;
-  google.protobuf.Timestamp updated_at = 10;
+  string origin_name = 3;
+  double origin_lat = 4;
+  double origin_lng = 5;
+  string destination_name = 6;
+  double destination_lat = 7;
+  double destination_lng = 8;
+  double distance_km = 9;
+  VehicleType vehicle_type = 10;
+  bool has_trips = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+// Mensaje optimizado para listados (sin coordenadas)
+message RouteListItem {
+  int64 id = 1;
+  string name = 2;
+  string origin_name = 3;
+  string destination_name = 4;
+  double distance_km = 5;
+  VehicleType vehicle_type = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
 }
 
 message CreateRouteRequest {
   string name = 1;
-  double origin_lat = 2;
-  double origin_lng = 3;
-  double destination_lat = 4;
-  double destination_lng = 5;
-  double distance_km = 6;
-  VehicleType vehicle_type = 7;
+  string origin_name = 2;
+  double origin_lat = 3;
+  double origin_lng = 4;
+  string destination_name = 5;
+  double destination_lat = 6;
+  double destination_lng = 7;
+  double distance_km = 8;
+  VehicleType vehicle_type = 9;
 }
 
 message CreateRouteResponse {
@@ -71,18 +88,20 @@ message ListRoutesRequest {
 }
 
 message ListRoutesResponse {
-  repeated Route routes = 1;
+  repeated RouteListItem routes = 1;
 }
 
 message UpdateRouteRequest {
   int64 id = 1;
   string name = 2;
-  double origin_lat = 3;
-  double origin_lng = 4;
-  double destination_lat = 5;
-  double destination_lng = 6;
-  double distance_km = 7;
-  VehicleType vehicle_type = 8;
+  string origin_name = 3;
+  double origin_lat = 4;
+  double origin_lng = 5;
+  string destination_name = 6;
+  double destination_lat = 7;
+  double destination_lng = 8;
+  double distance_km = 9;
+  VehicleType vehicle_type = 10;
 }
 
 message DeleteRouteRequest {

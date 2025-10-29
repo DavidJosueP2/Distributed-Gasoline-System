@@ -12,3 +12,4 @@ export { InvalidDistanceException } from './invalid-distance.exception';
 export { ReviewCommentRequiredException } from './review-comment-required.exception';
 export { VehicleServiceUnavailableException } from './vehicle-service-unavailable.exception';
 export { InvalidOdometerReadingException } from './invalid-odometer-reading.exception';
+export { RouteHasTripsException } from './route-has-trips.exception';

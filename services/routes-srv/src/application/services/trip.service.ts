@@ -52,7 +52,7 @@ export class TripService {
   private async usersClient(): Promise<UsersClient> {
     const client = await this.grpcFactory.clientFor(
       'USERS-SERVICE',
-      'users.v1',
+      'users',
       'users.proto',
     );
     return new UsersClient(client);

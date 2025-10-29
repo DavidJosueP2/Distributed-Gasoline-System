@@ -8,4 +8,5 @@ export interface RouteRepository {
   create(route: Omit<Route, 'id' | 'createdAt' | 'updatedAt'>): Promise<bigint>;
   update(id: bigint, route: Partial<Omit<Route, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Route>;
   delete(id: bigint): Promise<void>;
+  hasTrips(id: bigint): Promise<boolean>;
 }

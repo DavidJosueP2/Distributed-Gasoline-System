@@ -70,6 +70,21 @@ export class TypeOrmRouteRepository implements RouteRepository {
     return count > 0;
   }
 
+  async existsByName(name: string): Promise<boolean> {
+    const count = await this.repository.count({ where: { name } });
+    return count > 0;
+  }
+
+  async existsByNameExcludingId(name: string, excludeId: bigint): Promise<boolean> {
+    const count = await this.repository
+      .createQueryBuilder('route')
+      .where('route.name = :name', { name })
+      .andWhere('route.id != :excludeId', { excludeId: excludeId.toString() })
+      .getCount();
+    
+    return count > 0;
+  }
+
   private toDomain(entity: RouteEntity): Route {
     return {
       id: BigInt(entity.id),

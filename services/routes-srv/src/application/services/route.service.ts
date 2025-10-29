@@ -11,6 +11,7 @@ import {
   InvalidIdentifierException,
   RouteHasTripsException
 } from '../exceptions';
+import { RouteNameAlreadyExistsException } from '../exceptions/route-name-already-exists.exception';
 
 @Injectable()
 export class RouteService {
@@ -33,7 +34,7 @@ export class RouteService {
     destinationLng: number;
     distanceKm: number;
     vehicleType: VehicleType;
-  }): Promise<bigint> {
+  }): Promise<Route> {
     // Validaciones básicas
     if (!input.name?.trim()) {
       throw new InvalidIdentifierException('El nombre de la ruta es obligatorio');
@@ -51,8 +52,15 @@ export class RouteService {
       throw new InvalidDistanceException(input.distanceKm);
     }
 
+    // Validar que el nombre sea único
+    const trimmedName = input.name.trim();
+    const nameExists = await this.routeRepo.existsByName(trimmedName);
+    if (nameExists) {
+      throw new RouteNameAlreadyExistsException(trimmedName);
+    }
+
     const route: Omit<Route, 'id' | 'createdAt' | 'updatedAt'> = {
-      name: input.name.trim(),
+      name: trimmedName,
       originName: input.originName.trim(),
       originLat: input.originLat,
       originLng: input.originLng,
@@ -63,7 +71,8 @@ export class RouteService {
       vehicleType: input.vehicleType,
     };
 
-    return await this.routeRepo.create(route);
+    const routeId = await this.routeRepo.create(route);
+    return await this.routeRepo.findById(routeId);
   }
 
   async getRoute(id: bigint): Promise<Route> {
@@ -114,7 +123,15 @@ export class RouteService {
     const updateData: Partial<Omit<Route, 'id' | 'createdAt' | 'updatedAt'>> = {};
     
     // Campos que siempre se pueden actualizar
-    if (input.name !== undefined) updateData.name = input.name.trim();
+    if (input.name !== undefined) {
+      const trimmedName = input.name.trim();
+      // Validar que el nuevo nombre sea único (excluyendo la ruta actual)
+      const nameExists = await this.routeRepo.existsByNameExcludingId(trimmedName, id);
+      if (nameExists) {
+        throw new RouteNameAlreadyExistsException(trimmedName);
+      }
+      updateData.name = trimmedName;
+    }
     if (input.originName !== undefined) updateData.originName = input.originName.trim();
     if (input.destinationName !== undefined) updateData.destinationName = input.destinationName.trim();
     
@@ -145,7 +162,7 @@ export class RouteService {
     // Verificar si la ruta tiene viajes relacionados
     const hasTrips = await this.tripRepo.existsByRouteId(id);
     if (hasTrips) {
-      throw new RouteHasTripsException(id);
+      throw new RouteHasTripsException(existingRoute.name);
     }
 
     await this.routeRepo.delete(id);

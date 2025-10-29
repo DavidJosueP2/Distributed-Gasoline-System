@@ -7,7 +7,7 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS routes (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     origin_name VARCHAR(255) NOT NULL,
     origin_lat DECIMAL(9,6) NOT NULL,
     origin_lng DECIMAL(9,6) NOT NULL,
@@ -92,3 +92,43 @@ WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Sur-Aeropuerto');
 INSERT INTO routes (name, origin_name, origin_lat, origin_lng, destination_name, destination_lat, destination_lng, distance_km, vehicle_type)
 SELECT 'Ruta Este-Oeste', 'Este de Bogotá', 4.6097, -74.0817, 'Oeste de Bogotá', 4.6097, -74.2000, 18.2, 'LIVIANO'
 WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Este-Oeste');
+
+-- Rutas adicionales para pruebas
+INSERT INTO routes (name, origin_name, origin_lat, origin_lng, destination_name, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Norte-Sur', 'Norte de Bogotá', 4.7110, -74.0721, 'Sur de Bogotá', 4.6097, -74.0817, 22.5, 'PESADO'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Norte-Sur');
+
+INSERT INTO routes (name, origin_name, origin_lat, origin_lng, destination_name, destination_lat, destination_lng, distance_km, vehicle_type)
+SELECT 'Ruta Centro-Comercial', 'Centro de Bogotá', 4.6097, -74.0817, 'Centro Comercial', 4.6500, -74.1000, 8.3, 'LIVIANO'
+WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Centro-Comercial');
+
+-- ============================================================
+-- Viajes de prueba para validar restricciones
+-- ============================================================
+
+-- 3 viajes asociados a 'Ruta Centro-Norte' (ID: 1)
+INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, odometer_start, distance_km_planned, fuel_estimated, status)
+SELECT 1, 101, 201, 301, 15000.0, 15.5, 2.5, 'CREADO'
+WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 1 AND driver_id = 201);
+
+INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, odometer_start, distance_km_planned, fuel_estimated, status)
+SELECT 1, 102, 202, 302, 25000.0, 15.5, 2.5, 'EN_RUTA'
+WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 1 AND driver_id = 202);
+
+INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, odometer_start, distance_km_planned, fuel_estimated, status)
+SELECT 1, 103, 203, 303, 35000.0, 15.5, 2.5, 'TERMINADO'
+WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 1 AND driver_id = 203);
+
+-- 2 viajes asociados a 'Ruta Norte-Sur' (ID: 4)
+INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, odometer_start, distance_km_planned, fuel_estimated, status)
+SELECT 4, 104, 204, 304, 40000.0, 22.5, 4.0, 'CREADO'
+WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 4 AND driver_id = 204);
+
+INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, odometer_start, distance_km_planned, fuel_estimated, status)
+SELECT 4, 105, 205, 305, 50000.0, 22.5, 4.0, 'EN_REVISION'
+WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 4 AND driver_id = 205);
+
+-- 1 viaje asociado a 'Ruta Centro-Comercial' (ID: 5)
+INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, odometer_start, distance_km_planned, fuel_estimated, status)
+SELECT 5, 106, 206, 306, 60000.0, 8.3, 1.5, 'TERMINADO'
+WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 5 AND driver_id = 206);

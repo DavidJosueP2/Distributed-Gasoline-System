@@ -9,4 +9,6 @@ export interface RouteRepository {
   update(id: bigint, route: Partial<Omit<Route, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Route>;
   delete(id: bigint): Promise<void>;
   hasTrips(id: bigint): Promise<boolean>;
+  existsByName(name: string): Promise<boolean>;
+  existsByNameExcludingId(name: string, excludeId: bigint): Promise<boolean>;
 }

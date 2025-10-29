@@ -24,7 +24,7 @@ export class RoutesController {
     this.logger.log(`CreateRoute called with request: ${JSON.stringify(request)}`);
     
     try {
-        const id = await this.routeService.createRoute({
+        const route = await this.routeService.createRoute({
           name: request.name,
           originName: request.originName,
           originLat: request.originLat,
@@ -36,8 +36,8 @@ export class RoutesController {
           vehicleType: request.vehicleType as VehicleType,
         });
 
-      this.logger.log(`Route created with ID: ${id}`);
-      return { id: id.toString() };
+      this.logger.log(`Route created: ${route.name} (${route.originName} -> ${route.destinationName})`);
+      return RouteGrpcMapper.toProto(route, false); // hasTrips siempre será false para rutas recién creadas
     } catch (error) {
       this.logger.error(`Error in CreateRoute:`, error);
       this.logger.error(`Error stack:`, error.stack);
@@ -122,7 +122,7 @@ export class RoutesController {
           destinationLat: request.destinationLat,
           destinationLng: request.destinationLng,
           distanceKm: request.distanceKm,
-          vehicleType: this.mapVehicleTypeFromProto(request.vehicleType),
+          vehicleType: request.vehicleType as VehicleType,
         });
 
       this.logger.log(`Route updated: ${route.name} (${route.originName} -> ${route.destinationName})`);
@@ -151,7 +151,7 @@ export class RoutesController {
     try {
       await this.routeService.deleteRoute(BigInt(request.id));
       this.logger.log(`Route deleted successfully: ${request.id}`);
-      return {};
+      return { success: true, message: 'Ruta eliminada exitosamente' };
     } catch (error) {
       this.logger.error(`Error in DeleteRoute:`, error);
       this.logger.error(`Error stack:`, error.stack);

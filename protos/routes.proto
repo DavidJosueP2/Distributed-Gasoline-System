@@ -203,7 +203,7 @@ message ReviewTripResponse {
 
 service RoutesService {
   // Routes CRUD
-  rpc CreateRoute (CreateRouteRequest) returns (CreateRouteResponse);
+  rpc CreateRoute (CreateRouteRequest) returns (Route);
   rpc GetRoute (GetRouteRequest) returns (GetRouteResponse);
   rpc ListRoutes (ListRoutesRequest) returns (ListRoutesResponse);
   rpc UpdateRoute (UpdateRouteRequest) returns (Route);

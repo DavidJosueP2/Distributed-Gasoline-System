@@ -63,7 +63,7 @@ export class TripsController {
     const client = await this.factory.forService(
       appName,
       'trips',
-      'trips.proto',
+      'routes.proto',
     );
     return client.getService<TripsServiceClient>('TripsService');
   }

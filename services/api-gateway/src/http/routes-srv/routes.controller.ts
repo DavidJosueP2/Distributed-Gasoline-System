@@ -50,6 +50,24 @@ const normalizeRoute = (route: RouteResponse): RouteResponse => ({
   id: toPlainNumber(route.id),
 });
 
+const mapVehicleTypeToString = (vehicleType: number): string => {
+  switch (vehicleType) {
+    case 1: return 'LIVIANO';
+    case 2: return 'PESADO';
+    case 3: return 'CUALQUIERA';
+    default: return 'UNKNOWN';
+  }
+};
+
+const mapStringToVehicleType = (vehicleType: string): number => {
+  switch (vehicleType.toUpperCase()) {
+    case 'LIVIANO': return 1;
+    case 'PESADO': return 2;
+    case 'CUALQUIERA': return 3;
+    default: return 0;
+  }
+};
+
 @Controller('routes')
 export class RoutesController {
   constructor(private readonly factory: GrpcClientFactory) {}
@@ -58,7 +76,7 @@ export class RoutesController {
     const appName = process.env.ROUTES_APP_NAME || 'ROUTES-SERVICE';
     const client = await this.factory.forService(
       appName,
-      'routes',
+      'routes.v1',
       'routes.proto',
     );
     return client.getService<RoutesServiceClient>('RoutesService');
@@ -69,7 +87,7 @@ export class RoutesController {
     @Query('vehicleType') vehicleType?: string,
     @Req() req: RequestWithGrpc = {} as RequestWithGrpc,
   ): Observable<RouteResponse[]> {
-    const vehicleTypeFilter = vehicleType ? Number(vehicleType) : undefined;
+    const vehicleTypeFilter = vehicleType ? mapStringToVehicleType(vehicleType) : undefined;
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
         svc
@@ -97,10 +115,10 @@ export class RoutesController {
   create(
     @Body() dto: CreateRouteRequest,
     @Req() req: RequestWithGrpc,
-  ): Observable<{ id: string }> {
+  ): Observable<RouteResponse> {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
-        svc.CreateRoute(dto, req._grpcMetadata),
+        svc.CreateRoute(dto, req._grpcMetadata).pipe(map(normalizeRoute)),
       ),
     );
   }
@@ -123,7 +141,7 @@ export class RoutesController {
   remove(
     @Param('id') id: string,
     @Req() req: RequestWithGrpc,
-  ): Observable<{}> {
+  ): Observable<{ success: boolean; message: string }> {
     return from(this.svc(req)).pipe(
       switchMap((svc) => svc.DeleteRoute({ id }, req._grpcMetadata)),
     );

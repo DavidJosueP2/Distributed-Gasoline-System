@@ -12,12 +12,17 @@ type LongLike = string | number | LongObject;
 export interface RouteResponse {
     id: LongLike;
     name: string;
+    originName: string;
     originLat: number;
     originLng: number;
+    destinationName: string;
     destinationLat: number;
     destinationLng: number;
     distanceKm: number;
-    vehicleType: number; // 1 = LIVIANO, 2 = PESADO
+    vehicleType: number; // 1 = LIVIANO, 2 = PESADO, 3 = CUALQUIERA
+    hasTrips: boolean;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface RouteList {
@@ -26,23 +31,27 @@ export interface RouteList {
 
 export interface CreateRouteRequest {
     name: string;
+    originName: string;
     originLat: number;
     originLng: number;
+    destinationName: string;
     destinationLat: number;
     destinationLng: number;
     distanceKm: number;
-    vehicleType: number; // 1 = LIVIANO, 2 = PESADO
+    vehicleType: number; // 1 = LIVIANO, 2 = PESADO, 3 = CUALQUIERA
 }
 
 export interface UpdateRouteRequest {
     id: LongLike;
     name: string;
+    originName: string;
     originLat: number;
     originLng: number;
+    destinationName: string;
     destinationLat: number;
     destinationLng: number;
     distanceKm: number;
-    vehicleType: number; // 1 = LIVIANO, 2 = PESADO
+    vehicleType: number; // 1 = LIVIANO, 2 = PESADO, 3 = CUALQUIERA
 }
 
 export interface GetRouteRequest {
@@ -54,7 +63,7 @@ export interface DeleteRouteRequest {
 }
 
 export interface ListRoutesRequest {
-    vehicleTypeFilter?: number; // 1 = LIVIANO, 2 = PESADO
+    vehicleTypeFilter?: number; // 1 = LIVIANO, 2 = PESADO, 3 = CUALQUIERA
 }
 
 export interface AssignVehicleToRouteRequest {
@@ -63,10 +72,10 @@ export interface AssignVehicleToRouteRequest {
 }
 
 export interface RoutesServiceClient {
-    CreateRoute(data: CreateRouteRequest, metadata?: any): Observable<{ id: string }>;
+    CreateRoute(data: CreateRouteRequest, metadata?: any): Observable<RouteResponse>;
     GetRoute(data: GetRouteRequest, metadata?: any): Observable<{ route: RouteResponse }>;
     ListRoutes(data: ListRoutesRequest, metadata?: any): Observable<RouteList>;
     UpdateRoute(data: UpdateRouteRequest, metadata?: any): Observable<RouteResponse>;
-    DeleteRoute(data: DeleteRouteRequest, metadata?: any): Observable<{}>;
+    DeleteRoute(data: DeleteRouteRequest, metadata?: any): Observable<{ success: boolean; message: string }>;
     AssignVehicleToRoute(data: AssignVehicleToRouteRequest, metadata?: any): Observable<{ success: boolean; message: string }>;
 }

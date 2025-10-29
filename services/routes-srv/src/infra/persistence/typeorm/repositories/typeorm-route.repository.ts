@@ -28,7 +28,10 @@ export class TypeOrmRouteRepository implements RouteRepository {
       const where = vehicleTypeFilter ? { vehicleType: vehicleTypeFilter } : {};
       this.logger.log(`Query where clause: ${JSON.stringify(where)}`);
       
-      const entities = await this.repository.find({ where });
+      const entities = await this.repository.find({ 
+        where,
+        order: { createdAt: 'DESC' }
+      });
       this.logger.log(`Found ${entities.length} entities in database`);
       
       const routes = entities.map(entity => this.toDomain(entity));

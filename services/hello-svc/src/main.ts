@@ -25,6 +25,9 @@ async function bootstrap() {
     const PORT = Number(process.env.HELLO_GRPC_PORT || process.env.GRPC_PORT || 50051);
     const BIND_HOST = process.env.SERVICE_BIND_HOST || process.env.BIND_HOST || '0.0.0.0';
     const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || './protos';
+    const SHOULD_REGISTER =
+        (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
+        (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
 
     const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
         transport: Transport.GRPC,
@@ -49,7 +52,7 @@ async function bootstrap() {
         },
     }));
 
-    const eureka = registerInEureka();
+    const eureka = SHOULD_REGISTER ? registerInEureka() : undefined;
 
     await app.listen();
     console.log(`[HELLO-SERVICE] gRPC on ${BIND_HOST}:${PORT}`);

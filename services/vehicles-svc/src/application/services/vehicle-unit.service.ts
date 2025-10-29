@@ -6,7 +6,7 @@ import type { VehicleModelRepository } from '../../domain/repositories/vehicle-m
 import { TransactionManager } from '../../db/prisma/transaction.manager';
 import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
-import { VehicleUnit } from '../../domain';
+import { VehicleUnit, MachineType } from '../../domain';
 import { createPlate } from '../../domain/value-objects/plate';
 import { CalibrationKCalculator } from '../../domain/services/calibration-k-calculator.service';
 import { OperationalStatus, toOperationalStatus, isValidOperationalStatus } from '../../domain/value-objects/operational-status';
@@ -41,8 +41,8 @@ export class VehicleUnitService {
     private readonly modelRepo: VehicleModelRepository,
   ) {}
 
-  async listAll() {
-    return this.unitRepo.listAll();
+  async listAll(machineTypeFilter?: MachineType) {
+    return this.unitRepo.listAll(machineTypeFilter);
   }
 
   async createUnit(input: CreateUnitInput): Promise<bigint> {

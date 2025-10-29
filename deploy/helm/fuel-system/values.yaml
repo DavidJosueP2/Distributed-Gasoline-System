@@ -1,0 +1,413 @@
+# ==============================================
+# FUEL SYSTEM - Helm Values Configuration
+# ==============================================
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+  
+# Image registry configuration for Azure Container Registry
+imageRegistry:
+  url: "your-acr-name.azurecr.io"
+  username: ""
+  password: ""
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/part-of: fuel-system
+  app.kubernetes.io/managed-by: helm
+
+# ==============================================
+# INFRASTRUCTURE SERVICES
+# ==============================================
+
+# PostgreSQL Configuration
+# NOTA: En producción, usar Azure Database for PostgreSQL Flexible Server
+# Las bases de datos están fuera de AKS y son administradas por Azure
+postgresql:
+  enabled: false  # Deshabilitado - usamos Azure PostgreSQL Flexible Server
+  external:
+    enabled: true
+    # Estos valores se sobreescriben con --set en el deploy
+    host: "fuel-system-postgres.postgres.database.azure.com"
+    port: 5432
+    username: "pgadmin"
+    password: ""  # Se configura vía secret
+    sslMode: "require"
+    databases:
+      auth: "auth_db"
+      driver: "driver_db"
+      users: "users_db"
+      vehicles: "vehicles_db"
+      vehiclesShadow: "vehicles_shadow_db"
+
+# RabbitMQ Configuration
+# En AKS - autoescalado y alta disponibilidad
+rabbitmq:
+  enabled: true
+  auth:
+    username: admin
+    password: admin123
+  replicaCount: 2  # Alta disponibilidad
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: "managed-premium"  # Azure Premium SSD
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+  clustering:
+    enabled: true  # Cluster de RabbitMQ
+  metrics:
+    enabled: true  # Para monitoreo
+
+# Elasticsearch Configuration
+# En AKS - para logs centralizados
+elasticsearch:
+  enabled: true
+  master:
+    replicaCount: 3  # Para producción, mínimo 3 nodos
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClass: "managed-premium"
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 500m
+      limits:
+        memory: 4Gi
+        cpu: 1000m
+  data:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      size: 100Gi
+      storageClass: "managed-premium"
+
+# Eureka Server Configuration
+eurekaServer:
+  enabled: true
+  image:
+    repository: steeltoeoss/eureka-server
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8761
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ==============================================
+# MICROSERVICES
+# ==============================================
+
+# API Gateway
+apiGateway:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-system/api-gateway
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: LoadBalancer
+    port: 8080
+    targetPort: 8080
+  env:
+    NODE_ENV: production
+    PORT: 8080
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# Auth Service
+authService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-system/auth-svc
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50051
+    targetPort: 50051
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50051
+    DB_NAME: auth_db
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# Driver Service
+driverService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-system/driver-ms
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50052
+    targetPort: 50052
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50052
+    DB_NAME: driver_db
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# Users Service
+usersService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-system/users-srv
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50053
+    targetPort: 50053
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50053
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# Vehicles Service
+vehiclesService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-system/vehicles-svc
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50054
+    targetPort: 50054
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50054
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# Email Service
+emailService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-system/email-svc
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50055
+    targetPort: 50055
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50055
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+# Hello Service
+helloService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: fuel-system/hello-svc
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50056
+    targetPort: 50056
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50056
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+# Logger Service
+loggerService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-system/logger-svc
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50057
+    targetPort: 50057
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50057
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# Publisher Service
+publisherService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: fuel-system/publisher-rabbit-srv
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50058
+    targetPort: 50058
+  env:
+    NODE_ENV: production
+    PORT: 50058
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+# ==============================================
+# SECRETS & CONFIGMAPS
+# ==============================================
+
+secrets:
+  postgresql:
+    username: postgres
+    password: postgres
+  rabbitmq:
+    username: admin
+    password: admin123
+  jwt:
+    secret: your-super-secret-jwt-key-change-in-production
+  smtp:
+    host: smtp.gmail.com
+    port: 587
+    user: your-email@gmail.com
+    password: your-app-password
+
+# ==============================================
+# INGRESS
+# ==============================================
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: fuel-system.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: api-gateway
+              port: 8080
+  tls:
+    - secretName: fuel-system-tls
+      hosts:
+        - fuel-system.example.com
+
+# ==============================================
+# MONITORING & OBSERVABILITY
+# ==============================================
+
+monitoring:
+  enabled: false
+  prometheus:
+    enabled: false
+  grafana:
+    enabled: false
+
+# ==============================================
+# BACKUP & DISASTER RECOVERY
+# ==============================================
+
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  retention: 7
+

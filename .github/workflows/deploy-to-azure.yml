@@ -1,0 +1,144 @@
+name: Deploy to Azure AKS
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+
+env:
+  AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+  AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
+  HELM_CHART_PATH: ./deploy/helm/fuel-system
+  NAMESPACE: fuel-system
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: 
+      name: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS Context
+        uses: azure/aks-set-context@v3
+        with:
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Azure Container Registry Secret
+        run: |
+          kubectl create secret docker-registry acr-secret \
+            --docker-server=${{ secrets.ACR_LOGIN_SERVER }} \
+            --docker-username=${{ secrets.ACR_USERNAME }} \
+            --docker-password=${{ secrets.ACR_PASSWORD }} \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+
+      - name: Add Bitnami Helm Repository
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install fuel-system ${{ env.HELM_CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            --set imageRegistry.url=${{ secrets.ACR_LOGIN_SERVER }} \
+            --set global.imagePullSecrets[0]=acr-secret \
+            --set postgresql.external.enabled=true \
+            --set postgresql.external.host=${{ secrets.POSTGRES_HOST }} \
+            --set postgresql.external.username=${{ secrets.POSTGRES_USERNAME }} \
+            --set postgresql.external.password=${{ secrets.POSTGRES_PASSWORD }} \
+            --set postgresql.external.sslMode=require \
+            --set secrets.postgresql.password=${{ secrets.POSTGRES_PASSWORD }} \
+            --set secrets.rabbitmq.password=${{ secrets.RABBITMQ_PASSWORD }} \
+            --set secrets.jwt.secret=${{ secrets.JWT_SECRET }} \
+            --set secrets.smtp.user=${{ secrets.SMTP_USER }} \
+            --set secrets.smtp.password=${{ secrets.SMTP_PASSWORD }} \
+            --set ingress.hosts[0].host=${{ secrets.DOMAIN_NAME }} \
+            --set ingress.tls[0].hosts[0]=${{ secrets.DOMAIN_NAME }} \
+            --timeout 10m \
+            --wait
+
+      - name: Verify Deployment
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          kubectl get services -n ${{ env.NAMESPACE }}
+          kubectl get ingress -n ${{ env.NAMESPACE }}
+
+      - name: Run Database Migrations
+        run: |
+          # Esperar a que los pods estén listos
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=users-service -n ${{ env.NAMESPACE }} --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=vehicles-service -n ${{ env.NAMESPACE }} --timeout=300s || true
+          
+          # Ejecutar migraciones de Prisma
+          echo "Running Prisma migrations for users-service..."
+          kubectl exec -n ${{ env.NAMESPACE }} deployment/fuel-system-users-service -- npx prisma migrate deploy || true
+          
+          echo "Running Prisma migrations for vehicles-service..."
+          kubectl exec -n ${{ env.NAMESPACE }} deployment/fuel-system-vehicles-service -- npx prisma migrate deploy || true
+          
+          # Ejecutar migraciones de TypeORM
+          echo "Running TypeORM migrations for driver-ms..."
+          kubectl exec -n ${{ env.NAMESPACE }} deployment/fuel-system-driver-service -- npm run typeorm:migrate || true
+
+      - name: Get Application URL
+        run: |
+          echo "Application deployed successfully!"
+          echo "Getting LoadBalancer IP..."
+          kubectl get service fuel-system-api-gateway -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}' || echo "LoadBalancer IP not available yet"
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pods Status" >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide >> $GITHUB_STEP_SUMMARY || true
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Services" >> $GITHUB_STEP_SUMMARY
+          kubectl get services -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Notify Deployment Status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment to Azure AKS completed successfully!"
+          else
+            echo "❌ Deployment to Azure AKS failed!"
+            exit 1
+          fi
+

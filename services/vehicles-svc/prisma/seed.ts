@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient, Prisma, MachineType, EngineType, OperationalStatus } from '@prisma/client';
+import { PrismaClient, Prisma, MachineType, EngineType, OperationalStatus } from 'prisma-client';
 
 const prisma = new PrismaClient();
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { IdempotencyKeyRepository } from '../../../domain/repositories/idempotency-key.repository';
-import { Prisma } from '@prisma/client';
+import { Prisma } from 'prisma-client';
 
 @Injectable()
 export class PrismaIdempotencyKeyRepository implements IdempotencyKeyRepository {

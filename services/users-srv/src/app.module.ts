@@ -10,7 +10,7 @@ import { APP_GUARD } from '@nestjs/core';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['../../.env'],
+      envFilePath: ['.env', '../../.env'], // Busca primero en el hijo, luego en el padre
     }),
     JwtModule.register({
       secret: process.env.JWT_SECRET,

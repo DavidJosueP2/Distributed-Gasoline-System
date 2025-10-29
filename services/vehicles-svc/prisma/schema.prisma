@@ -6,8 +6,8 @@ datasource db {
 
 generator client {
   provider      = "prisma-client-js"
-  output        = "../node_modules/@prisma/client"  
-  binaryTargets = ["native", "windows"]
+  output        = "../node_modules/prisma-client"
+  binaryTargets = ["native", "windows", "linux-musl-openssl-3.0.x"]
 }
 
 /* =========================
@@ -63,6 +63,7 @@ model VehicleModel {
   // Índices/uniques
   @@index([brand, family], map: "idx_vehicle_models_brand_family")
   @@index([status, yearFrom], map: "idx_vm_status_year")
+  @@index([machineType, deletedAt], map: "idx_vm_machine_type")
   @@unique([brand, family, trim, yearFrom, yearTo, deletedAt], map: "uq_vm_identity_soft")
 
   // Nombre de tabla
@@ -129,6 +130,7 @@ model VehicleUnit {
   @@index([operationalStatus], map: "idx_vehicle_units_status")
   @@index([operationalStatus, plate], map: "idx_vu_status_plate")
   @@index([plate], map: "idx_vu_plate")
+  @@index([modelId, deletedAt], map: "idx_vu_model_deleted")
   @@unique([plate, deletedAt], map: "uq_vu_plate_soft")
   @@unique([serialVin, deletedAt], map: "uq_vu_vin_soft")
 

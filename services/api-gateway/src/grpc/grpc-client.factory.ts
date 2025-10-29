@@ -1,92 +1,58 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
-  ClientGrpc,
-  ClientProxyFactory,
-  Transport,
+    ClientGrpc,
+    ClientProxyFactory,
+    Transport,
 } from '@nestjs/microservices';
 import { join } from 'path';
-import { EurekaService } from '../discovery/eureka.service';
-import { RoundRobin } from '../discovery/lb.strategy';
-
-function resolveHost(inst: any) {
-  return inst?.ipAddr || inst?.hostName || 'localhost';
-}
-
-function portOf(p: any): number | undefined {
-  if (typeof p === 'number') return p;
-  if (p && typeof p.$ === 'number') return p.$;
-  return undefined;
-}
-function resolvePort(inst: any): number {
-  const p = portOf(inst?.port) ?? portOf(inst?.securePort);
-  if (typeof p !== 'number') throw new Error('Eureka instance without port');
-  return p;
-}
+import type { ServiceLocator, ServiceTarget } from '../discovery/service-locator';
+import { SERVICE_LOCATOR_TOKEN } from '../discovery/discovery.providers';
 
 @Injectable()
 export class GrpcClientFactory {
-  private readonly waitTimeoutMs = Number(
-    process.env.EUREKA_WAIT_TIMEOUT_MS ?? 10000,
-  );
-  private readonly protosDir =
-    process.env.PROTO_ROOT || join(process.cwd(), 'protos');
+    private readonly protosDir: string;
 
-  constructor(
-    private readonly eureka: EurekaService,
-    private readonly rr: RoundRobin,
-  ) { }
-
-  private async waitForInstances(appName: string): Promise<any[]> {
-    if (typeof (this.eureka as any).waitForInstances === 'function') {
-      return (this.eureka as any).waitForInstances(appName, this.waitTimeoutMs);
+    constructor(
+        private readonly config: ConfigService,
+        @Inject(SERVICE_LOCATOR_TOKEN) private readonly locator: ServiceLocator,
+    ) {
+        this.protosDir =
+            this.config.get<string>('PROTO_ROOT') ??
+            this.config.get<string>('PROTOS_DIR') ??
+            process.env.PROTO_ROOT ??
+            process.env.PROTOS_DIR ??
+            join(process.cwd(), 'protos');
     }
-    const end = Date.now() + this.waitTimeoutMs;
-    let delay = 250;
-    while (Date.now() < end) {
-      const list = this.eureka.getInstances(appName);
-      if (list?.length) return list as any[];
-      await new Promise((r) => setTimeout(r, delay));
-      delay = Math.min(delay + 150, 1000);
-      try {
-        await (this.eureka as any).client?.fetchRegistry?.();
-      } catch { }
-    }
-    return [];
-  }
 
-  private build(url: string, pkg: string, proto: string): ClientGrpc {
-    return ClientProxyFactory.create({
-      transport: Transport.GRPC,
-      options: {
-        url,
-        package: pkg,
-        protoPath: join(this.protosDir, proto),
-      },
-    }) as unknown as ClientGrpc;
-  }
+    private build(address: string, pkg: string, proto: string): ClientGrpc {
+        return ClientProxyFactory.create({
+            transport: Transport.GRPC,
+            options: {
+                url: address,
+                package: pkg,
+                protoPath: join(this.protosDir, proto),
+                loader: {
+                    longs: Number,
+                    enums: String,
+                    defaults: false,
+                    oneofs: true,
+                },
+            },
+        }) as unknown as ClientGrpc;
+    }
 
     async forService(
         appName: string,
         pkg: string,
         protoFile: string,
+        options: Partial<ServiceTarget> = {},
     ): Promise<ClientGrpc> {
-        const list = await this.waitForInstances(appName.toUpperCase());
-        const inst = this.rr.pick<any>(appName.toUpperCase(), list);
-        if (!inst) throw new Error(`${appName} without instances`);
-        const url = `${resolveHost(inst)}:${resolvePort(inst)}`;
-        return ClientProxyFactory.create({
-            transport: Transport.GRPC,
-            options: {
-                url,
-                package: pkg,
-                protoPath: join(this.protosDir, protoFile),
-                loader: {
-                    longs: Number,
-                    enums: String,
-                    defaults: false,  // ⬅️ Cambiado a false para preservar campos opcionales
-                    oneofs: true,
-                },
-            },
-        }) as unknown as ClientGrpc;
+        const target: ServiceTarget = {
+            appName,
+            ...options,
+        };
+        const endpoint = await this.locator.pick(target);
+        return this.build(endpoint.toString(), pkg, protoFile);
     }
 }

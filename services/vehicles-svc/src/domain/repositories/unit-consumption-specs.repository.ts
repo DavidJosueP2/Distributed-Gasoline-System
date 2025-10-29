@@ -1,5 +1,5 @@
 import {UnitConsumptionSpecs} from "../entities/unit-consumption-specs";
-import { Prisma } from '@prisma/client';
+import { Prisma } from 'prisma-client';
 export type Tx = Prisma.TransactionClient;
 
 export interface UnitConsumptionSpecsRepository {

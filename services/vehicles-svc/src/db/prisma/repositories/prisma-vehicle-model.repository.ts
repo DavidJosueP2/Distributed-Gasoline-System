@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from 'prisma-client';
 
 import {Tx, VehicleModelRepository} from "../../../domain/repositories/vehicle-model.repository";
-import {VehicleModel} from "../../../domain";
+import {VehicleModel, MachineType} from "../../../domain";
 import {VehicleModelPrismaMapper} from "../mappers/vehicle-model.prisma-mapper";
 import {GrpcErrorMapper} from "../../../infra/errors/grpc-error.mapper";
 import {PrismaService} from "../prisma.service";
@@ -13,10 +13,15 @@ export class PrismaVehicleModelRepository implements VehicleModelRepository {
 
     private db(tx?: Tx) { return tx ?? this.prisma; }
 
-    async listAll() {
+    async listAll(machineTypeFilter?: MachineType) {
         try {
+            const where: Prisma.VehicleModelWhereInput = { 
+                deletedAt: null,
+                ...(machineTypeFilter && { machineType: machineTypeFilter })
+            };
+            
             const rows = await this.prisma.vehicleModel.findMany({
-                where: { deletedAt: null },
+                where,
                 orderBy: { modelId: 'asc' },
                 include: { engineSpec: true, modelLicReqs: true },
             });

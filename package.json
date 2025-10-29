@@ -5,45 +5,41 @@
     "services/*"
   ],
   "scripts": {
-    "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down -v",
-    "infra:logs": "docker compose logs -f",
-    "infra:ready": "npx wait-on -t 120000 http-get://localhost:8761 tcp:localhost:5499",
+    "env:setup": "node -e \"const fs=require('fs'); if(!fs.existsSync('.env'))fs.copyFileSync('env.example','.env'); if(!fs.existsSync('services/users-srv/.env'))fs.copyFileSync('services/users-srv/ENV_LOCAL_EXAMPLE.txt','services/users-srv/.env'); if(!fs.existsSync('services/vehicles-svc/.env'))fs.copyFileSync('services/vehicles-svc/ENV_LOCAL_EXAMPLE.txt','services/vehicles-svc/.env'); console.log('✅ Archivos .env creados')\"",
+
+    "infra:up": "docker compose -f docker-compose.infra.yml up -d",
+    "infra:down": "docker compose -f docker-compose.infra.yml down -v",
+    "infra:logs": "docker compose -f docker-compose.infra.yml logs -f",
+    "infra:ready": "npx wait-on -t 120000 http-get://localhost:8761 tcp:localhost:5432",
+
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down -v",
+    "docker:logs": "docker compose logs -f",
+    "docker:build": "docker compose build",
+
     "prisma:users": "npm exec -w services/users-srv prisma generate",
     "prisma:vehicles:reset": "npm exec -w services/vehicles-svc prisma migrate reset --force",
     "prisma:prepare": "npm run prisma:users && npm run prisma:vehicles:reset",
     "dev:gw": "npm --workspace services/api-gateway run --if-present start:dev",
     "dev:auth": "npm --workspace services/auth-svc run --if-present start:dev",
     "dev:email": "npm --workspace services/email-svc run --if-present start:dev",
-    "dev:hello": "npm --workspace services/hello-svc run --if-present start:dev",
     "dev:users": "npm --workspace services/users-srv run --if-present start:dev",
     "dev:vehicles": "npm --workspace services/vehicles-svc run --if-present start:dev",
-    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,HELLO-SVC,USERS-SVC,VEHICLES-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:hello\" \"npm run dev:users\" \"npm run dev:vehicles\"",
-    "setup": "npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
-    "dev": "npm run infra:up && npm run infra:ready && npm run dev:services",
-    "clean": "npx ts-node tools/clean.ts",
+    "dev:drivers": "npm --workspace services/driver-ms run --if-present start:dev",
+    "dev:logger": "npm --workspace services/logger-svc run --if-present start:dev",
+
+    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,USERS-SVC,VEHICLES-SVC,DRIVER-SVC,LOGGER-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:drivers\" \"npm run dev:logger\"",
+
+    "setup": "npm run env:setup && npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
+    "dev": "npm run env:setup && npm run infra:up && npm run infra:ready && npm run dev:services",
+
+    "clean": "ts-node tools/clean.ts",
     "reset": "npm run clean && npm install"
   },
   "devDependencies": {
-    "@types/node": "^24.6.0",
     "concurrently": "^9.0.0",
     "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2",
     "wait-on": "^7.2.0"
-  },
-  "dependencies": {
-    "@grpc/grpc-js": "^1.14.0",
-    "@grpc/proto-loader": "^0.8.0",
-    "@nestjs/common": "^11.1.6",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.1.6",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/microservices": "^11.1.6",
-    "@nestjs/platform-express": "^11.1.6",
-    "dotenv": "^17.2.3",
-    "eureka-js-client": "^4.5.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
   }
 }

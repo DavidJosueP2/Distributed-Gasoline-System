@@ -3,8 +3,8 @@ import { Delete } from '@nestjs/common';
 import { from, switchMap, map, of } from 'rxjs';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import { GrpcTimeout } from '../../grpc/grpc-timeout.interceptor';
-import { VehiclesServiceClient, ListUnitsResponse } from '../../grpc/clients/vehicles.client';
-import { VehicleUnitsHttpMapper } from '../../grpc/mappers/vehicle-units.mapper';
+import { VehiclesServiceClient, ListUnitsResponse } from '../../grpc/clients/vehicles-svc/vehicles.client';
+import { VehicleUnitsHttpMapper } from '../../grpc/mappers/vehicle/vehicle-units.mapper';
 
 @Controller('vehicles/units')
 export class VehicleUnitsHttpController {
@@ -19,9 +19,19 @@ export class VehicleUnitsHttpController {
   // ---------- List ----------
   @Get()
   @GrpcTimeout(1500)
-  listUnits(@Req() req: any) {
+  listUnits(@Query('machineType') machineType: string | undefined, @Req() req: any) {
+    let machineTypeFilter: number | undefined;
+    if (machineType) {
+      const normalized = machineType.toUpperCase();
+      if (normalized === 'LIGHT' || normalized === '1') {
+        machineTypeFilter = 1;
+      } else if (normalized === 'HEAVY' || normalized === '2') {
+        machineTypeFilter = 2;
+      }
+    }
+
     return from(this.svc(req)).pipe(
-      switchMap(svc => svc.ListUnits({}, req._grpcMetadata)),
+      switchMap(svc => svc.ListUnits({ machineTypeFilter }, req._grpcMetadata)),
       map((res: ListUnitsResponse) => res.units?.map(u => VehicleUnitsHttpMapper.toUnit(u)) || []),
     );
   }

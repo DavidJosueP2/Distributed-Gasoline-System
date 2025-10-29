@@ -19,8 +19,8 @@ export class EurekaLocator implements ServiceLocator {
   ) {
     this.waitTimeoutMs = Number(
       this.config.get('EUREKA_WAIT_TIMEOUT_MS') ??
-      process.env.EUREKA_WAIT_TIMEOUT_MS ??
-      10000,
+        process.env.EUREKA_WAIT_TIMEOUT_MS ??
+        10000,
     );
   }
 
@@ -28,6 +28,7 @@ export class EurekaLocator implements ServiceLocator {
     if (typeof (this.eureka as any).waitForInstances === 'function') {
       return (this.eureka as any).waitForInstances(appId, this.waitTimeoutMs);
     }
+
     const end = Date.now() + this.waitTimeoutMs;
     while (Date.now() < end) {
       const list = this.eureka.getInstances(appId);
@@ -35,7 +36,7 @@ export class EurekaLocator implements ServiceLocator {
       await new Promise((resolve) => setTimeout(resolve, 400));
       try {
         await (this.eureka as any).client?.fetchRegistry?.();
-      } catch { }
+      } catch {}
     }
     return [];
   }

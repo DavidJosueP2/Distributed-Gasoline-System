@@ -79,7 +79,7 @@ services:
       POSTGRES_PASSWORD: ${VEHICLES_DB_PASS:-admin}
       POSTGRES_DB: ${VEHICLES_DB_NAME:-vehicles}
     ports:
-      - "${VEHICLES_DB_PORT:-5435}:5432"
+      - "${VEHICLES_DB_PORT:-5499}:5432"
     volumes:
       - vehicles_db_data:/var/lib/postgresql/data
       - ./services/vehicles-svc/prisma/migrations/20251004143040_init_vehicles/migration.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -108,6 +108,27 @@ services:
       - fuel-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DRIVER_DB_USER:-postgres} -d ${DRIVER_DB_NAME:-drivers}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------- Fuel Db - Driver DB ----------
+  fuel-db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: fuel-fuel-db
+    environment:
+      POSTGRES_USER: ${FUEL_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${FUEL_DB_PASS:-admin}
+      POSTGRES_DB: ${FUEL_DB_NAME:-fuel}
+    ports:
+      - "${FUEL_DB_PORT:-5499}:5432"
+    volumes:
+      - fuel_db_data:/var/lib/postgresql/data
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FUEL_DB_USER:-postgres} -d ${FUEL_DB_NAME:-fuel}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -184,5 +205,6 @@ volumes:
   users_db_data:
   vehicles_db_data:
   driver_db_data:
+  fuel_db_data:
   rabbitmq_data:
   elasticsearch_data:

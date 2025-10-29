@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package fuel;
+
+service FuelService { rpc GetFuel(GetFuelRequest) returns (GetFuelResponse); }
+
+message GetFuelRequest { string id = 1; }
+
+message GetFuelResponse { string fuel = 1; }

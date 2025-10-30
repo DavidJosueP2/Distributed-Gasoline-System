@@ -23,6 +23,9 @@ export class TripGrpcMapper {
       reviewComment: trip.reviewComment || '',
       createdAt: this.mapDateToTimestamp(trip.createdAt),
       updatedAt: this.mapDateToTimestamp(trip.updatedAt),
+      currentLat: trip.currentLat ?? 0,
+      currentLng: trip.currentLng ?? 0,
+      currentDistance: trip.currentDistance ?? 0,
     };
   }
 
@@ -45,6 +48,9 @@ export class TripGrpcMapper {
       reviewComment: trip.reviewComment || '',
       createdAt: this.mapDateToTimestamp(trip.createdAt),
       updatedAt: this.mapDateToTimestamp(trip.updatedAt),
+      currentLat: trip.currentLat ?? 0,
+      currentLng: trip.currentLng ?? 0,
+      currentDistance: trip.currentDistance ?? 0,
       // Información enriquecida
       vehicleInfo: {
         id: trip.vehicleInfo.id,

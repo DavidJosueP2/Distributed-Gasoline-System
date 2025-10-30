@@ -62,7 +62,7 @@ export class TripsController {
     const appName = process.env.ROUTES_APP_NAME || 'ROUTES-SERVICE';
     const client = await this.factory.forService(
       appName,
-      'trips',
+      'routes.v1',
       'routes.proto',
     );
     return client.getService<TripsServiceClient>('TripsService');
@@ -73,7 +73,7 @@ export class TripsController {
     @Query('status') status?: string,
     @Query('driverId') driverId?: string,
     @Req() req: RequestWithGrpc = {} as RequestWithGrpc,
-  ): Observable<TripResponse[]> {
+  ): Observable<{ trips: { CREADO: TripResponse[]; EN_RUTA: TripResponse[]; EN_REVISION: TripResponse[]; TERMINADO: TripResponse[] }; userRole: string; totalTrips: number }> {
     const statusFilter = status ? Number(status) : undefined;
     const driverIdFilter = driverId ? driverId : undefined;
     
@@ -81,7 +81,22 @@ export class TripsController {
       switchMap((svc) =>
         svc
           .ListTrips({ statusFilter, driverIdFilter }, req._grpcMetadata)
-          .pipe(map((res) => res?.trips?.map(normalizeTrip) ?? [])),
+          .pipe(
+            map((res: any) => {
+              const segmented = res?.trips ?? {};
+              const normalizeList = (list?: TripResponse[]) => (list ?? []).map(normalizeTrip);
+              return {
+                trips: {
+                  CREADO: normalizeList(segmented.CREADO),
+                  EN_RUTA: normalizeList(segmented.EN_RUTA),
+                  EN_REVISION: normalizeList(segmented.EN_REVISION),
+                  TERMINADO: normalizeList(segmented.TERMINADO),
+                },
+                userRole: res?.userRole ?? res?.user_role ?? 'GUEST',
+                totalTrips: typeof res?.totalTrips === 'number' ? res.totalTrips : (res?.total_trips ?? 0),
+              };
+            }),
+          ),
       ),
     );
   }
@@ -141,12 +156,11 @@ export class TripsController {
   @Post(':id/finish')
   finishTrip(
     @Param('id') id: string,
-    @Body() body: { odometerEnd: number },
     @Req() req: RequestWithGrpc,
-  ): Observable<{ distanceKmReal: number; fuelActual: number; endTime: { seconds: number; nanos: number } }> {
+  ): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
-        svc.FinishTrip({ id, odometerEnd: body.odometerEnd }, req._grpcMetadata),
+        (svc as any).FinishTrip({ id }, req._grpcMetadata),
       ),
     );
   }
@@ -154,12 +168,44 @@ export class TripsController {
   @Post(':id/review')
   reviewTrip(
     @Param('id') id: string,
-    @Body() body: { reviewComment: string },
+    @Body() body: { odometerEnd: number; reviewComment?: string },
     @Req() req: RequestWithGrpc,
-  ): Observable<{ reviewedAt: { seconds: number; nanos: number } }> {
+  ): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
-        svc.ReviewTrip({ id, reviewComment: body.reviewComment }, req._grpcMetadata),
+        (svc as any).ReviewTrip({ id, odometerEnd: body.odometerEnd, reviewComment: body.reviewComment ?? '' }, req._grpcMetadata),
+      ),
+    );
+  }
+
+  @Put(':id/location')
+  updateLocation(
+    @Param('id') id: string,
+    @Body() body: { currentLat: number; currentLng: number; currentDistance?: number },
+    @Req() req: RequestWithGrpc,
+  ): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        (svc as any).UpdateTripLocation(
+          { id, currentLat: body.currentLat, currentLng: body.currentLng, currentDistance: body.currentDistance ?? 0 },
+          req._grpcMetadata,
+        ),
+      ),
+    );
+  }
+
+  @Post(':id/calc-metrics')
+  calculateMetrics(
+    @Param('id') id: string,
+    @Body() body: { odometerEnd: number },
+    @Req() req: RequestWithGrpc,
+  ): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        (svc as any).CalculateTripMetrics(
+          { id, odometerEnd: body.odometerEnd },
+          req._grpcMetadata,
+        ),
       ),
     );
   }

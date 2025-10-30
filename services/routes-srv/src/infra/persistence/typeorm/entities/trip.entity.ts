@@ -49,6 +49,15 @@ export class TripEntity {
   @Column({ type: 'text', nullable: true, name: 'review_comment' })
   reviewComment: string | null;
 
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true, name: 'current_lat' })
+  currentLat: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true, name: 'current_lng' })
+  currentLng: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'current_distance' })
+  currentDistance: number | null;
+
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 

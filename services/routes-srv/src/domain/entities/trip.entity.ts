@@ -17,6 +17,10 @@ export interface Trip {
   fuelEstimated: number;
   fuelActual?: number | null;
   reviewComment?: string | null;
+  // Campos de ubicación actual durante el viaje
+  currentLat?: number | null; // Latitud actual del conductor
+  currentLng?: number | null; // Longitud actual del conductor
+  currentDistance?: number | null; // Distancia actual recorrida (km)
   createdAt: Date;
   updatedAt: Date;
 }

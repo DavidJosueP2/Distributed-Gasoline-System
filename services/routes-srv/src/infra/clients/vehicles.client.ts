@@ -8,6 +8,7 @@ export interface VehicleInfo {
   brand: string;
   family: string;
   year: number;
+  requiredLicenses?: string[];
 }
 
 export interface ConsumptionProfile {
@@ -62,6 +63,7 @@ export class VehiclesClient {
       brand: response.unit.model.brand,
       family: response.unit.model.family,
       year: response.unit.model.yearFrom,
+      requiredLicenses: [], // Por ahora vacío, se implementará cuando el servicio de vehículos lo soporte
     };
   }
 

@@ -7,6 +7,7 @@ export interface DriverInfo {
   firstName: string;
   lastName: string;
   email: string;
+  licenses?: string[];
 }
 
 export interface DriverResponse {
@@ -16,11 +17,13 @@ export interface DriverResponse {
     lastName: string;
     email: string;
   };
+  licenses?: string[];
 }
 
 export interface DriversServiceClient {
   FindOne(data: { id: number }): Observable<DriverResponse>;
   Update(data: { id: number; availability: string }): Observable<any>;
+  CanDrive(data: { driverId: number; vehicleId: number }): Observable<{ canDrive: boolean }>;
 }
 
 @Injectable()
@@ -41,7 +44,18 @@ export class DriversClient {
       firstName: response.user.firstName,
       lastName: response.user.lastName,
       email: response.user.email,
+      licenses: response.licenses,
     };
+  }
+
+  async canDrive(driverId: bigint, vehicleId: bigint): Promise<boolean> {
+    const response = await lastValueFrom(
+      this.driversService.CanDrive({ 
+        driverId: Number(driverId), 
+        vehicleId: Number(vehicleId) 
+      })
+    );
+    return response.canDrive;
   }
 
   async updateDriverToOnRoute(driverId: bigint): Promise<any> {

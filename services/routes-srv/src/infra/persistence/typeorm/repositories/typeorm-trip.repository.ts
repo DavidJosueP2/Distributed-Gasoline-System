@@ -19,10 +19,11 @@ export class TypeOrmTripRepository implements TripRepository {
     return entity ? this.toDomain(entity) : null;
   }
 
-  async findAll(statusFilter?: TripStatus, driverIdFilter?: bigint): Promise<Trip[]> {
+  async findAll(statusFilter?: TripStatus, driverIdFilter?: bigint, supervisorIdFilter?: bigint): Promise<Trip[]> {
     const where: any = {};
     if (statusFilter) where.status = statusFilter;
     if (driverIdFilter) where.driverId = driverIdFilter.toString();
+    if (supervisorIdFilter) where.supervisorId = supervisorIdFilter.toString();
     
     const entities = await this.repository.find({ where });
     return entities.map(entity => this.toDomain(entity));
@@ -54,6 +55,26 @@ export class TypeOrmTripRepository implements TripRepository {
     return count > 0;
   }
 
+  async findActiveTripByDriver(driverId: bigint): Promise<Trip | null> {
+    const entity = await this.repository.findOne({
+      where: {
+        driverId: driverId.toString(),
+        status: 'CREADO' // Solo viajes creados (no iniciados)
+      }
+    });
+    return entity ? this.toDomain(entity) : null;
+  }
+
+  async findActiveTripByVehicle(vehicleId: bigint): Promise<Trip | null> {
+    const entity = await this.repository.findOne({
+      where: {
+        vehicleId: vehicleId.toString(),
+        status: 'CREADO' // Solo viajes creados (no iniciados)
+      }
+    });
+    return entity ? this.toDomain(entity) : null;
+  }
+
   private toDomain(entity: TripEntity): Trip {
     return {
       id: BigInt(entity.id),
@@ -71,6 +92,9 @@ export class TypeOrmTripRepository implements TripRepository {
       fuelEstimated: Number(entity.fuelEstimated),
       fuelActual: entity.fuelActual ? Number(entity.fuelActual) : null,
       reviewComment: entity.reviewComment,
+      currentLat: entity.currentLat ? Number(entity.currentLat) : null,
+      currentLng: entity.currentLng ? Number(entity.currentLng) : null,
+      currentDistance: entity.currentDistance ? Number(entity.currentDistance) : null,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -92,6 +116,9 @@ export class TypeOrmTripRepository implements TripRepository {
     entity.fuelEstimated = trip.fuelEstimated;
     entity.fuelActual = trip.fuelActual;
     entity.reviewComment = trip.reviewComment;
+    entity.currentLat = trip.currentLat ?? null;
+    entity.currentLng = trip.currentLng ?? null;
+    entity.currentDistance = trip.currentDistance ?? null;
     return entity;
   }
 }

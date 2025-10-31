@@ -70,6 +70,12 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo update
 
+      - name: Get image tag
+        id: image-tag
+        run: |
+          # Usar el SHA del commit como tag para tracking preciso
+          echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          
       - name: Deploy with Helm
         run: |
           helm upgrade --install fuel-system ${{ env.HELM_CHART_PATH }} \
@@ -77,14 +83,19 @@ jobs:
             --create-namespace \
             --set imageRegistry.url=${{ secrets.ACR_LOGIN_SERVER }} \
             --set global.imagePullSecrets[0]=acr-secret \
+            --set global.imageTag=main-${{ steps.image-tag.outputs.tag }} \
             --set postgresql.external.enabled=true \
             --set postgresql.external.host=${{ secrets.POSTGRES_HOST }} \
             --set postgresql.external.username=${{ secrets.POSTGRES_USERNAME }} \
             --set postgresql.external.password=${{ secrets.POSTGRES_PASSWORD }} \
             --set postgresql.external.sslMode=require \
+            --set secrets.postgresql.username=${{ secrets.POSTGRES_USERNAME }} \
             --set secrets.postgresql.password=${{ secrets.POSTGRES_PASSWORD }} \
+            --set secrets.rabbitmq.username=admin \
             --set secrets.rabbitmq.password=${{ secrets.RABBITMQ_PASSWORD }} \
             --set secrets.jwt.secret=${{ secrets.JWT_SECRET }} \
+            --set secrets.smtp.host=smtp.gmail.com \
+            --set secrets.smtp.port=587 \
             --set secrets.smtp.user=${{ secrets.SMTP_USER }} \
             --set secrets.smtp.password=${{ secrets.SMTP_PASSWORD }} \
             --set ingress.hosts[0].host=${{ secrets.DOMAIN_NAME }} \

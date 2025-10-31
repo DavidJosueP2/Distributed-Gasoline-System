@@ -9,9 +9,13 @@ RUN apk add --no-cache openssl
 COPY package.json ./
 COPY prisma ./prisma/
 
+# ARG para DATABASE_URL en build time (solo para prisma generate)
+# No se persiste en la imagen final
+ARG USERS_DATABASE_URL=postgresql://temp:temp@localhost:5432/temp?schema=public
+
 # Instalar dependencias y generar Prisma Client
 RUN npm install --production --no-package-lock && \
-    npx prisma generate && \
+    USERS_DATABASE_URL=$USERS_DATABASE_URL npx prisma generate && \
     npm cache clean --force
 
 # ===== STAGE 2: Build =====
@@ -25,8 +29,12 @@ RUN apk add --no-cache openssl
 COPY package.json ./
 COPY prisma ./prisma/
 
-# Instalar todas las dependencias
-RUN npm install --no-package-lock && npx prisma generate
+# ARG para DATABASE_URL en build time
+ARG USERS_DATABASE_URL=postgresql://temp:temp@localhost:5432/temp?schema=public
+
+# Instalar todas las dependencias y generar Prisma Client
+RUN npm install --no-package-lock && \
+    USERS_DATABASE_URL=$USERS_DATABASE_URL npx prisma generate
 
 # Copiar código fuente
 COPY . .

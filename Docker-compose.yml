@@ -82,7 +82,7 @@ services:
       - "${VEHICLES_DB_PORT:-5435}:5432"
     volumes:
       - vehicles_db_data:/var/lib/postgresql/data
-      - ./services/vehicles-svc/prisma/migrations/20251004143040_init_vehicles/migration.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # ⚠️ NO montar SQL aquí - Prisma maneja las migraciones
     networks:
       - fuel-network
     healthcheck:
@@ -219,6 +219,9 @@ services:
     build:
       context: ./services/users-srv
       dockerfile: Dockerfile
+      args:
+        # Build arg temporal para prisma generate (no se persiste en imagen)
+        USERS_DATABASE_URL: postgresql://postgres:admin@users-db:5432/users?schema=public
     container_name: fuel-users-srv
     env_file: .env
     ports:
@@ -236,10 +239,17 @@ services:
   # ---------- Vehicles Service ----------
   vehicles-svc:
     build:
-      context: ./services/vehicles-svc
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/vehicles-svc/Dockerfile
+      args:
+        # Build args temporales para prisma generate (no se persisten en imagen)
+        DATABASE_URL: postgresql://postgres:admin@vehicles-db:5432/vehicles?schema=public
+        SHADOW_DATABASE_URL: postgresql://postgres:admin@vehicles-db:5432/vehicles_shadow?schema=public
     container_name: fuel-vehicles-svc
     env_file: .env
+    environment:
+      - PROTO_ROOT=./protos
+      - PROTOS_DIR=./protos
     ports:
       - "${VEHICLES_GRPC_PORT:-50055}:${VEHICLES_GRPC_PORT:-50055}"
     depends_on:

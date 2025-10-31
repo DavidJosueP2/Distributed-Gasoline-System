@@ -7,6 +7,8 @@ global:
   imageRegistry: ""
   imagePullSecrets: []
   storageClass: ""
+  # Tag global para todas las imágenes (se puede sobrescribir por servicio)
+  imageTag: "latest"
   
 # Image registry configuration for Azure Container Registry
 imageRegistry:
@@ -396,11 +398,11 @@ ingress:
 # ==============================================
 
 monitoring:
-  enabled: false
+  enabled: true
   prometheus:
-    enabled: false
+    enabled: true
   grafana:
-    enabled: false
+    enabled: true
 
 # ==============================================
 # BACKUP & DISASTER RECOVERY

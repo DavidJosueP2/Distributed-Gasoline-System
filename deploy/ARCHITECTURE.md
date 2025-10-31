@@ -211,16 +211,31 @@ az postgres flexible-server replica create \
 ### Migraciones de Base de Datos
 
 **Servicios con Prisma** (users-srv, vehicles-svc):
+
+En **Kubernetes/Azure** (Producción):
+```yaml
+# Se ejecutan automáticamente en initContainer ANTES de iniciar la app
+initContainers:
+- name: prisma-migrate
+  command: ["npx", "prisma", "migrate", "deploy"]
+  # ✅ Fail-fast: Si migraciones fallan, pod no inicia
+  # ✅ Automático: Se ejecuta en cada deploy
+  # ✅ Idempotent: Se puede ejecutar múltiples veces
+```
+
+En **Docker Local** (Desarrollo):
 ```bash
-# Se ejecutan automáticamente en el initContainer
-npx prisma migrate deploy
+# Se ejecutan automáticamente al iniciar el contenedor
+command: sh -c "npx prisma migrate deploy && node dist/main.js"
 ```
 
 **Servicios con TypeORM** (auth-svc, driver-ms):
 ```bash
-# Se ejecutan como Job de Kubernetes
+# Se ejecutan como Job de Kubernetes o en el initContainer
 npm run typeorm:migrate
 ```
+
+**📚 Documentación:** Ver [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md) para más detalles
 
 ### Backups
 

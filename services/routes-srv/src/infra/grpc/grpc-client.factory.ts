@@ -55,12 +55,24 @@ export class GrpcClientFactory {
     pkg: string,
     proto: string,
   ): Promise<ClientGrpc> {
-    console.log(`Resolving gRPC client for ${this.protosDir}...`);
     const inst = await this.pick(appName);
     const url = `${hostOf(inst)}:${resolvePort(inst)}`;
     return ClientProxyFactory.create({
       transport: Transport.GRPC,
-      options: { url, package: pkg, protoPath: join(this.protosDir, proto) },
+      options: { 
+        url, 
+        package: pkg, 
+        protoPath: join(this.protosDir, proto),
+        loader: {
+          longs: Number,      // Convertir int64 a Number
+          enums: String,      // Usar strings para enums
+          defaults: true,     // Usar valores por defecto
+          arrays: true,       // Soportar arrays
+          objects: true,      // Soportar objetos
+          oneofs: true,       // Soportar oneofs
+          keepCase: false,    // Transformar snake_case a camelCase
+        },
+      },
     }) as unknown as ClientGrpc;
   }
 }

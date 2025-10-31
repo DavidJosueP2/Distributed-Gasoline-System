@@ -55,7 +55,7 @@ export class TripService {
 
   private async driversClient(): Promise<DriversClient> {
     const client = await this.grpcFactory.clientFor(
-      'DRIVER-MS',
+      'DRIVER-SERVICE',
       'driverms.v1',
       'driver_ms.proto',
     );

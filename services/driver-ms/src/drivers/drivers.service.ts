@@ -102,6 +102,21 @@ export class DriversService {
     return driver;
   }
 
+  // Buscar conductor por user_id
+  async findByUserId(userId: any): Promise<Driver> {
+    const convertedUserId = this.convertGrpcId(userId);
+    const driver = await this.driverRepository.findOne({
+      where: { user_id: convertedUserId },
+      relations: ['licenses', 'licenses.license_type'],
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver with user_id ${convertedUserId} not found`);
+    }
+
+    return driver;
+  }
+
   // Cambiar a any pero convertir antes de usar
   async update(id: any, updateDriverDto: UpdateDriverDto, metadata?: any): Promise<Driver> {
     const convertedId = this.convertGrpcId(id);

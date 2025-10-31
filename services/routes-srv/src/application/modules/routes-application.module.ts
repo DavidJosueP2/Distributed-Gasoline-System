@@ -17,6 +17,7 @@ import { DiscoveryModule } from '../../infra/discovery/discovery.module';
         TripService,
     ],
     exports: [
+        GrpcClientFactory,
         RouteService,
         TripService,
     ],

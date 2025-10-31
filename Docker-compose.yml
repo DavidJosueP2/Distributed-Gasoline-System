@@ -82,8 +82,9 @@ services:
       - "5438:5432"
     volumes:
       - driver-db-data:/var/lib/postgresql/data
+      - ./services/driver-ms/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DRIVER_DB_USER} -d ${DRIVER_DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DRIVER_DB_USER:-postgres} -d ${DRIVER_DB_NAME:-drivers}"]
       interval: 5s
       timeout: 3s
       retries: 10

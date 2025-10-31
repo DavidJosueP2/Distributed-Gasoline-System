@@ -22,8 +22,9 @@ export interface DriverResponse {
 
 export interface DriversServiceClient {
   FindOne(data: { id: number }): Observable<DriverResponse>;
+  FindByUserId(data: { userId: number }): Observable<DriverResponse>;
   Update(data: { id: number; availability: string }): Observable<any>;
-  CanDrive(data: { driverId: number; vehicleId: number }): Observable<{ canDrive: boolean }>;
+  CanDrive(data: { driverId: number; licenseTypeId: number }): Observable<{ canDrive: boolean; reason?: string; matchingLicenses?: any[] }>;
 }
 
 @Injectable()
@@ -48,11 +49,18 @@ export class DriversClient {
     };
   }
 
-  async canDrive(driverId: bigint, vehicleId: bigint): Promise<boolean> {
+  async getDriverIdByUserId(userId: bigint): Promise<bigint> {
+    const response = await lastValueFrom(
+      this.driversService.FindByUserId({ userId: Number(userId) })
+    );
+    return BigInt(response.driverId);
+  }
+
+  async canDrive(driverId: bigint, licenseTypeId: bigint): Promise<boolean> {
     const response = await lastValueFrom(
       this.driversService.CanDrive({ 
         driverId: Number(driverId), 
-        vehicleId: Number(vehicleId) 
+        licenseTypeId: Number(licenseTypeId) 
       })
     );
     return response.canDrive;

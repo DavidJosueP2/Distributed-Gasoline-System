@@ -9,28 +9,23 @@
     "infra:down": "docker compose down -v",
     "infra:logs": "docker compose logs -f",
     "infra:ready": "npx wait-on -t 120000 http-get://localhost:8761 tcp:localhost:5499",
-
     "prisma:users": "npm exec -w services/users-srv prisma generate",
     "prisma:vehicles:reset": "npm exec -w services/vehicles-svc prisma migrate reset --force",
     "prisma:prepare": "npm run prisma:users && npm run prisma:vehicles:reset",
-
     "dev:gw": "npm --workspace services/api-gateway run --if-present start:dev",
     "dev:auth": "npm --workspace services/auth-svc run --if-present start:dev",
     "dev:email": "npm --workspace services/email-svc run --if-present start:dev",
     "dev:hello": "npm --workspace services/hello-svc run --if-present start:dev",
     "dev:users": "npm --workspace services/users-srv run --if-present start:dev",
     "dev:vehicles": "npm --workspace services/vehicles-svc run --if-present start:dev",
+    "dev:driver": "npm --workspace services/driver-ms run --if-present start:dev",
     "dev:routes": "npm --workspace services/routes-srv run --if-present start:dev",
-
-    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,HELLO-SVC,USERS-SVC,VEHICLES-SVC,ROUTES-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:hello\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:routes\"",
-
+    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,HELLO-SVC,USERS-SVC,VEHICLES-SVC,ROUTES-SVC,DRIVER-MS -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:hello\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:routes\" \"npm run dev:driver\"",
     "setup": "npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
     "dev": "npm run infra:up && npm run infra:ready && npm run dev:services",
-
     "clean": "ts-node tools/clean.ts",
     "reset": "npm run clean && npm install"
-  }
-,
+  },
   "devDependencies": {
     "@types/node": "^24.6.0",
     "concurrently": "^9.0.0",
@@ -48,6 +43,7 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/microservices": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
+    "@prisma/client": "^6.18.0",
     "dotenv": "^17.2.3",
     "eureka-js-client": "^4.5.0",
     "reflect-metadata": "^0.2.2",

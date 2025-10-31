@@ -1,24 +1,22 @@
 -- =========================================================
--- DATABASE: fleet_driver
+-- DATABASE: drivers
 -- PostgreSQL
 -- =========================================================
+-- Este script crea las tablas según las entidades TypeORM del servicio driver-ms
 
 create extension if not exists pgcrypto;
 
 -- =========================
 -- DRIVERS
 -- =========================
+-- Tabla: drivers
+-- Entidad: Driver (src/drivers/entities/driver.entity.ts)
 
--- Conductores del sistema (referencia externa: user_id de auth.users)
 create table drivers (
-  driver_id     bigserial primary key,
-  user_id       bigint not null unique,  -- ID externo (sin FK cross-DB)
-  full_name     varchar(160) not null,
-  phone_number  varchar(30),
-  email         varchar(160),
+  driver_id     bigint primary key generated always as identity,
+  user_id       bigint not null unique,  -- ID externo (users-srv)
   availability  varchar(30) not null default 'AVAILABLE'
-                check (availability in ('AVAILABLE','ON_ROUTE','INACTIVE','BLOCKED')),
-  rating        numeric(3,2) default 5.00 check (rating between 0 and 5),
+                check (availability in ('AVAILABLE','ON_ROUTE','LICENSE_EXPIRED','INACTIVE')),
   version       bigint not null default 0,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
@@ -27,68 +25,66 @@ create table drivers (
 create index idx_drivers_availability on drivers(availability);
 
 -- =========================
--- VEHICLES
+-- LICENSE TYPES
 -- =========================
+-- Tabla: license_types
+-- Entidad: LicenseType (src/license-types/entities/license-type.entity.ts)
 
--- Vehículos registrados a nombre de los conductores
-create table vehicles (
-  vehicle_id    bigserial primary key,
-  driver_id     bigint not null references drivers(driver_id) on delete cascade,
-  plate_number  varchar(20) not null unique,
-  model         varchar(80),
-  brand         varchar(80),
-  year          smallint check (year >= 1990),
-  capacity      smallint,               -- número de pasajeros o carga en toneladas
-  status        varchar(20) not null default 'ACTIVE'
-                check (status in ('ACTIVE','INACTIVE','MAINTENANCE')),
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+create table license_types (
+  license_type_id  bigint primary key generated always as identity,
+  code             varchar(10) not null unique,
+  description      varchar(160),
+  is_professional  boolean not null default false,
+  created_at       timestamptz not null default now()
 );
 
-create index idx_vehicles_driver on vehicles(driver_id);
-create index idx_vehicles_status on vehicles(status);
-
 -- =========================
--- DRIVER DOCUMENTS
+-- LICENSE INCLUDES
 -- =========================
+-- Tabla: license_includes
+-- Entidad: LicenseInclude (src/license-types/entities/license-include.entity.ts)
+-- Tabla de relación muchos-a-muchos para jerarquías de licencias
 
--- Documentos administrativos del conductor (ej. licencia, SOAT, revisión, etc.)
-create table driver_documents (
-  document_id   bigserial primary key,
-  driver_id     bigint not null references drivers(driver_id) on delete cascade,
-  type          varchar(50) not null,   -- ej: LICENSE, SOAT, INSURANCE, ID_CARD
-  number        varchar(80),
-  issued_at     date,
-  expires_at    date,
-  file_url      text,
-  status        varchar(20) not null default 'VALID'
-                check (status in ('VALID','EXPIRED','SUSPENDED')),
-  version       bigint not null default 0,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+create table license_includes (
+  parent_license_type_id  bigint not null,
+  child_license_type_id   bigint not null,
+  primary key (parent_license_type_id, child_license_type_id),
+  foreign key (parent_license_type_id) references license_types(license_type_id) on delete cascade,
+  foreign key (child_license_type_id) references license_types(license_type_id) on delete cascade
 );
 
-create index idx_driver_documents_driver on driver_documents(driver_id);
-create index idx_driver_documents_status on driver_documents(status);
+create index idx_license_includes_parent on license_includes(parent_license_type_id);
+create index idx_license_includes_child on license_includes(child_license_type_id);
 
 -- =========================
--- DRIVER LOCATION (Opcional si el servicio gestiona ubicación)
+-- DRIVER LICENSES
 -- =========================
+-- Tabla: driver_licenses
+-- Entidad: DriverLicense (src/drivers/entities/driver-license.entity.ts)
 
-create table driver_locations (
-  driver_id     bigint primary key references drivers(driver_id) on delete cascade,
-  latitude      numeric(10,6),
-  longitude     numeric(10,6),
-  last_update   timestamptz not null default now()
+create table driver_licenses (
+  driver_license_id  bigint primary key generated always as identity,
+  driver_id           bigint not null,
+  license_type_id     bigint not null,
+  number              varchar(40) unique,
+  issued_at           date,
+  expires_at          date,
+  status              varchar(20) not null default 'VALID'
+                      check (status in ('VALID','EXPIRED','SUSPENDED')),
+  version             bigint not null default 0,
+  foreign key (driver_id) references drivers(driver_id) on delete cascade,
+  foreign key (license_type_id) references license_types(license_type_id) on delete restrict
 );
 
-create index idx_driver_locations_geo on driver_locations(latitude, longitude);
+create index idx_driver_licenses_driver on driver_licenses(driver_id);
+create index idx_driver_licenses_license on driver_licenses(license_type_id);
+create index idx_driver_licenses_expiry on driver_licenses(status, expires_at);
 
 -- =========================
--- TRIGGERS / ACTUALIZACIONES
+-- TRIGGERS
 -- =========================
 
--- Mantener updated_at actualizado
+-- Mantener updated_at actualizado automáticamente
 create or replace function set_updated_at()
 returns trigger as $$
 begin
@@ -101,41 +97,40 @@ create trigger trg_update_drivers
 before update on drivers
 for each row execute function set_updated_at();
 
-create trigger trg_update_vehicles
-before update on vehicles
-for each row execute function set_updated_at();
-
-create trigger trg_update_driver_documents
-before update on driver_documents
-for each row execute function set_updated_at();
-
 -- =========================
--- SEED INICIAL (Opcional)
+-- SEED DATA
 -- =========================
+-- Datos iniciales para testing
 
-insert into drivers(user_id, full_name, phone_number, email, availability)
+-- Insertar conductores (user_id debe coincidir con users-srv)
+insert into drivers(user_id, availability)
 values 
-  (1, 'Juan Pérez', '+593999999999', 'juan.perez@example.com', 'AVAILABLE')
-on conflict do nothing;
+  (3, 'AVAILABLE'),
+  (8, 'AVAILABLE'),
+  (9, 'AVAILABLE')
+on conflict (user_id) do nothing;
 
-insert into vehicles(driver_id, plate_number, model, brand, year, capacity)
-select driver_id, 'ABC-1234', 'Hilux', 'Toyota', 2022, 1
-from drivers where user_id = 1
-on conflict do nothing;
+-- Insertar tipos de licencia comunes
+insert into license_types(code, description, is_professional)
+values 
+  ('A', 'Motocicletas', false),
+  ('B', 'Vehículos livianos', false),
+  ('C', 'Vehículos pesados', true),
+  ('D', 'Transporte público', true),
+  ('E', 'Vehículos especiales', true)
+on conflict (code) do nothing;
 
-insert into driver_documents(driver_id, type, number, issued_at, expires_at, status)
-select driver_id, 'LICENSE', 'DLN123456', current_date - interval '1 year', current_date + interval '4 years', 'VALID'
-from drivers where user_id = 1
-on conflict do nothing;
-
--- =========================================================
--- VISTAS / CONSULTAS DE APOYO
--- =========================================================
-
-create or replace view v_active_drivers as
-select d.driver_id, d.full_name, d.phone_number, d.email,
-       v.plate_number, v.model, v.brand, v.year, v.status as vehicle_status
+-- Insertar licencias de prueba para los conductores
+insert into driver_licenses(driver_id, license_type_id, number, issued_at, expires_at, status)
+select 
+  d.driver_id,
+  lt.license_type_id,
+  'DLN' || d.user_id || '-001',
+  current_date - interval '1 year',
+  current_date + interval '4 years',
+  'VALID'
 from drivers d
-left join vehicles v on v.driver_id = d.driver_id
-where d.availability = 'AVAILABLE'
-  and v.status = 'ACTIVE';
+cross join license_types lt
+where lt.code = 'B'
+  and d.user_id in (3, 8, 9)
+on conflict (number) do nothing;

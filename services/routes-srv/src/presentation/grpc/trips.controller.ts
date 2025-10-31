@@ -8,6 +8,8 @@ import { GetUserInfo } from '../../common/auth/decorators/get-user.decorator';
 import { TripGrpcMapper } from '../../infra/grpc/mappers/trip-grpc.mapper';
 import { TripStatus } from '../../domain/value-objects/trip-status.vo';
 import { status as GrpcStatus } from '@grpc/grpc-js';
+import { GrpcClientFactory } from '../../infra/grpc/grpc-client.factory';
+import { DriversClient } from '../../infra/clients/drivers.client';
 import { 
   CreateTripDto, 
   UpdateTripDto, 
@@ -24,6 +26,7 @@ export class TripsController {
   constructor(
     private readonly tripService: TripService,
     private readonly tokenExtractor: TokenExtractorService,
+    private readonly grpcFactory: GrpcClientFactory,
   ) {}
 
   private readonly logger = new Logger(TripsController.name);
@@ -31,7 +34,6 @@ export class TripsController {
   @GrpcMethod('TripsService', 'CreateTrip')
   async createTrip(request: CreateTripDto): Promise<any> {
     try {
-      this.logger.log(`CreateTrip request: ${JSON.stringify(request)}`);
       const result = await this.tripService.createTrip({
         routeId: request.routeId ? BigInt(request.routeId) : undefined,
         supervisorId: BigInt(request.supervisorId),
@@ -51,7 +53,6 @@ export class TripsController {
         } : undefined,
       });
 
-      this.logger.log(`CreateTrip success: ${JSON.stringify(result)}`);
       return {
         id: result.id.toString(),
         fuelEstimated: result.fuelEstimated,
@@ -70,9 +71,7 @@ export class TripsController {
   @GrpcMethod('TripsService', 'GetTrip')
   async getTrip(request: any): Promise<any> {
     try {
-      this.logger.log(`GetTrip request: ${JSON.stringify(request)}`);
       const trip = await this.tripService.getTripEnriched(BigInt(request.id));
-      this.logger.log(`GetTrip success: ${trip.id.toString()}`);
       return { trip: TripGrpcMapper.toProtoEnriched(trip) };
     } catch (error) {
       this.logger.error(`GetTrip error: ${(error as any)?.message}`, (error as any)?.stack);
@@ -87,13 +86,6 @@ export class TripsController {
   @GrpcMethod('TripsService', 'ListTrips')
   async listTrips(request: any, @GetUserInfo() metadata: Metadata): Promise<any> {
     try {
-      this.logger.log(`ListTrips request: ${JSON.stringify(request)}`);
-      try {
-        const rawAuth = (metadata as any)?.get?.('authorization')?.[0]
-          || (metadata as any)?.get?.('Authorization')?.[0];
-        const authHeader = typeof rawAuth === 'string' ? rawAuth : (Buffer.isBuffer(rawAuth) ? rawAuth.toString('utf8') : undefined);
-        this.logger.log(`ListTrips metadata auth: ${authHeader ? '[present]' : '[missing]'}`);
-      } catch {}
       // Extraer información del token
       let supervisorIdFilter: bigint | undefined = undefined;
       let driverIdFilter: bigint | undefined = undefined;
@@ -109,7 +101,19 @@ export class TripsController {
         if (this.tokenExtractor.isSupervisor(userInfo)) {
           supervisorIdFilter = userInfo.userId;
         } else if (this.tokenExtractor.isDriver(userInfo)) {
-          driverIdFilter = userInfo.userId;
+          // Para DRIVER, necesitamos obtener el driver_id desde la tabla de conductores
+          try {
+            const client = await this.grpcFactory.clientFor(
+              'DRIVER-SERVICE',
+              'driverms.v1',
+              'driver_ms.proto',
+            );
+            const driversClient = new DriversClient(client);
+            const driverId = await driversClient.getDriverIdByUserId(userInfo.userId);
+            driverIdFilter = driverId;
+          } catch (driverError) {
+            this.logger.warn(`Could not find driver for user_id=${userInfo.userId}: ${(driverError as any)?.message}`);
+          }
         }
         // ADMIN ve todos (sin filtros)
       } catch (tokenError) {
@@ -139,7 +143,6 @@ export class TripsController {
         userRole,
         totalTrips: allTrips.length
       };
-      this.logger.log(`ListTrips success: role=${userRole} total=${allTrips.length}`);
       return response;
     } catch (error) {
       this.logger.error(`ListTrips error: ${(error as any)?.message}`, (error as any)?.stack);
@@ -154,13 +157,11 @@ export class TripsController {
   @GrpcMethod('TripsService', 'UpdateTrip')
   async updateTrip(request: any): Promise<any> {
     try {
-      this.logger.log(`UpdateTrip request: ${JSON.stringify(request)}`);
       const trip = await this.tripService.updateTrip(BigInt(request.id), {
         driverId: request.driverId ? BigInt(request.driverId) : undefined,
         vehicleId: request.vehicleId ? BigInt(request.vehicleId) : undefined,
       });
 
-      this.logger.log(`UpdateTrip success: ${trip.id.toString()}`);
       return TripGrpcMapper.toProto(trip);
     } catch (error) {
       this.logger.error(`UpdateTrip error: ${(error as any)?.message}`, (error as any)?.stack);
@@ -175,9 +176,7 @@ export class TripsController {
   @GrpcMethod('TripsService', 'StartTrip')
   async startTrip(request: any): Promise<any> {
     try {
-      this.logger.log(`StartTrip request: ${JSON.stringify(request)}`);
       const startTime = await this.tripService.startTrip(BigInt(request.id));
-      this.logger.log(`StartTrip success: id=${request.id}`);
       return {
         startTime: {
           seconds: Math.floor(startTime.getTime() / 1000),
@@ -197,11 +196,9 @@ export class TripsController {
   @GrpcMethod('TripsService', 'FinishTrip')
   async finishTrip(request: any): Promise<any> {
     try {
-      this.logger.log(`FinishTrip request: ${JSON.stringify(request)}`);
       const result = await this.tripService.finishTrip(
         BigInt(request.id)
       );
-      this.logger.log(`FinishTrip success: id=${request.id}`);
       return {
         endTime: {
           seconds: Math.floor(result.endTime.getTime() / 1000),
@@ -221,13 +218,11 @@ export class TripsController {
   @GrpcMethod('TripsService', 'ReviewTrip')
   async reviewTrip(request: any): Promise<any> {
     try {
-      this.logger.log(`ReviewTrip request: ${JSON.stringify(request)}`);
       const result = await this.tripService.reviewTrip(
         BigInt(request.id),
         request.odometerEnd,
         request.reviewComment
       );
-      this.logger.log(`ReviewTrip success: id=${request.id}`);
       return {
         reviewedAt: {
           seconds: Math.floor(result.reviewedAt.getTime() / 1000),
@@ -249,14 +244,12 @@ export class TripsController {
   @GrpcMethod('TripsService', 'UpdateTripLocation')
   async updateTripLocation(request: any): Promise<any> {
     try {
-      this.logger.log(`UpdateTripLocation request: ${JSON.stringify(request)}`);
       await this.tripService.updateTripLocation(
         BigInt(request.id),
         request.currentLat,
         request.currentLng,
         request.currentDistance
       );
-      this.logger.log(`UpdateTripLocation success: id=${request.id}`);
       return {};
     } catch (error) {
       this.logger.error(`UpdateTripLocation error: ${(error as any)?.message}`, (error as any)?.stack);
@@ -271,12 +264,10 @@ export class TripsController {
   @GrpcMethod('TripsService', 'CalculateTripMetrics')
   async calculateTripMetrics(request: any): Promise<any> {
     try {
-      this.logger.log(`CalculateTripMetrics request: ${JSON.stringify(request)}`);
       const result = await this.tripService.calculateTripMetrics(
         BigInt(request.id),
         request.odometerEnd,
       );
-      this.logger.log(`CalculateTripMetrics success: id=${request.id}`);
       return {
         distanceKmReal: result.distanceKmReal,
         fuelActual: result.fuelActual,

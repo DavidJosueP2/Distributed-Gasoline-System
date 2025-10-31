@@ -16,7 +16,7 @@ class VehiclesBootstrapModule {}
 async function bootstrap() {
     const PORT = Number(process.env.VEHICLES_GRPC_PORT || process.env.GRPC_PORT || 50051);
     const BIND_HOST = process.env.SERVICE_BIND_HOST || process.env.BIND_HOST || '0.0.0.0';
-    const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || './protos';
+    const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../../protos');
     const APP_NAME = process.env.VEHICLES_APP_NAME || 'VEHICLES-SERVICE';
     const SHOULD_REGISTER =
         (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||

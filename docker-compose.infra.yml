@@ -60,7 +60,7 @@ services:
       - "${USERS_DB_PORT:-5434}:5432"
     volumes:
       - users_db_data:/var/lib/postgresql/data
-      - ./services/users-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # ⚠️ NO montar SQL aquí - Prisma maneja el esquema
     networks:
       - fuel-network
     healthcheck:

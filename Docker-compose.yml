@@ -60,7 +60,7 @@ services:
       - "${USERS_DB_PORT:-5434}:5432"
     volumes:
       - users_db_data:/var/lib/postgresql/data
-      - ./services/users-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # ⚠️ NO montar SQL aquí - Prisma maneja el esquema
     networks:
       - fuel-network
     healthcheck:
@@ -199,10 +199,18 @@ services:
   # ---------- Auth Service ----------
   auth-svc:
     build:
-      context: ./services/auth-svc
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/auth-svc/Dockerfile
     container_name: fuel-auth-svc
     env_file: .env
+    environment:
+      - AUTH_DB_HOST=auth-db
+      - AUTH_DB_PORT=5432
+      - AUTH_DB_USER=${AUTH_DB_USER:-postgres}
+      - AUTH_DB_PASS=${AUTH_DB_PASS:-root}
+      - AUTH_DB=${AUTH_DB:-auth}
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
     ports:
       - "${AUTH_GRPC_PORT:-50052}:${AUTH_GRPC_PORT:-50052}"
     depends_on:
@@ -217,13 +225,16 @@ services:
   # ---------- Users Service ----------
   users-srv:
     build:
-      context: ./services/users-srv
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/users-srv/Dockerfile
       args:
         # Build arg temporal para prisma generate (no se persiste en imagen)
         USERS_DATABASE_URL: postgresql://postgres:admin@users-db:5432/users?schema=public
     container_name: fuel-users-srv
     env_file: .env
+    environment:
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
     ports:
       - "${USERS_GRPC_PORT:-50057}:${USERS_GRPC_PORT:-50057}"
     depends_on:
@@ -234,7 +245,7 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
-    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    command: sh -c "npx prisma db push --accept-data-loss --skip-generate && node dist/src/main.js"
 
   # ---------- Vehicles Service ----------
   vehicles-svc:
@@ -248,8 +259,8 @@ services:
     container_name: fuel-vehicles-svc
     env_file: .env
     environment:
-      - PROTO_ROOT=./protos
-      - PROTOS_DIR=./protos
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
     ports:
       - "${VEHICLES_GRPC_PORT:-50055}:${VEHICLES_GRPC_PORT:-50055}"
     depends_on:

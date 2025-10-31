@@ -36,7 +36,8 @@ export const AppDataSource = new DataSource({
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   // We run migrations explicitly with the CLI, so keep synchronize false
   synchronize: false,
-  logging: true,
+  // Logging SQL deshabilitado para evitar logs gigantes de queries
+  logging: false, // Solo activar cuando necesites debuggear migraciones
 });
 
 // Note: do not export default to keep a single named export for the CLI

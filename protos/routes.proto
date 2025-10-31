@@ -1,0 +1,263 @@
+syntax = "proto3";
+
+package routes.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// =====================================================
+// Enums
+// =====================================================
+
+enum VehicleType {
+  VEHICLE_TYPE_UNSPECIFIED = 0;
+  LIVIANO = 1;
+  PESADO = 2;
+  CUALQUIERA = 3;
+}
+
+enum TripStatus {
+  TRIP_STATUS_UNSPECIFIED = 0;
+  CREADO = 1;
+  EN_RUTA = 2;
+  EN_REVISION = 3;
+  TERMINADO = 4;
+}
+
+// =====================================================
+// Value Objects
+// =====================================================
+
+// =====================================================
+// Route Messages
+// =====================================================
+
+message Route {
+  int64 id = 1;
+  string name = 2;
+  string origin_name = 3;
+  double origin_lat = 4;
+  double origin_lng = 5;
+  string destination_name = 6;
+  double destination_lat = 7;
+  double destination_lng = 8;
+  double distance_km = 9;
+  VehicleType vehicle_type = 10;
+  bool has_trips = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+// Mensaje optimizado para listados (sin coordenadas)
+message RouteListItem {
+  int64 id = 1;
+  string name = 2;
+  string origin_name = 3;
+  string destination_name = 4;
+  double distance_km = 5;
+  VehicleType vehicle_type = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message CreateRouteRequest {
+  string name = 1;
+  string origin_name = 2;
+  double origin_lat = 3;
+  double origin_lng = 4;
+  string destination_name = 5;
+  double destination_lat = 6;
+  double destination_lng = 7;
+  double distance_km = 8;
+  VehicleType vehicle_type = 9;
+}
+
+message CreateRouteResponse {
+  int64 id = 1;
+}
+
+message GetRouteRequest {
+  int64 id = 1;
+}
+
+message GetRouteResponse {
+  Route route = 1;
+}
+
+message ListRoutesRequest {
+  VehicleType vehicle_type_filter = 1; // opcional
+}
+
+message ListRoutesResponse {
+  repeated RouteListItem routes = 1;
+}
+
+message UpdateRouteRequest {
+  int64 id = 1;
+  string name = 2;
+  string origin_name = 3;
+  double origin_lat = 4;
+  double origin_lng = 5;
+  string destination_name = 6;
+  double destination_lat = 7;
+  double destination_lng = 8;
+  double distance_km = 9;
+  VehicleType vehicle_type = 10;
+}
+
+message DeleteRouteRequest {
+  int64 id = 1;
+}
+
+message DeleteRouteResponse {}
+
+// =====================================================
+// Trip Messages
+// =====================================================
+
+message Trip {
+  int64 id = 1;
+  int64 route_id = 2;
+  int64 supervisor_id = 3;
+  int64 driver_id = 4;
+  int64 vehicle_id = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+  TripStatus status = 8;
+  double odometer_start = 9;
+  double odometer_end = 10;
+  double distance_km_real = 11;
+  double distance_km_planned = 12;
+  double fuel_estimated = 13;
+  double fuel_actual = 14;
+  string review_comment = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  // Ubicación actual durante el viaje (solo aplica en EN_RUTA)
+  double current_lat = 18;
+  double current_lng = 19;
+  double current_distance = 20; // distancia recorrida o restante, según implementación
+}
+
+message CreateTripRequest {
+  int64 route_id = 1;
+  int64 supervisor_id = 2;
+  int64 driver_id = 3;
+  int64 vehicle_id = 4;
+}
+
+message CreateTripResponse {
+  int64 id = 1;
+  double fuel_estimated = 2; // calculado automáticamente
+}
+
+message GetTripRequest {
+  int64 id = 1;
+}
+
+message GetTripResponse {
+  Trip trip = 1;
+}
+
+message ListTripsRequest {
+  TripStatus status_filter = 1; // opcional
+  int64 driver_id_filter = 2; // opcional
+}
+
+message ListTripsResponse {
+  // Respuesta segmentada por estado
+  message SegmentedTrips {
+    repeated Trip CREADO = 1;
+    repeated Trip EN_RUTA = 2;
+    repeated Trip EN_REVISION = 3;
+    repeated Trip TERMINADO = 4;
+  }
+
+  SegmentedTrips trips = 1;
+  string user_role = 2; // ADMIN | SUPERVISOR | DRIVER
+  int64 total_trips = 3;
+}
+
+message UpdateTripRequest {
+  int64 id = 1;
+  int64 driver_id = 2;
+  int64 vehicle_id = 3;
+}
+
+message StartTripRequest {
+  int64 id = 1;
+}
+
+message StartTripResponse {
+  google.protobuf.Timestamp start_time = 1;
+}
+
+message FinishTripRequest {
+  int64 id = 1;
+}
+
+message FinishTripResponse {
+  google.protobuf.Timestamp end_time = 1;
+}
+
+message ReviewTripRequest {
+  int64 id = 1;
+  double odometer_end = 2;
+  string review_comment = 3; // obligatorio si desviación > 3%
+}
+
+message ReviewTripResponse {
+  google.protobuf.Timestamp reviewed_at = 1;
+  double distance_km_real = 2;
+  double fuel_actual = 3;
+}
+
+// =====================================================
+// Services
+// =====================================================
+
+service RoutesService {
+  // Routes CRUD
+  rpc CreateRoute (CreateRouteRequest) returns (Route);
+  rpc GetRoute (GetRouteRequest) returns (GetRouteResponse);
+  rpc ListRoutes (ListRoutesRequest) returns (ListRoutesResponse);
+  rpc UpdateRoute (UpdateRouteRequest) returns (Route);
+  rpc DeleteRoute (DeleteRouteRequest) returns (DeleteRouteResponse);
+}
+
+service TripsService {
+  // Trips CRUD
+  rpc CreateTrip (CreateTripRequest) returns (CreateTripResponse);
+  rpc GetTrip (GetTripRequest) returns (GetTripResponse);
+  rpc ListTrips (ListTripsRequest) returns (ListTripsResponse);
+  rpc UpdateTrip (UpdateTripRequest) returns (Trip);
+  
+  // Trip Flow
+  rpc StartTrip (StartTripRequest) returns (StartTripResponse);
+  rpc FinishTrip (FinishTripRequest) returns (FinishTripResponse);
+  rpc ReviewTrip (ReviewTripRequest) returns (ReviewTripResponse);
+
+  // Actualiza la ubicación actual del viaje en ruta
+  rpc UpdateTripLocation (UpdateTripLocationRequest) returns (UpdateTripLocationResponse);
+
+  // Previsualiza métricas reales sin persistir cambios
+  rpc CalculateTripMetrics (CalculateTripMetricsRequest) returns (CalculateTripMetricsResponse);
+}
+
+message UpdateTripLocationRequest {
+  int64 id = 1;
+  double current_lat = 2;
+  double current_lng = 3;
+  double current_distance = 4; // opcional, puede ir en 0 si no aplica
+}
+
+message UpdateTripLocationResponse {}
+
+message CalculateTripMetricsRequest {
+  int64 id = 1;
+  double odometer_end = 2;
+}
+
+message CalculateTripMetricsResponse {
+  double distance_km_real = 1;
+  double fuel_actual = 2;
+}

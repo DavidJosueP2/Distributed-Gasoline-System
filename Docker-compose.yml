@@ -101,7 +101,7 @@ services:
       POSTGRES_PASSWORD: ${DRIVER_DB_PASS:-admin}
       POSTGRES_DB: ${DRIVER_DB_NAME:-drivers}
     ports:
-      - "${DRIVER_DB_PORT:-5436}:5432"
+      - "${DRIVER_DB_PORT:-5438}:5432"
     volumes:
       - driver_db_data:/var/lib/postgresql/data
       - ./services/driver-ms/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -165,10 +165,10 @@ services:
       - "${KIBANA_PORT:-5601}:5601"
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-    networks:
-      - fuel-network
     depends_on:
       - elasticsearch
+    networks:
+      - fuel-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
       interval: 30s
@@ -214,6 +214,41 @@ services:
       - fuel-network
     restart: unless-stopped
 
+  # ---------- Routes Database ----------
+  routes-db:
+    image: postgres:16
+    container_name: fuelhub-routes-db
+    environment:
+      POSTGRES_USER: ${ROUTES_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ROUTES_DB_PASS:-admin}
+      POSTGRES_DB: ${ROUTES_DB_NAME:-routes}
+    ports:
+      - "5500:5432"
+    volumes:
+      - routes_db_data:/var/lib/postgresql/data
+      - ./services/routes-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ROUTES_DB_USER} -d ${ROUTES_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- PGAdmin ----------
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: fuelhub-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8081:80"
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
   # ---------- Users Service ----------
   users-srv:
     build:
@@ -228,10 +263,10 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
     networks:
       - fuel-network
     restart: unless-stopped
-    command: sh -c "npx prisma migrate deploy && node dist/main.js"
 
   # ---------- Vehicles Service ----------
   vehicles-svc:
@@ -247,10 +282,10 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
     networks:
       - fuel-network
     restart: unless-stopped
-    command: sh -c "npx prisma migrate deploy && node dist/main.js"
 
   # ---------- Driver Service ----------
   driver-ms:
@@ -266,6 +301,8 @@ services:
       driver-db:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      routes-db:
         condition: service_healthy
     networks:
       - fuel-network
@@ -325,6 +362,10 @@ services:
       - fuel-network
     restart: unless-stopped
 
+# ==============================================
+# Redes y Volúmenes
+# ==============================================
+
 networks:
   fuel-network:
     driver: bridge
@@ -334,5 +375,6 @@ volumes:
   users_db_data:
   vehicles_db_data:
   driver_db_data:
+  routes_db_data:
   rabbitmq_data:
   elasticsearch_data:

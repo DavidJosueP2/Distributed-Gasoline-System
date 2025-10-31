@@ -38,6 +38,7 @@ export interface UserRepository {
   findByUserNameExceptSelf(username: string, userId: number): Promise<User | null>;
   findAll(): Promise<User[]>;
   findAllInactiveUsers(): Promise<User[]>;
+  findByRole(roleName: string): Promise<User[]>;
   create(input: CreateUserInput): Promise<User>;
   update(id: number, input: UpdateUserInput): Promise<User>;
   updatePassword(id: number, newPasswordHash: string): Promise<void>;

@@ -29,8 +29,12 @@ async function bootstrap() {
   const HTTP_PORT = Number(process.env.DRIVER_HTTP_PORT || 3001);
   const BIND_HOST = process.env.SERVICE_BIND_HOST || '0.0.0.0';
   const PROTO_ROOT = process.env.PROTO_ROOT || '../../protos'; // Ruta relativa desde la carpeta dist
+  const SHOULD_REGISTER =
+    (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
+    (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
 
-  logger.log(`Starting Driver Service...`);
+
+    logger.log(`Starting Driver Service...`);
   logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
   try {
@@ -83,13 +87,13 @@ async function bootstrap() {
     );
 
     // ✅ Registro en Eureka mejorado
-    let eurekaClient;
+    let eurekaClient: { stop: () => void; } | undefined = undefined;
     if (validateEurekaConfig()) {
       try {
         const { serviceUrl } = getEurekaConfig();
         logger.log(`Attempting Eureka registration at: ${serviceUrl}`);
         
-        eurekaClient = registerInEureka();
+        eurekaClient = SHOULD_REGISTER ? registerInEureka() : undefined
         logger.log('Eureka registration initiated');
       } catch (eurekaError) {
         logger.warn('Eureka registration failed, continuing without service discovery');

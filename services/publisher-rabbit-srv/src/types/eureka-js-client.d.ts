@@ -20,6 +20,8 @@ declare module 'eureka-js-client' {
     host: string;
     port: number;
     servicePath: string;
+    fetchRegistry?: boolean;
+    registerWithEureka?: boolean;
   }
 
   export interface EurekaConfig {
@@ -27,9 +29,18 @@ declare module 'eureka-js-client' {
     eureka: EurekaClientConfig;
   }
 
+  interface EurekaInstance {
+    instanceId: string;
+    hostName: string;
+    app: string;
+    ipAddr: string;
+    port: { $: number; '@enabled': boolean };
+  }
+
   export class Eureka {
     constructor(config: EurekaConfig);
     start(callback?: (error?: Error) => void): void;
     stop(callback?: () => void): void;
+    getInstancesByAppId(appId: string): EurekaInstance[];
   }
 }

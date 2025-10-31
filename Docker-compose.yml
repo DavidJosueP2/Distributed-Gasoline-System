@@ -1,88 +1,112 @@
-version: "3.9"
+# ==============================================
+# Docker Compose - TODO DOCKERIZADO
+# ==============================================
+# Contiene TODA la aplicación dockerizada (infraestructura + microservicios)
+# Úsalo para pruebas completas o para desplegar todo junto
+#
+# Uso:
+#   npm run docker:build  (construir imágenes)
+#   npm run docker:up     (iniciar todo)
+
+version: '3.8'
 
 services:
-  # ---------- RabbitMQ ----------
-  # rabbitmq:
-  #   image: rabbitmq:3-management
-  #   container_name: fuelhub-rabbitmq
-  #   ports:
-  #     - "5672:5672"
-  #     - "15672:15672"
-  #   environment:
-  #     RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
-  #     RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "rabbitmqctl status"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   restart: unless-stopped
-
-  # ---------- Eureka ----------
-  eureka:
-    image: ygqygq2/eureka-server:latest
-    container_name: fuelhub-eureka
+  # ---------- Eureka Server ----------
+  eureka-server:
+    image: steeltoeoss/eureka-server
+    container_name: fuel-eureka
     ports:
-      - "8761:8761"
+      - "${EUREKA_PORT:-8761}:8761"
+    networks:
+      - fuel-network
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8761/"]
-      interval: 10s
-      timeout: 2s
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q 'UP'"]
+      interval: 15s
+      timeout: 5s
       retries: 10
+      start_period: 30s
     restart: unless-stopped
 
-  # ---------- Auth Database ----------
+  # ---------- PostgreSQL - Auth DB ----------
   auth-db:
-    image: postgres:16
-    container_name: fuelhub-auth-db
+    image: postgres:16-alpine
+    container_name: fuel-auth-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: auth
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASS:-root}
+      POSTGRES_DB: ${AUTH_DB:-auth}
     ports:
-      - "5433:5432"
+      - "${AUTH_DB_PORT:-5433}:5432"
     volumes:
-      - auth-db-data:/var/lib/postgresql/data
+      - auth_db_data:/var/lib/postgresql/data
+    networks:
+      - fuel-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER} -d ${AUTH_DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres} -d ${AUTH_DB:-auth}"]
       interval: 5s
       timeout: 3s
       retries: 10
     restart: unless-stopped
 
-  # ---------- Users Database ----------
+  # ---------- PostgreSQL - Users DB ----------
   users-db:
-    image: postgres:16
-    container_name: fuelhub-users-db
+    image: postgres:16-alpine
+    container_name: fuel-users-db
     environment:
       POSTGRES_USER: ${USERS_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${USERS_DB_PASS:-admin}
       POSTGRES_DB: ${USERS_DB_NAME:-users}
     ports:
-      - "5434:5432"
+      - "${USERS_DB_PORT:-5434}:5432"
     volumes:
-      - users-db-data:/var/lib/postgresql/data
+      - users_db_data:/var/lib/postgresql/data
       - ./services/users-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - fuel-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${USERS_DB_USER} -d ${USERS_DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${USERS_DB_USER:-postgres} -d ${USERS_DB_NAME:-users}"]
       interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
 
-  # ---------- Driver Database ----------
+  # ---------- PostgreSQL - Vehicles DB ----------
+  vehicles-db:
+    image: postgres:16-alpine
+    container_name: fuel-vehicles-db
+    environment:
+      POSTGRES_USER: ${VEHICLES_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${VEHICLES_DB_PASS:-admin}
+      POSTGRES_DB: ${VEHICLES_DB_NAME:-vehicles}
+    ports:
+      - "${VEHICLES_DB_PORT:-5435}:5432"
+    volumes:
+      - vehicles_db_data:/var/lib/postgresql/data
+      - ./services/vehicles-svc/prisma/migrations/20251004143040_init_vehicles/migration.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VEHICLES_DB_USER:-postgres} -d ${VEHICLES_DB_NAME:-vehicles}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # ---------- PostgreSQL - Driver DB ----------
   driver-db:
-    image: postgres:16
-    container_name: fuelhub-driver-db
+    image: postgres:16-alpine
+    container_name: fuel-driver-db
     environment:
       POSTGRES_USER: ${DRIVER_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DRIVER_DB_PASS:-admin}
       POSTGRES_DB: ${DRIVER_DB_NAME:-drivers}
     ports:
-      - "5438:5432"
+      - "${DRIVER_DB_PORT:-5438}:5432"
     volumes:
-      - driver-db-data:/var/lib/postgresql/data
+      - driver_db_data:/var/lib/postgresql/data
       - ./services/driver-ms/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - fuel-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DRIVER_DB_USER:-postgres} -d ${DRIVER_DB_NAME:-drivers}"]
       interval: 5s
@@ -90,22 +114,104 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # ---------- Vehicles Database ----------
-  vehicles-db:
-    image: postgres:16
-    container_name: fuelhub-vehicles-db
-    env_file:
-      - ./services/vehicles-svc/.env
-    volumes:
-      - vehicles-db-data:/var/lib/postgresql/data
-      - ./services/vehicles-svc/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+  # ---------- RabbitMQ ----------
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: fuel-rabbitmq
     ports:
-      - "5499:5432"
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - fuel-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------- Elasticsearch ----------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: fuel-elasticsearch
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------- Kibana ----------
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: fuel-kibana
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ==============================================
+  # MICROSERVICIOS
+  # ==============================================
+
+  # ---------- API Gateway ----------
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: fuel-api-gateway
+    env_file: .env
+    ports:
+      - "${GATEWAY_HTTP_PORT:-8080}:${GATEWAY_HTTP_PORT:-8080}"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- Auth Service ----------
+  auth-svc:
+    build:
+      context: ./services/auth-svc
+      dockerfile: Dockerfile
+    container_name: fuel-auth-svc
+    env_file: .env
+    ports:
+      - "${AUTH_GRPC_PORT:-50052}:${AUTH_GRPC_PORT:-50052}"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fuel-network
     restart: unless-stopped
 
   # ---------- Routes Database ----------
@@ -119,13 +225,15 @@ services:
     ports:
       - "5500:5432"
     volumes:
-      - routes-db-data:/var/lib/postgresql/data
+      - routes_db_data:/var/lib/postgresql/data
       - ./services/routes-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${ROUTES_DB_USER} -d ${ROUTES_DB_NAME}"]
       interval: 5s
       timeout: 3s
       retries: 20
+    networks:
+      - fuel-network
     restart: unless-stopped
 
   # ---------- PGAdmin ----------
@@ -135,59 +243,138 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8081:80"
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- Users Service ----------
+  users-srv:
+    build:
+      context: ./services/users-srv
+      dockerfile: Dockerfile
+    container_name: fuel-users-srv
+    env_file: .env
+    ports:
+      - "${USERS_GRPC_PORT:-50057}:${USERS_GRPC_PORT:-50057}"
     depends_on:
       users-db:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- Vehicles Service ----------
+  vehicles-svc:
+    build:
+      context: ./services/vehicles-svc
+      dockerfile: Dockerfile
+    container_name: fuel-vehicles-svc
+    env_file: .env
+    ports:
+      - "${VEHICLES_GRPC_PORT:-50055}:${VEHICLES_GRPC_PORT:-50055}"
+    depends_on:
       vehicles-db:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- Driver Service ----------
+  driver-ms:
+    build:
+      context: ./services/driver-ms
+      dockerfile: Dockerfile
+    container_name: fuel-driver-ms
+    env_file: .env
+    ports:
+      - "${DRIVER_GRPC_PORT:-50062}:${DRIVER_GRPC_PORT:-50062}"
+      - "${DRIVER_HTTP_PORT:-3100}:${DRIVER_HTTP_PORT:-3100}"
+    depends_on:
       driver-db:
         condition: service_healthy
-      auth-db:
+      eureka-server:
         condition: service_healthy
       routes-db:
         condition: service_healthy
-    ports:
-      - "5050:80"
+    networks:
+      - fuel-network
     restart: unless-stopped
-  # ---------- Elasticsearch (Base de logs) ----------
-  # elasticsearch:
-  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-  #   container_name: elasticsearch
-  #   environment:
-  #     - discovery.type=single-node
-  #     - bootstrap.memory_lock=false
-  #     - ES_JAVA_OPTS=-Xms1g -Xmx1g
-  #     - xpack.security.enabled=false
-  #     - xpack.security.http.ssl.enabled=false
-  #   ports:
-  #     - "9200:9200"
-  #   volumes:
-  #     - elasticsearch-data:/usr/share/elasticsearch/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 10
-  #   restart: unless-stopped
 
-  # ---------- Kibana (Dashboard de logs) ----------
-  # kibana:
-  #   image: docker.elastic.co/kibana/kibana:8.15.0
-  #   container_name: kibana
-  #   depends_on:
-  #     elasticsearch:
-  #       condition: service_healthy
-  #   environment:
-  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-  #     - SERVER_NAME=kibana
-  #   ports:
-  #     - "5601:5601"
-  #   restart: unless-stopped
+  # ---------- Email Service ----------
+  email-svc:
+    build:
+      context: ./services/email-svc
+      dockerfile: Dockerfile
+    container_name: fuel-email-svc
+    env_file: .env
+    ports:
+      - "${EMAIL_GRPC_PORT:-50053}:${EMAIL_GRPC_PORT:-50053}"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- Logger Service ----------
+  logger-svc:
+    build:
+      context: ./services/logger-svc
+      dockerfile: Dockerfile
+    container_name: fuel-logger-svc
+    env_file: .env
+    ports:
+      - "${LOGGER_GRPC_PORT:-50058}:${LOGGER_GRPC_PORT:-50058}"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- Publisher Service ----------
+  publisher-rabbit-srv:
+    build:
+      context: ./services/publisher-rabbit-srv
+      dockerfile: Dockerfile
+    container_name: fuel-publisher-rabbit
+    env_file: .env
+    ports:
+      - "${OUTBOX_PUBLISHER_PORT:-4100}:${OUTBOX_PUBLISHER_PORT:-4100}"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+# ==============================================
+# Redes y Volúmenes
+# ==============================================
+
+networks:
+  fuel-network:
+    driver: bridge
 
 volumes:
-  users-db-data:
-  driver-db-data:
-  vehicles-db-data:
-  auth-db-data:
-  routes-db-data:
-  elasticsearch-data:
+  auth_db_data:
+  users_db_data:
+  vehicles_db_data:
+  driver_db_data:
+  routes_db_data:
+  rabbitmq_data:
+  elasticsearch_data:

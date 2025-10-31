@@ -8,14 +8,25 @@ import { GetModelByIdentityDto } from '../../application/dto/vehicles-models/get
 
 import { ModelDtoMapper } from '../../application/mappers/model-dto.mapper';
 import { LicenseDtoMapper } from '../../application/mappers/license-dto.mapper';
+import { MachineType } from '../../domain/value-objects/machine-type';
 
 @Controller()
 export class VehicleModelsController {
   constructor(private readonly modelSvc: VehicleModelService) {}
 
   @GrpcMethod('VehiclesService', 'ListModels')
-  async listModels(): Promise<any> {
-    const domainModels = await this.modelSvc.listAll();
+  async listModels(req?: { machineTypeFilter?: number | string }): Promise<any> {
+    let machineTypeFilter: MachineType | undefined;
+    const filter = req?.machineTypeFilter;
+    
+    // Manejar tanto número como string (gRPC puede enviar cualquiera de los dos)
+    if (filter === 1 || filter === 'LIGHT') {
+      machineTypeFilter = MachineType.LIGHT;
+    } else if (filter === 2 || filter === 'HEAVY') {
+      machineTypeFilter = MachineType.HEAVY;
+    }
+    
+    const domainModels = await this.modelSvc.listAll(machineTypeFilter);
     return { models: domainModels.map(GrpcModelMapper.toProto), page: { nextPageToken: '' } };
   }
 

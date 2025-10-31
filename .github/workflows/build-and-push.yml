@@ -1,0 +1,274 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - 'protos/**'
+      - '.github/workflows/build-and-push.yml'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # Detectar qué servicios han cambiado
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api-gateway: ${{ steps.filter.outputs.api-gateway }}
+      auth-svc: ${{ steps.filter.outputs.auth-svc }}
+      driver-ms: ${{ steps.filter.outputs.driver-ms }}
+      users-srv: ${{ steps.filter.outputs.users-srv }}
+      vehicles-svc: ${{ steps.filter.outputs.vehicles-svc }}
+      email-svc: ${{ steps.filter.outputs.email-svc }}
+      hello-svc: ${{ steps.filter.outputs.hello-svc }}
+      logger-svc: ${{ steps.filter.outputs.logger-svc }}
+      publisher-rabbit-srv: ${{ steps.filter.outputs.publisher-rabbit-srv }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
+              - 'protos/**'
+            auth-svc:
+              - 'services/auth-svc/**'
+              - 'protos/**'
+            driver-ms:
+              - 'services/driver-ms/**'
+              - 'protos/**'
+            users-srv:
+              - 'services/users-srv/**'
+              - 'protos/**'
+            vehicles-svc:
+              - 'services/vehicles-svc/**'
+              - 'protos/**'
+            email-svc:
+              - 'services/email-svc/**'
+              - 'protos/**'
+            hello-svc:
+              - 'services/hello-svc/**'
+              - 'protos/**'
+            logger-svc:
+              - 'services/logger-svc/**'
+              - 'protos/**'
+            publisher-rabbit-srv:
+              - 'services/publisher-rabbit-srv/**'
+
+  # Build y Push para API Gateway
+  build-api-gateway:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api-gateway == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/api-gateway
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/api-gateway:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/api-gateway:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/api-gateway:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/api-gateway:latest
+
+  # Build y Push para Auth Service
+  build-auth-svc:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth-svc == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/auth-svc
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/auth-svc:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/auth-svc:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/auth-svc:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/auth-svc:latest
+
+  # Build y Push para Driver Microservice
+  build-driver-ms:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.driver-ms == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/driver-ms
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/driver-ms:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/driver-ms:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/driver-ms:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/driver-ms:latest
+
+  # Build y Push para Users Service
+  build-users-srv:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.users-srv == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/users-srv
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/users-srv:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/users-srv:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/users-srv:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/users-srv:latest
+
+  # Build y Push para Vehicles Service
+  build-vehicles-svc:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.vehicles-svc == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/vehicles-svc
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/vehicles-svc:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/vehicles-svc:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/vehicles-svc:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/vehicles-svc:latest
+
+  # Build y Push para Email Service
+  build-email-svc:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.email-svc == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/email-svc
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/email-svc:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/email-svc:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/email-svc:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/email-svc:latest
+
+  # Build y Push para Hello Service
+  build-hello-svc:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.hello-svc == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/hello-svc
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/hello-svc:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/hello-svc:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/hello-svc:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/hello-svc:latest
+
+  # Build y Push para Logger Service
+  build-logger-svc:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.logger-svc == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/logger-svc
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/logger-svc:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/logger-svc:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/logger-svc:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/logger-svc:latest
+
+  # Build y Push para Publisher Service
+  build-publisher-rabbit-srv:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.publisher-rabbit-srv == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and push Docker image
+        working-directory: ./services/publisher-rabbit-srv
+        run: |
+          docker build -t ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:latest .
+          docker push ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:latest
+

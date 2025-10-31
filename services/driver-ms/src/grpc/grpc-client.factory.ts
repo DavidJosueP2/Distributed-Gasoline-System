@@ -1,47 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices';
 import { join } from 'path';
-import { RoundRobin } from '../discovery/rr.strategy';
-import { EurekaDiscovery } from '../discovery/eureka.service';
-
-function hostOf(inst: any) {
-  return inst?.ipAddr || inst?.hostName || 'localhost';
-}
-function portOf(p: any) {
-  return typeof p === 'number' ? p : p && typeof p.$ === 'number' ? p.$ : undefined;
-}
-function resolvePort(inst: any) {
-  const p = portOf(inst?.port) ?? portOf(inst?.securePort);
-  if (typeof p !== 'number') throw new Error('Eureka instance without port');
-  return p;
-}
+import { SERVICE_LOCATOR_TOKEN } from '../discovery/discovery.providers';
+import type { ServiceLocator, ServiceTarget } from '../discovery/service-locator';
 
 @Injectable()
 export class GrpcClientFactory {
-  private waitMs = Number(process.env.EUREKA_WAIT_TIMEOUT_MS || 10000);
-  private protosDir = process.env.PROTO_ROOT || process.env.PROTOS_DIR || '../../protos';
-  constructor(private readonly rr: RoundRobin, private readonly discovery: EurekaDiscovery) {}
+  private readonly protosDir =
+    process.env.PROTO_ROOT ||
+    process.env.PROTOS_DIR ||
+    join(process.cwd(), 'protos');
 
-  private async pick(appName: string) {
-    const end = Date.now() + this.waitMs;
-    while (Date.now() < end) {
-      const list = this.discovery?.getInstances(appName.toUpperCase()) || [];
-      if (list?.length) return this.rr.pick(appName, list);
-      await new Promise((r) => setTimeout(r, 300));
-      try {
-        // Usar el método público fetchRegistry en lugar de acceder a la propiedad privada client
-        await this.discovery?.fetchRegistry();
-      } catch {}
-    }
-    throw new Error(`${appName} without instances`);
-  }
+  constructor(
+    @Inject(SERVICE_LOCATOR_TOKEN) private readonly locator: ServiceLocator,
+  ) {}
 
-  async clientFor(appName: string, pkg: string, proto: string): Promise<ClientGrpc> {
-    const inst = await this.pick(appName);
-    const url = `${hostOf(inst)}:${resolvePort(inst)}`;
+  private build(address: string, pkg: string, proto: string): ClientGrpc {
     return ClientProxyFactory.create({
       transport: Transport.GRPC,
-      options: { url, package: pkg, protoPath: join(this.protosDir, proto) },
+      options: { url: address, package: pkg, protoPath: join(this.protosDir, proto) },
     }) as unknown as ClientGrpc;
+  }
+
+  async clientFor(
+    appName: string,
+    pkg: string,
+    proto: string,
+    options: Partial<ServiceTarget> = {},
+  ): Promise<ClientGrpc> {
+    const endpoint = await this.locator.pick({ appName, ...options });
+    return this.build(endpoint.toString(), pkg, proto);
   }
 }

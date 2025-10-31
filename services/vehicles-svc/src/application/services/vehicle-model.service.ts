@@ -5,7 +5,7 @@ import { TOKENS } from '../tokens';
 import type { VehicleModelRepository } from '../../domain/repositories/vehicle-model.repository';
 import type { ModelEngineSpecRepository } from '../../domain/repositories/model-engine-spec.repository';
 import type { VehicleUnitRepository } from '../../domain/repositories/vehicle-unit.repository';
-import {ModelEngineSpec, VehicleModel} from "../../domain";
+import {ModelEngineSpec, VehicleModel, MachineType} from "../../domain";
 import {RpcException} from "@nestjs/microservices";
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { CreateModelDto } from '../dto/vehicles-models/create-model.dto';
@@ -109,8 +109,8 @@ export class VehicleModelService {
         return this.getByIdentityOrThrow(c.identity);
     }
 
-    async listAll() {
-        return this.modelRepo.listAll();
+    async listAll(machineTypeFilter?: MachineType) {
+        return this.modelRepo.listAll(machineTypeFilter);
     }
 
     async deleteModel(modelId: bigint, expectedVersion?: bigint): Promise<void> {

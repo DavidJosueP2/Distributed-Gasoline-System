@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS vehicle_models (
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_vehicle_models_brand_family ON vehicle_models(brand, family);
 CREATE INDEX IF NOT EXISTS idx_vm_status_year ON vehicle_models(status, year_from);
+CREATE INDEX IF NOT EXISTS idx_vm_machine_type ON vehicle_models(machine_type, deleted_at);
 
 -- Unique soft (idéntico a @@unique([... , deletedAt]) de Prisma)
 DO $$
@@ -157,6 +158,7 @@ DROP CONSTRAINT IF EXISTS vehicle_units_model_id_fkey,
 CREATE INDEX IF NOT EXISTS idx_vehicle_units_status ON vehicle_units(operational_status);
 CREATE INDEX IF NOT EXISTS idx_vu_status_plate      ON vehicle_units(operational_status, plate);
 CREATE INDEX IF NOT EXISTS idx_vu_plate             ON vehicle_units(plate);
+CREATE INDEX IF NOT EXISTS idx_vu_model_deleted     ON vehicle_units(model_id, deleted_at);
 
 DO $$
 BEGIN

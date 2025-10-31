@@ -1,9 +1,10 @@
 import {VehicleUnit} from "../entities/vehicle-unit";
-import { Prisma } from '@prisma/client';
+import { MachineType } from "../value-objects/machine-type";
+import { Prisma } from 'prisma-client';
 export type Tx = Prisma.TransactionClient;
 
 export interface VehicleUnitRepository {
-    listAll(tx?: Tx): Promise<VehicleUnit[]>; // sólo no eliminados
+    listAll(machineTypeFilter?: MachineType, tx?: Tx): Promise<VehicleUnit[]>; // sólo no eliminados
     findById(id: bigint, tx?: Tx): Promise<VehicleUnit | null>; // sólo no eliminado
     findByPlate(plate: string, tx?: Tx): Promise<VehicleUnit | null>; // sólo no eliminado
     findBySerialVin(serialVin: string, tx?: Tx): Promise<VehicleUnit | null>; // sólo no eliminado

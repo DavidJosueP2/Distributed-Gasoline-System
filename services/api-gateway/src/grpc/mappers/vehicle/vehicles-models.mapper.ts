@@ -1,4 +1,4 @@
-import { CreateModelRequest, UpdateModelRequest, ModelStatus, MachineType, EngineType } from '../clients/vehicles.client';
+import { CreateModelRequest, UpdateModelRequest, ModelStatus, MachineType, EngineType } from '../../clients/vehicles-svc/vehicles.client';
 
 /**
  * Helper para convertir string a ModelStatus enum
@@ -215,7 +215,10 @@ export class VehiclesHttpToGrpcMapper {
   /**
    * Convierte lista de modelos de gRPC a respuesta HTTP limpia en camelCase
    */
-  static toListModelsResponse(models: any[]) {
+  static toListModelsResponse(models: any[] | undefined | null) {
+    if (!models || !Array.isArray(models)) {
+      return [];
+    }
     return models.map(m => this.toModelResponse(m));
   }
 }

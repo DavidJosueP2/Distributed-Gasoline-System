@@ -4,7 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 
 @Module({
     imports: [
-        ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env'] }),
+        ConfigModule.forRoot({ 
+            isGlobal: true, 
+            envFilePath: ['.env', '../../.env'] // Busca primero en el hijo, luego en el padre
+        }),
         VehiclesGrpcModule,
     ],
 })

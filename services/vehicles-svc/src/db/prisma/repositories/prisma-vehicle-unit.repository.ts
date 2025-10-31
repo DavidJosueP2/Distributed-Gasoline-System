@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { VehicleUnitRepository, Tx } from '../../../domain/repositories/vehicle-unit.repository';
-import { VehicleUnit } from '../../../domain';
+import { VehicleUnit, MachineType } from '../../../domain';
 import { GrpcErrorMapper } from '../../../infra/errors/grpc-error.mapper';
-import { Prisma } from '@prisma/client';
-import { toOperationalStatus, OperationalStatus } from '../../../domain/value-objects/operational-status';
+import { Prisma } from 'prisma-client';
+import { toOperationalStatus } from '../../../domain/value-objects/operational-status';
 
 @Injectable()
 export class PrismaVehicleUnitRepository implements VehicleUnitRepository {
@@ -12,10 +12,20 @@ export class PrismaVehicleUnitRepository implements VehicleUnitRepository {
 
   private db(tx?: Tx) { return tx ?? this.prisma; }
 
-  async listAll(tx?: Tx): Promise<VehicleUnit[]> {
+  async listAll(machineTypeFilter?: MachineType, tx?: Tx): Promise<VehicleUnit[]> {
     try {
+      const where: any = { 
+        deletedAt: null,
+        ...(machineTypeFilter && { 
+          model: { 
+            machineType: machineTypeFilter,
+            deletedAt: null 
+          } 
+        })
+      };
+      
       const rows = await this.db(tx).vehicleUnit.findMany({
-        where: { deletedAt: null },
+        where,
         orderBy: { vehicleId: 'asc' },
         include: { consumption: true, unitLicReqs: true, model: { include: { engineSpec: true } } },
       });

@@ -5,14 +5,25 @@ import { GrpcUnitMapper } from '../../infra/grpc/mappers/unit-grpc.mapper';
 import { CreateUnitDto, UpdateUnitStatusDto, UpsertUnitConsumptionDto, UpdateUnitDto } from '../../application/dto/unit-vehicle';
 import { UnitDtoMapper } from '../../application/mappers/unit-dto.mapper';
 import { status as GrpcStatus } from '@grpc/grpc-js';
+import { MachineType } from '../../domain/value-objects/machine-type';
 
 @Controller()
 export class VehicleUnitsController {
   constructor(private readonly unitSvc: VehicleUnitService) {}
 
   @GrpcMethod('VehiclesService', 'ListUnits')
-  async listUnits(): Promise<any> {
-    const units = await this.unitSvc.listAll();
+  async listUnits(req?: { machineTypeFilter?: number | string }): Promise<any> {
+    let machineTypeFilter: MachineType | undefined;
+    const filter = req?.machineTypeFilter;
+    
+    // Manejar tanto número como string (gRPC puede enviar cualquiera de los dos)
+    if (filter === 1 || filter === 'LIGHT') {
+      machineTypeFilter = MachineType.LIGHT;
+    } else if (filter === 2 || filter === 'HEAVY') {
+      machineTypeFilter = MachineType.HEAVY;
+    }
+    
+    const units = await this.unitSvc.listAll(machineTypeFilter);
     return { units: units.map(GrpcUnitMapper.toProto), page: { nextPageToken: '' } };
   }
 

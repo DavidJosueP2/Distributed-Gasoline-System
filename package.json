@@ -5,13 +5,11 @@
     "services/*"
   ],
   "scripts": {
-    "env:setup": "node -e \"const fs=require('fs'); if(!fs.existsSync('.env'))fs.copyFileSync('env.example','.env'); if(!fs.existsSync('services/users-srv/.env'))fs.copyFileSync('services/users-srv/ENV_LOCAL_EXAMPLE.txt','services/users-srv/.env'); if(!fs.existsSync('services/vehicles-svc/.env'))fs.copyFileSync('services/vehicles-svc/ENV_LOCAL_EXAMPLE.txt','services/vehicles-svc/.env'); console.log('✅ Archivos .env creados')\"",
-
+    "env:setup": "node -e \"const fs=require('fs'); try{if(!fs.existsSync('.env')&&fs.existsSync('.env.example'))fs.copyFileSync('.env.example','.env'); if(!fs.existsSync('services/users-srv/.env')&&fs.existsSync('services/users-srv/ENV_LOCAL_EXAMPLE.txt'))fs.copyFileSync('services/users-srv/ENV_LOCAL_EXAMPLE.txt','services/users-srv/.env'); if(!fs.existsSync('services/vehicles-svc/.env')&&fs.existsSync('services/vehicles-svc/ENV_LOCAL_EXAMPLE.txt'))fs.copyFileSync('services/vehicles-svc/ENV_LOCAL_EXAMPLE.txt','services/vehicles-svc/.env');}catch(e){} console.log('✅ Verificación de .env completada')\"",
     "infra:up": "docker compose -f docker-compose.infra.yml up -d",
     "infra:down": "docker compose -f docker-compose.infra.yml down -v",
     "infra:logs": "docker compose -f docker-compose.infra.yml logs -f",
     "infra:ready": "npx wait-on -t 120000 http-get://localhost:8761 tcp:localhost:5432",
-
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down -v",
     "docker:logs": "docker compose logs -f",
@@ -28,33 +26,32 @@
     "dev:drivers": "npm --workspace services/driver-ms run --if-present start:dev",
     "dev:routes": "npm --workspace services/routes-srv run --if-present start:dev",
     "dev:logger": "npm --workspace services/logger-svc run --if-present start:dev",
-
-    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,USERS-SVC,VEHICLES-SVC,ROUTES-SVC,DRIVER-MS,LOGGER-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:routes\" \"npm run dev:driver\" \"npm run dev:logger\"",
-
+    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,USERS-SVC,VEHICLES-SVC,ROUTES-SVC,DRIVER-MS -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:routes\" \"npm run dev:driver\"",
     "setup": "npm run env:setup && npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
     "dev": "npm run env:setup && npm run infra:up && npm run infra:ready && npm run dev:services",
+    "dev:services:with-logger": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,USERS-SVC,VEHICLES-SVC,ROUTES-SVC,DRIVER-MS,LOGGER-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:routes\" \"npm run dev:driver\" \"npm run dev:logger\"",
     "clean": "ts-node tools/clean.ts",
     "reset": "npm run clean && npm install"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.2",
-    "wait-on": "^7.2.0"
+    "concurrently": "9.0.0",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.2",
+    "wait-on": "7.2.0"
   },
   "dependencies": {
-    "@grpc/grpc-js": "^1.14.0",
-    "@grpc/proto-loader": "^0.8.0",
-    "@nestjs/common": "^11.1.6",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.1.6",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/microservices": "^11.1.6",
-    "@nestjs/platform-express": "^11.1.6",
+    "@grpc/grpc-js": "1.14.0",
+    "@grpc/proto-loader": "0.8.0",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/config": "4.0.2",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/jwt": "11.0.0",
+    "@nestjs/microservices": "11.1.6",
+    "@nestjs/platform-express": "11.1.6",
     "@prisma/client": "^6.18.0",
-    "dotenv": "^17.2.3",
-    "eureka-js-client": "^4.5.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "dotenv": "17.2.3",
+    "eureka-js-client": "4.5.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
   }
 }

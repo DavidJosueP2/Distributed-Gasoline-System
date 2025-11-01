@@ -17,12 +17,12 @@ export interface UserResponse {
 }
 
 export interface SupervisorsResponse {
-  users: UserResponse[];
+  items: UserResponse[];
 }
 
 export interface UsersServiceClient {
   GetUser(data: { userId: number }): Observable<UserResponse>;
-  GetAllSupervisors(): Observable<SupervisorsResponse>;
+  GetAllSupervisors(data: {}): Observable<SupervisorsResponse>;
 }
 
 @Injectable()
@@ -48,10 +48,10 @@ export class UsersClient {
 
   async getAllSupervisors(): Promise<UserInfo[]> {
     const response = await lastValueFrom(
-      this.usersService.GetAllSupervisors()
+      this.usersService.GetAllSupervisors({})
     );
     
-    return response.users.map((user: UserResponse) => ({
+    return (response.items || []).map((user: UserResponse) => ({
       id: user.userId,
       firstName: user.firstName,
       lastName: user.lastName,

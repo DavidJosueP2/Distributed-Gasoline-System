@@ -282,6 +282,51 @@ export class TripsController {
     }
   }
 
+  @GrpcMethod('TripsService', 'GetAssignableDrivers')
+  async getAssignableDrivers(): Promise<any> {
+    try {
+      const drivers = await this.tripService.getAssignableDrivers();
+      return { drivers };
+    } catch (error) {
+      this.logger.error(`GetAssignableDrivers error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'GetAssignableVehicles')
+  async getAssignableVehicles(): Promise<any> {
+    try {
+      const vehicles = await this.tripService.getAssignableVehicles();
+      return { vehicles };
+    } catch (error) {
+      this.logger.error(`GetAssignableVehicles error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'GetAssignableSupervisors')
+  async getAssignableSupervisors(): Promise<any> {
+    try {
+      const supervisors = await this.tripService.getAssignableSupervisors();
+      return { supervisors };
+    } catch (error) {
+      this.logger.error(`GetAssignableSupervisors error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
   private mapTripStatusFromProto(protoStatus: number): TripStatus {
     switch (protoStatus) {
       case 1:

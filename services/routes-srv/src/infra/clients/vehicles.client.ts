@@ -39,6 +39,7 @@ export interface ConsumptionProfileResponse {
 }
 
 export interface VehiclesServiceClient {
+  ListUnits(data?: any): Observable<any>;
   GetUnit(data: { vehicleId: number }): Observable<VehicleUnitResponse>;
   GetUnitConsumptionProfile(data: { vehicleId: number }): Observable<ConsumptionProfileResponse>;
   UpdateUnitStatus(data: { vehicleId: number; newStatus: string }): Observable<any>;
@@ -104,5 +105,10 @@ export class VehiclesClient {
         newStatus: 'ACTIVE',
       })
     );
+  }
+  
+  async getAllVehicles(): Promise<any[]> {
+    const response = await lastValueFrom(this.vehiclesService.ListUnits({}));
+    return response.units || [];
   }
 }

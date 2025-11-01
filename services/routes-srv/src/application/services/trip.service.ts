@@ -125,8 +125,14 @@ export class TripService {
     // Validar que todos los IDs existen
     await this.validateTripDependencies(input);
 
-    // Validar que conductor y vehículo no estén ocupados
-    await this.validateDriverAndVehicleAvailability(input.driverId, input.vehicleId);
+    // Validar que conductor no tenga 3 viajes activos o 1 en ruta
+    await this.validateDriverAvailability(input.driverId);
+
+    // Validar que vehículo no esté ocupado
+    await this.validateVehicleAvailability(input.vehicleId);
+
+    // Validar que supervisor no tenga más de 3 viajes activos
+    await this.validateSupervisorAvailability(input.supervisorId);
 
     // Validar licencias del conductor vs licencias requeridas del vehículo
     await this.validateDriverLicenses(input.driverId, input.vehicleId);
@@ -440,22 +446,55 @@ export class TripService {
   }
 
   /**
-   * Valida que el conductor y vehículo no estén ocupados
+   * Valida que el conductor no tenga más de 3 viajes activos ni 1 en ruta
    */
-  private async validateDriverAndVehicleAvailability(driverId: bigint, vehicleId: bigint): Promise<void> {
-    // Verificar si el conductor ya tiene un viaje activo
-    const activeDriverTrip = await this.tripRepo.findActiveTripByDriver(driverId);
-    if (activeDriverTrip) {
-      throw new DriverBusyException(driverId, activeDriverTrip.id);
+  private async validateDriverAvailability(driverId: bigint): Promise<void> {
+    const activeTripsCount = await this.tripRepo.countActiveTripsByDriver(driverId);
+    const enRutaCount = await this.tripRepo.countEnRutaTripsByDriver(driverId);
+    
+    if (activeTripsCount >= 3) {
+      throw new RpcException({
+        code: GrpcStatus.RESOURCE_EXHAUSTED,
+        message: `El conductor ${driverId} ya tiene ${activeTripsCount} viajes activos (máximo 3)`,
+      });
+    }
+    
+    if (enRutaCount >= 1) {
+      throw new RpcException({
+        code: GrpcStatus.RESOURCE_EXHAUSTED,
+        message: `El conductor ${driverId} ya tiene un viaje en ruta (máximo 1)`,
+      });
     }
 
-    // Verificar si el vehículo ya está siendo utilizado
+    this.logger.log(`Validación de disponibilidad del conductor exitosa: Driver ${driverId}`);
+  }
+
+  /**
+   * Valida que el vehículo no esté ocupado
+   */
+  private async validateVehicleAvailability(vehicleId: bigint): Promise<void> {
     const activeVehicleTrip = await this.tripRepo.findActiveTripByVehicle(vehicleId);
     if (activeVehicleTrip) {
       throw new VehicleBusyException(vehicleId, activeVehicleTrip.id);
     }
 
-    this.logger.log(`Validación de disponibilidad exitosa: Driver ${driverId}, Vehicle ${vehicleId}`);
+    this.logger.log(`Validación de disponibilidad del vehículo exitosa: Vehicle ${vehicleId}`);
+  }
+
+  /**
+   * Valida que el supervisor no tenga más de 3 viajes activos
+   */
+  private async validateSupervisorAvailability(supervisorId: bigint): Promise<void> {
+    const activeTripsCount = await this.tripRepo.countActiveTripsBySupervisor(supervisorId);
+    
+    if (activeTripsCount >= 3) {
+      throw new RpcException({
+        code: GrpcStatus.RESOURCE_EXHAUSTED,
+        message: `El supervisor ${supervisorId} ya tiene ${activeTripsCount} viajes activos (máximo 3)`,
+      });
+    }
+
+    this.logger.log(`Validación de disponibilidad del supervisor exitosa: Supervisor ${supervisorId}`);
   }
 
   /**
@@ -590,5 +629,137 @@ export class TripService {
    */
   private toRadians(degrees: number): number {
     return degrees * (Math.PI / 180);
+  }
+
+  /**
+   * Obtiene lista de conductores asignables con información básica y bandera de disponibilidad
+   */
+  async getAssignableDrivers(): Promise<Array<{
+    id: number;
+    userId: number;
+    firstName: string;
+    lastName: string;
+    isAssignable: boolean;
+  }>> {
+    try {
+      const [driversClient, usersClient] = await Promise.all([
+        this.driversClient(),
+        this.usersClient()
+      ]);
+      const drivers = await driversClient.getAllDrivers();
+      
+      const result = await Promise.all(
+        drivers.map(async (driver: any) => {
+          const driverId = BigInt(driver.driverId || driver.id);
+          const userId = BigInt(driver.userId || driver.user_id);
+          
+          // Obtener información del usuario desde el servicio users
+          let firstName = '';
+          let lastName = '';
+          try {
+            const userInfo = await usersClient.getUserInfo(userId);
+            firstName = userInfo.firstName;
+            lastName = userInfo.lastName;
+          } catch (error) {
+            this.logger.error(`Error getting user info for userId ${userId}:`, error);
+          }
+          
+          const activeTripsCount = await this.tripRepo.countActiveTripsByDriver(driverId);
+          const enRutaCount = await this.tripRepo.countEnRutaTripsByDriver(driverId);
+          
+          // Puede tener máximo 3 viajes activos y 1 en ruta
+          const isAssignable = activeTripsCount < 3 && enRutaCount === 0;
+          
+          return {
+            id: driverId.toString() as any,
+            userId: userId.toString() as any,
+            firstName,
+            lastName,
+            isAssignable
+          };
+        })
+      );
+      
+      return result;
+    } catch (error) {
+      this.logger.error('Error getting assignable drivers:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtiene lista de vehículos asignables con información básica y bandera de disponibilidad
+   */
+  async getAssignableVehicles(): Promise<Array<{
+    id: number;
+    plate: string;
+    isAssignable: boolean;
+  }>> {
+    try {
+      const vehiclesClient = await this.vehiclesClient();
+      const vehicles = await vehiclesClient.getAllVehicles();
+      
+      const result = await Promise.all(
+        vehicles.map(async (vehicle: any) => {
+          const vehicleId = BigInt(vehicle.vehicleId || vehicle.id);
+          const activeVehicleTrip = await this.tripRepo.findActiveTripByVehicle(vehicleId);
+          
+          // Está disponible si no tiene viajes EN_RUTA
+          const isAssignable = !activeVehicleTrip;
+          
+          const plate = vehicle.plate || '';
+          
+          return {
+            id: vehicleId.toString() as any,
+            plate,
+            isAssignable
+          };
+        })
+      );
+      
+      return result;
+    } catch (error) {
+      this.logger.error('Error getting assignable vehicles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtiene lista de supervisores asignables con información básica y bandera de disponibilidad
+   */
+  async getAssignableSupervisors(): Promise<Array<{
+    id: number;
+    firstName: string;
+    lastName: string;
+    isAssignable: boolean;
+    activeTripsCount: number;
+  }>> {
+    try {
+      const usersClient = await this.usersClient();
+      const supervisors = await usersClient.getAllSupervisors();
+      
+      const result = await Promise.all(
+        supervisors.map(async (supervisor: any) => {
+          const supervisorId = BigInt(supervisor.id);
+          const activeTripsCount = await this.tripRepo.countActiveTripsBySupervisor(supervisorId);
+          
+          // Puede gestionar máximo 3 viajes activos
+          const isAssignable = activeTripsCount < 3;
+          
+          return {
+            id: supervisorId.toString() as any,
+            firstName: supervisor.firstName || '',
+            lastName: supervisor.lastName || '',
+            isAssignable,
+            activeTripsCount
+          };
+        })
+      );
+      
+      return result;
+    } catch (error) {
+      this.logger.error('Error getting assignable supervisors:', error);
+      return [];
+    }
   }
 }

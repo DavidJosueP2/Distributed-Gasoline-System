@@ -209,4 +209,31 @@ export class TripsController {
       ),
     );
   }
+
+  @Get('assignable/drivers')
+  getAssignableDrivers(@Req() req: RequestWithGrpc): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        (svc as any).GetAssignableDrivers({}, req._grpcMetadata),
+      ),
+    );
+  }
+
+  @Get('assignable/vehicles')
+  getAssignableVehicles(@Req() req: RequestWithGrpc): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        (svc as any).GetAssignableVehicles({}, req._grpcMetadata),
+      ),
+    );
+  }
+
+  @Get('assignable/supervisors')
+  getAssignableSupervisors(@Req() req: RequestWithGrpc): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        (svc as any).GetAssignableSupervisors({}, req._grpcMetadata),
+      ),
+    );
+  }
 }

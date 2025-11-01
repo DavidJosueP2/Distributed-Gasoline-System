@@ -21,6 +21,7 @@ export interface DriverResponse {
 }
 
 export interface DriversServiceClient {
+  FindAll(data: {}): Observable<any>;
   FindOne(data: { id: number }): Observable<DriverResponse>;
   FindByUserId(data: { userId: number }): Observable<DriverResponse>;
   Update(data: { id: number; availability: string }): Observable<any>;
@@ -82,5 +83,10 @@ export class DriversClient {
         availability: 'AVAILABLE',
       })
     );
+  }
+  
+  async getAllDrivers(): Promise<any[]> {
+    const response = await lastValueFrom(this.driversService.FindAll({}));
+    return response.drivers || [];
   }
 }

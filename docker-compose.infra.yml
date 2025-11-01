@@ -60,7 +60,7 @@ services:
       - "${USERS_DB_PORT:-5434}:5432"
     volumes:
       - users_db_data:/var/lib/postgresql/data
-      # ⚠️ NO montar SQL aquí - Prisma maneja el esquema
+      - ./services/users-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - fuel-network
     healthcheck:
@@ -82,7 +82,7 @@ services:
       - "${VEHICLES_DB_PORT:-5435}:5432"
     volumes:
       - vehicles_db_data:/var/lib/postgresql/data
-      # ⚠️ NO montar SQL aquí - Prisma maneja las migraciones
+      - ./services/vehicles-svc/prisma/migrations/20251004143040_init_vehicles/migration.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - fuel-network
     healthcheck:

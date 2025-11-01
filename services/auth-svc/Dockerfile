@@ -27,9 +27,10 @@ COPY services/auth-svc/src ./src
 # Construir la aplicación
 RUN npm run build
 
-# Crear directorio y copiar archivo .proto desde la raíz del proyecto
+# Crear directorio y copiar archivos .proto necesarios desde la raíz del proyecto
 RUN mkdir -p ./protos
 COPY protos/auth.proto ./protos/auth.proto
+COPY protos/users.proto ./protos/users.proto
 
 # ===== STAGE 3: Runtime =====
 FROM node:20-alpine AS runtime

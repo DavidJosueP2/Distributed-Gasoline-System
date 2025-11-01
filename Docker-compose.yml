@@ -60,7 +60,6 @@ services:
       - "${USERS_DB_PORT:-5434}:5432"
     volumes:
       - users_db_data:/var/lib/postgresql/data
-      # ⚠️ NO montar SQL aquí - Prisma maneja el esquema
     networks:
       - fuel-network
     healthcheck:
@@ -82,7 +81,6 @@ services:
       - "${VEHICLES_DB_PORT:-5435}:5432"
     volumes:
       - vehicles_db_data:/var/lib/postgresql/data
-      # ⚠️ NO montar SQL aquí - Prisma maneja las migraciones
     networks:
       - fuel-network
     healthcheck:
@@ -104,7 +102,6 @@ services:
       - "${DRIVER_DB_PORT:-5436}:5432"
     volumes:
       - driver_db_data:/var/lib/postgresql/data
-      - ./services/driver-ms/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - fuel-network
     healthcheck:
@@ -183,10 +180,13 @@ services:
   # ---------- API Gateway ----------
   api-gateway:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/api-gateway/Dockerfile
     container_name: fuel-api-gateway
     env_file: .env
+    environment:
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
     ports:
       - "${GATEWAY_HTTP_PORT:-8080}:${GATEWAY_HTTP_PORT:-8080}"
     depends_on:
@@ -195,6 +195,12 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ---------- Auth Service ----------
   auth-svc:
@@ -204,13 +210,15 @@ services:
     container_name: fuel-auth-svc
     env_file: .env
     environment:
-      - AUTH_DB_HOST=auth-db
+      - AUTH_DB_HOST=${AUTH_DB_HOST:-auth-db}
       - AUTH_DB_PORT=5432
       - AUTH_DB_USER=${AUTH_DB_USER:-postgres}
       - AUTH_DB_PASS=${AUTH_DB_PASS:-root}
       - AUTH_DB=${AUTH_DB:-auth}
       - PROTO_ROOT=/app/protos
       - PROTOS_DIR=/app/protos
+      - SERVICE_REGISTER_HOST=fuel-auth-svc
+      - REGISTER_HOST=fuel-auth-svc
     ports:
       - "${AUTH_GRPC_PORT:-50052}:${AUTH_GRPC_PORT:-50052}"
     depends_on:
@@ -221,6 +229,12 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect({port:50052,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ---------- Users Service ----------
   users-srv:
@@ -235,6 +249,8 @@ services:
     environment:
       - PROTO_ROOT=/app/protos
       - PROTOS_DIR=/app/protos
+      - SERVICE_REGISTER_HOST=fuel-users-srv
+      - REGISTER_HOST=fuel-users-srv
     ports:
       - "${USERS_GRPC_PORT:-50057}:${USERS_GRPC_PORT:-50057}"
     depends_on:
@@ -245,7 +261,13 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
-    command: sh -c "npx prisma db push --accept-data-loss --skip-generate && node dist/src/main.js"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect({port:50057,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: sh -c "npx prisma db push --accept-data-loss && node dist/prisma/seed.js && node dist/src/main.js"
 
   # ---------- Vehicles Service ----------
   vehicles-svc:
@@ -261,6 +283,8 @@ services:
     environment:
       - PROTO_ROOT=/app/protos
       - PROTOS_DIR=/app/protos
+      - SERVICE_REGISTER_HOST=fuel-vehicles-svc
+      - REGISTER_HOST=fuel-vehicles-svc
     ports:
       - "${VEHICLES_GRPC_PORT:-50055}:${VEHICLES_GRPC_PORT:-50055}"
     depends_on:
@@ -271,34 +295,63 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
-    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect({port:50055,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: sh -c "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/main.js"
 
   # ---------- Driver Service ----------
   driver-ms:
     build:
-      context: ./services/driver-ms
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/driver-ms/Dockerfile
     container_name: fuel-driver-ms
     env_file: .env
+    environment:
+      - DRIVER_DB_HOST=${DRIVER_DB_HOST:-driver-db}
+      - DRIVER_DB_PORT=5432
+      - DRIVER_DB_USER=${DRIVER_DB_USER:-postgres}
+      - DRIVER_DB_PASS=${DRIVER_DB_PASS:-admin}
+      - DRIVER_DB_NAME=${DRIVER_DB_NAME:-drivers}
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
+      - SERVICE_REGISTER_HOST=fuel-driver-ms
+      - REGISTER_HOST=fuel-driver-ms
     ports:
       - "${DRIVER_GRPC_PORT:-50062}:${DRIVER_GRPC_PORT:-50062}"
       - "${DRIVER_HTTP_PORT:-3100}:${DRIVER_HTTP_PORT:-3100}"
     depends_on:
       driver-db:
         condition: service_healthy
+      users-srv:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
     networks:
       - fuel-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect({port:50062,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ---------- Email Service ----------
   email-svc:
     build:
-      context: ./services/email-svc
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/email-svc/Dockerfile
     container_name: fuel-email-svc
     env_file: .env
+    environment:
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
+      - SERVICE_REGISTER_HOST=fuel-email-svc
+      - REGISTER_HOST=fuel-email-svc
     ports:
       - "${EMAIL_GRPC_PORT:-50053}:${EMAIL_GRPC_PORT:-50053}"
     depends_on:
@@ -307,6 +360,12 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect({port:50053,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ---------- Logger Service ----------
   logger-svc:
@@ -315,8 +374,13 @@ services:
       dockerfile: Dockerfile
     container_name: fuel-logger-svc
     env_file: .env
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_COMPATIBILITY_VERSION=${ELASTICSEARCH_COMPATIBILITY_VERSION:-8}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      - LOGGER_HTTP_PORT=${LOGGER_HTTP_PORT:-3200}
     ports:
-      - "${LOGGER_GRPC_PORT:-50058}:${LOGGER_GRPC_PORT:-50058}"
+      - "${LOGGER_HTTP_PORT:-3200}:${LOGGER_HTTP_PORT:-3200}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -327,14 +391,26 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3200/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ---------- Publisher Service ----------
   publisher-rabbit-srv:
     build:
-      context: ./services/publisher-rabbit-srv
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/publisher-rabbit-srv/Dockerfile
     container_name: fuel-publisher-rabbit
     env_file: .env
+    environment:
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
+      - PUBLISHER_HTTP_PORT=${OUTBOX_PUBLISHER_PORT:-4100}
+      - SERVICE_REGISTER_HOST=fuel-publisher-rabbit
+      - REGISTER_HOST=fuel-publisher-rabbit
     ports:
       - "${OUTBOX_PUBLISHER_PORT:-4100}:${OUTBOX_PUBLISHER_PORT:-4100}"
     depends_on:
@@ -345,6 +421,12 @@ services:
     networks:
       - fuel-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4100/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 networks:
   fuel-network:

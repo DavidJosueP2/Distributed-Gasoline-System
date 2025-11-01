@@ -44,8 +44,15 @@ RUN npm install --no-package-lock && \
 # Copiar código fuente
 COPY services/vehicles-svc/src ./src
 
+# Copiar archivo de seed para compilarlo
+COPY services/vehicles-svc/prisma/seed.ts ./prisma/seed.ts
+
 # Construir la aplicación
 RUN npm run build
+
+# Compilar el seed manualmente (ts-node no estará en runtime)
+# Usamos --rootDir . para preservar la estructura de directorios
+RUN npx tsc prisma/seed.ts --outDir dist --rootDir . --esModuleInterop --resolveJsonModule --skipLibCheck --module commonjs --target ES2020 --lib ES2020
 
 # Crear directorio y copiar archivo .proto desde la raíz del proyecto
 RUN mkdir -p ./protos

@@ -5,12 +5,10 @@
     "services/*"
   ],
   "scripts": {
-    "env:setup": "node -e \"const fs=require('fs'); if(!fs.existsSync('.env'))fs.copyFileSync('env.example','.env'); if(!fs.existsSync('services/users-srv/.env'))fs.copyFileSync('services/users-srv/ENV_LOCAL_EXAMPLE.txt','services/users-srv/.env'); if(!fs.existsSync('services/vehicles-svc/.env'))fs.copyFileSync('services/vehicles-svc/ENV_LOCAL_EXAMPLE.txt','services/vehicles-svc/.env'); console.log('✅ Archivos .env creados')\"",
-
     "infra:up": "docker compose -f docker-compose.infra.yml up -d",
     "infra:down": "docker compose -f docker-compose.infra.yml down -v",
     "infra:logs": "docker compose -f docker-compose.infra.yml logs -f",
-    "infra:ready": "npx wait-on -t 120000 http-get://localhost:8761 tcp:localhost:5432",
+    "infra:ready": "npx wait-on -t 120000 http-get://localhost:8761 tcp:localhost:5433 tcp:localhost:15672",
 
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down -v",
@@ -28,11 +26,12 @@
     "dev:vehicles": "npm --workspace services/vehicles-svc run --if-present start:dev",
     "dev:drivers": "npm --workspace services/driver-ms run --if-present start:dev",
     "dev:logger": "npm --workspace services/logger-svc run --if-present start:dev",
+    "dev:publisher": "npm --workspace services/publisher-rabbit-srv run --if-present start:dev",
 
-    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,USERS-SVC,VEHICLES-SVC,DRIVER-SVC,LOGGER-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:drivers\" \"npm run dev:logger\"",
+    "dev:services": "concurrently -n GATEWAY,AUTH-SVC,EMAIL-SVC,USERS-SVC,VEHICLES-SVC,DRIVER-SVC,LOGGER-SVC,PUBLISHER-RABBIT-SVC -c auto \"npm run dev:gw\" \"npm run dev:auth\" \"npm run dev:email\" \"npm run dev:users\" \"npm run dev:vehicles\" \"npm run dev:drivers\" \"npm run dev:logger\" \"npm run dev:publisher\"",
 
-    "setup": "npm run env:setup && npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
-    "dev": "npm run env:setup && npm run infra:up && npm run infra:ready && npm run dev:services",
+    "setup": "npm run reset && npm run infra:up && npm run infra:ready && npm run prisma:prepare",
+    "dev": "npm run infra:up && npm run infra:ready && npm run dev:services",
 
     "clean": "ts-node tools/clean.ts",
     "reset": "npm run clean && npm install"

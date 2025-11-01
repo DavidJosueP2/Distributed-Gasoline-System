@@ -154,8 +154,21 @@ message GetTripRequest {
   int64 id = 1;
 }
 
+message TripInfo {
+  string first_name = 1;
+  string last_name = 2;
+}
+
+message VehicleInfo {
+  string plate = 1;
+}
+
 message GetTripResponse {
   Trip trip = 1;
+  // Información enriquecida
+  TripInfo driver_info = 2;
+  TripInfo supervisor_info = 3;
+  VehicleInfo vehicle_info = 4;
 }
 
 message ListTripsRequest {
@@ -185,6 +198,8 @@ message UpdateTripRequest {
 
 message StartTripRequest {
   int64 id = 1;
+  double current_lat = 2; // ubicación actual del conductor
+  double current_lng = 3; // ubicación actual del conductor
 }
 
 message StartTripResponse {

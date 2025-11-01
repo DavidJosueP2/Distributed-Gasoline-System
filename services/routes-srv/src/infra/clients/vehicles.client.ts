@@ -5,9 +5,6 @@ import { lastValueFrom, Observable } from 'rxjs';
 export interface VehicleInfo {
   id: number;
   plate: string;
-  brand: string;
-  family: string;
-  year: number;
   requiredLicenses?: string[];
 }
 
@@ -23,11 +20,6 @@ export interface VehicleUnitResponse {
     vehicleId: number;
     plate: string;
     odometerKm: number;
-    model: {
-      brand: string;
-      family: string;
-      yearFrom: number;
-    };
   };
 }
 
@@ -61,9 +53,6 @@ export class VehiclesClient {
     return {
       id: response.unit.vehicleId,
       plate: response.unit.plate,
-      brand: response.unit.model.brand,
-      family: response.unit.model.family,
-      year: response.unit.model.yearFrom,
       requiredLicenses: [], // Por ahora vacío, se implementará cuando el servicio de vehículos lo soporte
     };
   }
@@ -99,12 +88,15 @@ export class VehiclesClient {
   }
 
   async updateVehicleToActive(vehicleId: bigint): Promise<any> {
-    return lastValueFrom(
+    console.log(`[VehiclesClient] Actualizando vehicle ${vehicleId} a ACTIVE...`);
+    const result = await lastValueFrom(
       this.vehiclesService.UpdateUnitStatus({
         vehicleId: Number(vehicleId),
         newStatus: 'ACTIVE',
       })
     );
+    console.log(`[VehiclesClient] Vehicle ${vehicleId} actualizado exitosamente:`, result);
+    return result;
   }
   
   async getAllVehicles(): Promise<any[]> {

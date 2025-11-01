@@ -105,11 +105,16 @@ export class TripsController {
   getOne(
     @Param('id') id: string,
     @Req() req: RequestWithGrpc,
-  ): Observable<TripResponse> {
+  ): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
         svc.GetTrip({ id }, req._grpcMetadata).pipe(
-          map((res) => normalizeTrip(res.trip)),
+          map((res: any) => ({
+            ...normalizeTrip(res.trip),
+            driverInfo: res.driverInfo || res.driver_info,
+            supervisorInfo: res.supervisorInfo || res.supervisor_info,
+            vehicleInfo: res.vehicleInfo || res.vehicle_info,
+          })),
         ),
       ),
     );
@@ -144,11 +149,12 @@ export class TripsController {
   @Post(':id/start')
   startTrip(
     @Param('id') id: string,
+    @Body() body: { currentLat?: number; currentLng?: number },
     @Req() req: RequestWithGrpc,
   ): Observable<{ startTime: { seconds: number; nanos: number } }> {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
-        svc.StartTrip({ id }, req._grpcMetadata),
+        svc.StartTrip({ id, currentLat: body.currentLat, currentLng: body.currentLng }, req._grpcMetadata),
       ),
     );
   }

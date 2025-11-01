@@ -12,7 +12,8 @@ export interface DriverInfo {
 
 export interface DriverResponse {
   driverId: number;
-  user: {
+  userId?: number;
+  user?: {
     firstName: string;
     lastName: string;
     email: string;
@@ -36,17 +37,44 @@ export class DriversClient {
     this.driversService = this.client.getService<DriversServiceClient>('DriversService');
   }
 
-  async getDriverInfo(driverId: bigint): Promise<DriverInfo> {
+  async getDriverInfo(driverId: bigint, usersClient?: any): Promise<DriverInfo> {
     const response = await lastValueFrom(
       this.driversService.FindOne({ id: Number(driverId) })
     );
     
+    // Si tenemos usersClient, obtener firstName, lastName, email
+    if (usersClient && response.userId != null) {
+      try {
+        // Convertir userId de Long de gRPC si es necesario (igual que en getAssignableDrivers)
+        const userId = BigInt(response.userId || 0);
+        
+        const userInfo = await usersClient.getUserInfo(userId);
+        return {
+          id: response.driverId,
+          firstName: userInfo.firstName,
+          lastName: userInfo.lastName,
+          email: userInfo.email,
+          licenses: response.licenses || [],
+        };
+      } catch (error) {
+        // Si falla, devolver datos básicos
+        return {
+          id: response.driverId,
+          firstName: 'Unknown',
+          lastName: 'User',
+          email: '',
+          licenses: response.licenses || [],
+        };
+      }
+    }
+    
+    // Sin usersClient, devolver datos básicos
     return {
       id: response.driverId,
-      firstName: response.user.firstName,
-      lastName: response.user.lastName,
-      email: response.user.email,
-      licenses: response.licenses,
+      firstName: 'Unknown',
+      lastName: 'User',
+      email: '',
+      licenses: response.licenses || [],
     };
   }
 
@@ -77,12 +105,15 @@ export class DriversClient {
   }
 
   async updateDriverToAvailable(driverId: bigint): Promise<any> {
-    return lastValueFrom(
+    console.log(`[DriversClient] Actualizando driver ${driverId} a AVAILABLE...`);
+    const result = await lastValueFrom(
       this.driversService.Update({
         id: Number(driverId),
         availability: 'AVAILABLE',
       })
     );
+    console.log(`[DriversClient] Driver ${driverId} actualizado exitosamente:`, result);
+    return result;
   }
   
   async getAllDrivers(): Promise<any[]> {

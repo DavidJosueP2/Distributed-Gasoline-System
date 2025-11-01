@@ -5,7 +5,7 @@ export class InvalidTripStatusTransitionException extends RpcException {
   constructor(currentStatus: string, targetStatus: string) {
     super({
       code: GrpcStatus.FAILED_PRECONDITION,
-      message: `No se puede cambiar de estado ${currentStatus} a ${targetStatus}`,
+      message: `El viaje no puede iniciarse porque ya está ${currentStatus === 'EN_RUTA' ? 'en ruta' : `en estado ${currentStatus}`}`,
     });
   }
 }

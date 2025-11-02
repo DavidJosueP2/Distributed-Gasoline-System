@@ -10,9 +10,9 @@ global:
   # Tag global para todas las imágenes (se puede sobrescribir por servicio)
   imageTag: "latest"
   
-# Image registry configuration for Azure Container Registry
+# Image registry configuration for GitHub Container Registry (GHCR)
 imageRegistry:
-  url: "your-acr-name.azurecr.io"
+  url: "ghcr.io/DavidJosueP2/fuel-system"  # Actualizar con tu usuario de GitHub
   username: ""
   password: ""
 
@@ -130,6 +130,7 @@ apiGateway:
   env:
     NODE_ENV: production
     PORT: 8080
+    GATEWAY_HTTP_PORT: 8080
   resources:
     requests:
       memory: 256Mi
@@ -154,11 +155,12 @@ authService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50051
-    targetPort: 50051
+    port: 50052
+    targetPort: 50052
   env:
     NODE_ENV: production
-    GRPC_PORT: 50051
+    GRPC_PORT: 50052
+    AUTH_GRPC_PORT: 50052
     DB_NAME: auth_db
   resources:
     requests:
@@ -183,11 +185,13 @@ driverService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50052
-    targetPort: 50052
+    port: 50062
+    targetPort: 50062
   env:
     NODE_ENV: production
-    GRPC_PORT: 50052
+    GRPC_PORT: 50062
+    DRIVER_GRPC_PORT: 50062
+    DRIVER_HTTP_PORT: 3100
     DB_NAME: driver_db
   resources:
     requests:
@@ -212,11 +216,12 @@ usersService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50053
-    targetPort: 50053
+    port: 50057
+    targetPort: 50057
   env:
     NODE_ENV: production
-    GRPC_PORT: 50053
+    GRPC_PORT: 50057
+    USERS_GRPC_PORT: 50057
   resources:
     requests:
       memory: 256Mi
@@ -240,11 +245,12 @@ vehiclesService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50054
-    targetPort: 50054
+    port: 50055
+    targetPort: 50055
   env:
     NODE_ENV: production
-    GRPC_PORT: 50054
+    GRPC_PORT: 50055
+    VEHICLES_GRPC_PORT: 50055
   resources:
     requests:
       memory: 256Mi
@@ -268,11 +274,12 @@ emailService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50055
-    targetPort: 50055
+    port: 50053
+    targetPort: 50053
   env:
     NODE_ENV: production
-    GRPC_PORT: 50055
+    GRPC_PORT: 50053
+    EMAIL_GRPC_PORT: 50053
   resources:
     requests:
       memory: 128Mi
@@ -291,11 +298,12 @@ helloService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50056
-    targetPort: 50056
+    port: 50051
+    targetPort: 50051
   env:
     NODE_ENV: production
-    GRPC_PORT: 50056
+    GRPC_PORT: 50051
+    HELLO_GRPC_PORT: 50051
   resources:
     requests:
       memory: 128Mi
@@ -314,11 +322,13 @@ loggerService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50057
-    targetPort: 50057
+    port: 50058
+    targetPort: 50058
   env:
     NODE_ENV: production
-    GRPC_PORT: 50057
+    GRPC_PORT: 50058
+    LOGGER_GRPC_PORT: 50058
+    LOGGER_HTTP_PORT: 3200
   resources:
     requests:
       memory: 256Mi
@@ -337,11 +347,12 @@ publisherService:
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
-    port: 50058
-    targetPort: 50058
+    port: 4100
+    targetPort: 4100
   env:
     NODE_ENV: production
-    PORT: 50058
+    PORT: 4100
+    OUTBOX_PUBLISHER_PORT: 4100
   resources:
     requests:
       memory: 128Mi
@@ -356,18 +367,18 @@ publisherService:
 
 secrets:
   postgresql:
-    username: postgres
-    password: postgres
+    username: pgadmin
+    password: ""  # Configurar en el deploy
   rabbitmq:
     username: admin
-    password: admin123
+    password: ""  # Configurar en el deploy
   jwt:
-    secret: your-super-secret-jwt-key-change-in-production
+    secret: ""  # Configurar en el deploy - IMPORTANTE: Cambiar en producción
   smtp:
     host: smtp.gmail.com
     port: 587
-    user: your-email@gmail.com
-    password: your-app-password
+    user: ""  # Configurar en el deploy
+    password: ""  # Configurar en el deploy
 
 # ==============================================
 # INGRESS
@@ -380,7 +391,7 @@ ingress:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
   hosts:
-    - host: fuel-system.example.com
+    - host: fuel-system.example.com  # Actualizar con tu dominio
       paths:
         - path: /
           pathType: Prefix
@@ -412,4 +423,3 @@ backup:
   enabled: false
   schedule: "0 2 * * *"
   retention: 7
-

@@ -51,6 +51,11 @@ export class UsersApplicationService {
     return UserMapper.toList(users);
   }
 
+  async getAllSupervisors(): Promise<UserResponseDto[]> {
+    const users = await this.repository.findByRole('SUPERVISOR');
+    return UserMapper.toList(users);
+  }
+
   async getAllInactiveUsers(): Promise<UserResponseDto[]> {
     const users = await this.repository.findAllInactiveUsers();
     return UserMapper.toList(users);

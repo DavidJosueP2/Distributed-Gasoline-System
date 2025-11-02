@@ -63,6 +63,24 @@ export class DriversGrpcController {
     }
   }
 
+  @GrpcMethod('DriversService', 'FindByUserId')
+  async findByUserId(data: any) {
+    try {
+      const userIdField = data.userId || data.user_id || data.id;
+      const userId = DriversGrpcMapper.convertGrpcId(userIdField);
+      const driver = await this.service.findByUserId(userId);
+
+      if (!driver) {
+        throw new RpcException('Driver not found for user_id');
+      }
+
+      return DriversGrpcMapper.mapDriverToProto(driver);
+    } catch (error) {
+      console.error('❌ FindByUserId Driver - Error:', error);
+      throw new RpcException(error.message || 'Error fetching driver by user_id');
+    }
+  }
+
   @GrpcMethod('DriversService', 'Update')
   async update(data: any, metadata: any) {
     try {

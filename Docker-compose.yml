@@ -236,6 +236,41 @@ services:
       retries: 5
       start_period: 30s
 
+  # ---------- Routes Database ----------
+  routes-db:
+    image: postgres:16
+    container_name: fuelhub-routes-db
+    environment:
+      POSTGRES_USER: ${ROUTES_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ROUTES_DB_PASS:-admin}
+      POSTGRES_DB: ${ROUTES_DB_NAME:-routes}
+    ports:
+      - "5500:5432"
+    volumes:
+      - routes_db_data:/var/lib/postgresql/data
+      - ./services/routes-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ROUTES_DB_USER} -d ${ROUTES_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
+  # ---------- PGAdmin ----------
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: fuelhub-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8081:80"
+    networks:
+      - fuel-network
+    restart: unless-stopped
+
   # ---------- Users Service ----------
   users-srv:
     build:
@@ -329,6 +364,8 @@ services:
       users-srv:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      routes-db:
         condition: service_healthy
     networks:
       - fuel-network
@@ -428,6 +465,10 @@ services:
       retries: 5
       start_period: 30s
 
+# ==============================================
+# Redes y Volúmenes
+# ==============================================
+
 networks:
   fuel-network:
     driver: bridge
@@ -437,5 +478,6 @@ volumes:
   users_db_data:
   vehicles_db_data:
   driver_db_data:
+  routes_db_data:
   rabbitmq_data:
   elasticsearch_data:

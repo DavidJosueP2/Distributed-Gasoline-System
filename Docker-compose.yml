@@ -407,8 +407,8 @@ services:
   # ---------- Logger Service ----------
   logger-svc:
     build:
-      context: ./services/logger-svc
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/logger-svc/Dockerfile
     container_name: fuel-logger-svc
     env_file: .env
     environment:

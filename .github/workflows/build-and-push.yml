@@ -2,275 +2,196 @@ name: Build and Push Docker Images
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main]
     paths:
       - 'services/**'
       - 'protos/**'
       - '.github/workflows/build-and-push.yml'
+      - 'Docker-compose.yml'
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'protos/**'
+      - '.github/workflows/build-and-push.yml'
+      - 'Docker-compose.yml'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag (ej: v1.0.0, release-candidate)'
+        required: false
+        default: 'manual'
 
 env:
-  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
-  IMAGE_TAG: ${{ github.sha }}
+  REGISTRY: ghcr.io
 
 jobs:
-  # Detectar qué servicios han cambiado
-  detect-changes:
+  build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      api-gateway: ${{ steps.filter.outputs.api-gateway }}
-      auth-svc: ${{ steps.filter.outputs.auth-svc }}
-      driver-ms: ${{ steps.filter.outputs.driver-ms }}
-      users-srv: ${{ steps.filter.outputs.users-srv }}
-      vehicles-svc: ${{ steps.filter.outputs.vehicles-svc }}
-      email-svc: ${{ steps.filter.outputs.email-svc }}
-      hello-svc: ${{ steps.filter.outputs.hello-svc }}
-      logger-svc: ${{ steps.filter.outputs.logger-svc }}
-      publisher-rabbit-srv: ${{ steps.filter.outputs.publisher-rabbit-srv }}
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            api-gateway:
-              - 'services/api-gateway/**'
-              - 'protos/**'
-            auth-svc:
-              - 'services/auth-svc/**'
-              - 'protos/**'
-            driver-ms:
-              - 'services/driver-ms/**'
-              - 'protos/**'
-            users-srv:
-              - 'services/users-srv/**'
-              - 'protos/**'
-            vehicles-svc:
-              - 'services/vehicles-svc/**'
-              - 'protos/**'
-            email-svc:
-              - 'services/email-svc/**'
-              - 'protos/**'
-            hello-svc:
-              - 'services/hello-svc/**'
-              - 'protos/**'
-            logger-svc:
-              - 'services/logger-svc/**'
-              - 'protos/**'
-            publisher-rabbit-srv:
-              - 'services/publisher-rabbit-srv/**'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: api-gateway
+            dockerfile: ./services/api-gateway/Dockerfile
+            needs_build_args: false
+          - name: auth-svc
+            dockerfile: ./services/auth-svc/Dockerfile
+            needs_build_args: false
+          - name: driver-ms
+            dockerfile: ./services/driver-ms/Dockerfile
+            needs_build_args: false
+          - name: email-svc
+            dockerfile: ./services/email-svc/Dockerfile
+            needs_build_args: false
+          - name: logger-svc
+            dockerfile: ./services/logger-svc/Dockerfile
+            needs_build_args: false
+          - name: publisher-rabbit-srv
+            dockerfile: ./services/publisher-rabbit-srv/Dockerfile
+            needs_build_args: false
+          - name: users-srv
+            dockerfile: ./services/users-srv/Dockerfile
+            needs_build_args: true
+            build_args: |
+              USERS_DATABASE_URL=postgresql://temp:temp@localhost:5432/temp?schema=public
+          - name: vehicles-svc
+            dockerfile: ./services/vehicles-svc/Dockerfile
+            needs_build_args: true
+            build_args: |
+              DATABASE_URL=postgresql://temp:temp@localhost:5432/temp?schema=public
+              SHADOW_DATABASE_URL=postgresql://temp:temp@localhost:5432/temp_shadow?schema=public
 
-  # Build y Push para API Gateway
-  build-api-gateway:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.api-gateway == 'true'
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/api-gateway
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Convert repository name to lowercase
+        id: repo_name
         run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/api-gateway:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/api-gateway:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/api-gateway:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/api-gateway:latest
+          echo "repository_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-  # Build y Push para Auth Service
-  build-auth-svc:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.auth-svc == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/auth-svc
-        run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/auth-svc:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/auth-svc:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/auth-svc:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/auth-svc:latest
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  # Build y Push para Driver Microservice
-  build-driver-ms:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.driver-ms == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
+      - name: 🏷️ Extract metadata (tags and labels)
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/driver-ms
-        run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/driver-ms:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/driver-ms:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/driver-ms:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/driver-ms:latest
+          images: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=sha,prefix=main-,format=long
+            type=sha,prefix=,format=short
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != 'manual' }}
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.service.name }}
+            org.opencontainers.image.description=Fuel System - ${{ matrix.service.name }}
+            org.opencontainers.image.vendor=Fuel System Team
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT
+          flavor: |
+            latest=auto
 
-  # Build y Push para Users Service
-  build-users-srv:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.users-srv == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
+      - name: 🔨 Build and push Docker image (without build args)
+        if: ${{ !matrix.service.needs_build_args }}
+        uses: docker/build-push-action@v5
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/users-srv
-        run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/users-srv:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/users-srv:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/users-srv:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/users-srv:latest
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache,mode=max
+          provenance: false
+          sbom: false
 
-  # Build y Push para Vehicles Service
-  build-vehicles-svc:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.vehicles-svc == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
+      - name: 🔨 Build and push Docker image (with build args - Prisma services)
+        if: ${{ matrix.service.needs_build_args }}
+        uses: docker/build-push-action@v5
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/vehicles-svc
-        run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/vehicles-svc:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/vehicles-svc:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/vehicles-svc:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/vehicles-svc:latest
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.service.build_args }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache,mode=max
+          provenance: false
+          sbom: false
 
-  # Build y Push para Email Service
-  build-email-svc:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.email-svc == 'true'
+      - name: 📊 Image digest and tags
+        run: |
+          echo "## ✅ Image pushed: ${{ matrix.service.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** GitHub Container Registry (GHCR)" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags created:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    needs: build-and-push
     runs-on: ubuntu-latest
+    if: always()
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/email-svc
+      - name: 🔧 Convert repository name to lowercase
+        id: repo_name
         run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/email-svc:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/email-svc:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/email-svc:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/email-svc:latest
+          echo "repository_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-  # Build y Push para Hello Service
-  build-hello-svc:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.hello-svc == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/hello-svc
+      - name: 📋 Build Summary
         run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/hello-svc:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/hello-svc:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/hello-svc:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/hello-svc:latest
-
-  # Build y Push para Logger Service
-  build-logger-svc:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.logger-svc == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/logger-svc
-        run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/logger-svc:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/logger-svc:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/logger-svc:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/logger-svc:latest
-
-  # Build y Push para Publisher Service
-  build-publisher-rabbit-srv:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.publisher-rabbit-srv == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Build and push Docker image
-        working-directory: ./services/publisher-rabbit-srv
-        run: |
-          docker build -t ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:${{ env.IMAGE_TAG }} .
-          docker build -t ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:latest .
-          docker push ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:${{ env.IMAGE_TAG }}
-          docker push ${{ env.REGISTRY }}/fuel-system/publisher-rabbit-srv:latest
-
+          echo "## 🚀 Build and Push Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Images pushed to GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 api-gateway | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔐 auth-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚗 driver-ms | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📧 email-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📝 logger-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📤 publisher-rabbit-srv | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👥 users-srv (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚙 vehicles-svc (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** \`ghcr.io/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Short SHA:** \`$(echo ${{ github.sha }} | cut -c1-7)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🏷️ Tags Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Each image has been tagged with:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`latest\` (only on main branch)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`main\` (branch name)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`main-${{ github.sha }}\` (full SHA for traceability)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$(echo ${{ github.sha }} | cut -c1-7)\` (short SHA for convenience)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$(date +%Y%m%d-%H%M%S)\` (timestamp)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 View Images" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All images are available at:" >> $GITHUB_STEP_SUMMARY
+          echo "https://github.com/${{ steps.repo_name.outputs.owner_lc }}?tab=packages" >> $GITHUB_STEP_SUMMARY

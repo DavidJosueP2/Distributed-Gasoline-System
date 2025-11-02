@@ -10,6 +10,7 @@ import { GrpcTimeoutInterceptor } from './grpc/grpc-timeout.interceptor';
 import { GrpcErrorInterceptor } from './grpc/grpc-error.interceptor';
 
 import { HelloController } from './http/hello-srv/hello.controller';
+import { HealthController } from './http/health.controller';
 import { DriversHttpController } from './http/drivers-svc/drivers.controller';
 import { LicenseTypesHttpController } from './http/drivers-svc/license-types.controller';
 import { DriverLicensesHttpController } from './http/drivers-svc/driver-licenses.controller';
@@ -18,6 +19,8 @@ import { VehicleUnitsHttpController } from './http/vehicles-svc/vehicle-units.co
 import { UsersController } from './http/users-srv/users.controller';
 import { AuthController } from './http/auth-srv/auth.controller';
 import { FuelHttpController } from './http/fuel-svc/fuel.controller';
+import { RoutesController } from './http/routes-srv/routes.controller';
+import { TripsController } from './http/routes-srv/trips.controller';
 import { JwtAuthGuard } from './common/auth/guards/jwt.auth.guard';
 
 const globalProviders: Provider[] = [
@@ -43,7 +46,6 @@ const globalProviders: Provider[] = [
         },
       }),
     }),
-
     DiscoveryModule,
   ],
   controllers: [
@@ -56,6 +58,8 @@ const globalProviders: Provider[] = [
     UsersController,
     AuthController,
     FuelHttpController,
+    RoutesController,
+    TripsController,
   ],
   providers: [GrpcClientFactory, ...globalProviders],
 })

@@ -28,7 +28,7 @@ async function bootstrap() {
   const GRPC_PORT = Number(process.env.DRIVER_GRPC_PORT || 50052);
   const HTTP_PORT = Number(process.env.DRIVER_HTTP_PORT || 3001);
   const BIND_HOST = process.env.SERVICE_BIND_HOST || '0.0.0.0';
-  const PROTO_ROOT = process.env.PROTO_ROOT || '../../protos'; // Ruta relativa desde la carpeta dist
+  const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../protos'); // Ruta relativa desde la carpeta dist
   const SHOULD_REGISTER =
     (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
     (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
@@ -51,13 +51,13 @@ async function bootstrap() {
       }),
     );
 
-     const isDevelopment = process.env.NODE_ENV !== 'production';
-    const protoPath = isDevelopment
-      ? join(process.cwd(), PROTO_ROOT, 'driver_ms.proto')
-      : join(__dirname, '..', PROTO_ROOT, 'driver_ms.proto');
+    // Determinar ruta del proto (soporta rutas absolutas y relativas)
+    const isAbsolutePath = PROTO_ROOT.startsWith('/');
+    const protoDir = isAbsolutePath ? PROTO_ROOT : join(__dirname, '..', PROTO_ROOT);
+    const protoPath = join(protoDir, 'driver_ms.proto');
     
     logger.log(`Using proto file: ${protoPath}`);
-    logger.log(`.env loaded from: ../../../.env`);
+    logger.log(`Proto directory: ${protoDir}`);
 
     // Create gRPC microservice
     const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -73,9 +73,7 @@ async function bootstrap() {
             enums: String,     // Usar strings para enums
             defaults: true,    // Usar valores predeterminados para campos faltantes
             oneofs: true,      // Manejar oneofs
-            includeDirs: [process.env.NODE_ENV !== 'production' 
-              ? join(process.cwd(), PROTO_ROOT) 
-              : join(__dirname, '..', PROTO_ROOT)], // Ruta adecuada según el entorno
+            includeDirs: [protoDir], // Usar el mismo directorio calculado
           },
           keepalive: {
             keepaliveTimeMs: 120000,

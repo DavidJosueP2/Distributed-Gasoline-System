@@ -109,6 +109,10 @@ message FindOneDriverRequest {
   int64 id = 1; // driver_id
 }
 
+message FindByUserIdRequest {
+  int64 user_id = 1; // user_id de la tabla users
+}
+
 message UpdateDriverRequest {
   int64 id = 1;                        // driver_id
   optional int64 user_id = 2;
@@ -145,6 +149,7 @@ service DriversService {
   rpc Create (CreateDriverRequest) returns (Driver);
   rpc FindAll (FindAllDriversRequest) returns (DriversList);
   rpc FindOne (FindOneDriverRequest) returns (Driver);
+  rpc FindByUserId (FindByUserIdRequest) returns (Driver);
   rpc Update (UpdateDriverRequest) returns (Driver);
   rpc Remove (RemoveDriverRequest) returns (RemoveDriverResponse);
   rpc CanDrive (CanDriveRequest) returns (CanDriveResponse);

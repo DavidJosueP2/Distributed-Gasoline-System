@@ -1,225 +1,147 @@
-# ============================================
-# Fuel System - Makefile
-# ============================================
+# ==============================================
+# Makefile - Fuel System (Desarrollo Local)
+# ==============================================
+# Para producción, usa GitHub Actions (ver deploy/GITHUB_ACTIONS_DEPLOY.md)
 
-.PHONY: help build up down logs clean test migrate-up migrate-down helm-install helm-uninstall azure-setup
+.PHONY: help
 
 # Variables
-COMPOSE_FILE := docker-compose.yml
-HELM_CHART := deploy/helm/fuel-system
-NAMESPACE := fuel-system
+NAMESPACE ?= fuel-system
+RESOURCE_GROUP ?= fuel-system-rg
+AKS_CLUSTER ?= fuel-system-aks
 
-# Colores para output
-GREEN  := $(shell tput -Txterm setaf 2)
-YELLOW := $(shell tput -Txterm setaf 3)
-RESET  := $(shell tput -Txterm sgr0)
+# Colores
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+BLUE := \033[0;34m
+NC := \033[0m
 
-##@ General
+# ==============================================
+# Help
+# ==============================================
+help: ## Mostrar este mensaje de ayuda
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  Fuel System - Makefile (Desarrollo Local)$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Para despliegue en Azure, usa GitHub Actions:$(NC)"
+	@echo "  - Push a 'main' o 'develop' → Build automático"
+	@echo "  - Merge a 'main' → Deploy automático a AKS"
+	@echo "  - Ver: deploy/GITHUB_ACTIONS_DEPLOY.md"
+	@echo ""
+	@echo "$(GREEN)Comandos disponibles:$(NC)"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(NC) %s\n", $$1, $$2}'
+	@echo ""
 
-help: ## Mostrar esta ayuda
-	@echo ''
-	@echo 'Uso:'
-	@echo '  ${YELLOW}make${RESET} ${GREEN}<target>${RESET}'
-	@echo ''
-	@echo 'Targets:'
-	@awk 'BEGIN {FS = ":.*##"; printf "\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  ${YELLOW}%-20s${RESET} %s\n", $$1, $$2 } /^##@/ { printf "\n${GREEN}%s${RESET}\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+# ==============================================
+# Desarrollo Local (Docker Compose)
+# ==============================================
+dev-build: ## Construir imágenes localmente
+	@echo "$(GREEN)🔨 Construyendo imágenes Docker...$(NC)"
+	docker-compose build
 
-##@ Desarrollo Local (Docker Compose)
+dev-up: ## Levantar todos los servicios
+	@echo "$(GREEN)🚀 Levantando servicios...$(NC)"
+	docker-compose up -d
+	@echo ""
+	@echo "$(GREEN)✅ Servicios iniciados$(NC)"
+	@echo "$(BLUE)API Gateway:$(NC) http://localhost:8080"
+	@echo "$(BLUE)Eureka:$(NC) http://localhost:8761"
+	@echo "$(BLUE)RabbitMQ:$(NC) http://localhost:15672 (guest/guest)"
+	@echo "$(BLUE)Kibana:$(NC) http://localhost:5601"
+	@echo "$(BLUE)PgAdmin:$(NC) http://localhost:8081 (admin@example.com/admin123)"
 
-build: ## Construir todas las imágenes Docker
-	docker-compose -f $(COMPOSE_FILE) build
+dev-down: ## Detener servicios
+	@echo "$(YELLOW)🛑 Deteniendo servicios...$(NC)"
+	docker-compose down
 
-up: ## Iniciar todos los servicios
-	docker-compose -f $(COMPOSE_FILE) up -d
+dev-restart: dev-down dev-up ## Reiniciar servicios
 
-down: ## Detener todos los servicios
-	docker-compose -f $(COMPOSE_FILE) down
+dev-logs: ## Ver logs de todos los servicios
+	docker-compose logs -f
 
-restart: down up ## Reiniciar todos los servicios
+dev-logs-service: ## Ver logs de un servicio (uso: make dev-logs-service SERVICE=api-gateway)
+	docker-compose logs -f $(SERVICE)
 
-logs: ## Ver logs de todos los servicios
-	docker-compose -f $(COMPOSE_FILE) logs -f
+dev-ps: ## Ver estado de los servicios
+	docker-compose ps
 
-logs-%: ## Ver logs de un servicio específico (ej: make logs-api-gateway)
-	docker-compose -f $(COMPOSE_FILE) logs -f $*
+dev-clean: ## Limpiar todo (contenedores, volúmenes, imágenes)
+	@echo "$(YELLOW)🧹 Limpiando Docker...$(NC)"
+	docker-compose down -v
+	docker system prune -af --volumes
 
-ps: ## Ver estado de los servicios
-	docker-compose -f $(COMPOSE_FILE) ps
+# ==============================================
+# Testing Local
+# ==============================================
+test-health: ## Probar health endpoint
+	@echo "$(BLUE)🧪 Testing API Gateway health...$(NC)"
+	@curl -f http://localhost:8080/health && echo "" && echo "$(GREEN)✅ API Gateway OK$(NC)" || echo "$(YELLOW)❌ API Gateway no responde$(NC)"
 
-clean: ## Limpiar contenedores, volúmenes e imágenes
-	docker-compose -f $(COMPOSE_FILE) down -v --rmi all
+test-api: ## Probar endpoints básicos
+	@echo "$(BLUE)🧪 Testing API endpoints...$(NC)"
+	@echo "Health:"
+	@curl -s http://localhost:8080/health | jq .
+	@echo ""
+	@echo "Eureka:"
+	@curl -s http://localhost:8761/actuator/health | jq .
 
-clean-volumes: ## Limpiar solo los volúmenes
-	docker-compose -f $(COMPOSE_FILE) down -v
+# ==============================================
+# Utilidades Kubernetes (para verificación)
+# ==============================================
+k8s-config: ## Configurar kubectl para AKS
+	@echo "$(GREEN)⚙️  Configurando kubectl...$(NC)"
+	az aks get-credentials --resource-group $(RESOURCE_GROUP) --name $(AKS_CLUSTER) --overwrite-existing
 
-##@ Base de Datos
-
-migrate-up: ## Ejecutar migraciones de base de datos
-	@echo "$(GREEN)Ejecutando migraciones...$(RESET)"
-	docker-compose exec users-srv npx prisma migrate deploy
-	docker-compose exec vehicles-svc npx prisma migrate deploy
-	docker-compose exec driver-ms npm run typeorm:migrate
-
-migrate-down: ## Revertir migraciones de base de datos
-	@echo "$(GREEN)Revirtiendo migraciones...$(RESET)"
-	docker-compose exec driver-ms npm run typeorm:revert
-
-prisma-studio: ## Abrir Prisma Studio para users-srv
-	docker-compose exec users-srv npx prisma studio
-
-prisma-generate: ## Generar Prisma Client
-	docker-compose exec users-srv npx prisma generate
-	docker-compose exec vehicles-svc npx prisma generate
-
-##@ Testing
-
-test: ## Ejecutar tests de todos los servicios
-	@echo "$(GREEN)Ejecutando tests...$(RESET)"
-	cd services/api-gateway && npm test
-	cd services/auth-svc && npm test
-	cd services/driver-ms && npm test
-	cd services/users-srv && npm test
-	cd services/vehicles-svc && npm test
-
-test-%: ## Ejecutar tests de un servicio específico (ej: make test-api-gateway)
-	cd services/$* && npm test
-
-lint: ## Ejecutar linter en todos los servicios
-	@echo "$(GREEN)Ejecutando linter...$(RESET)"
-	cd services/api-gateway && npm run lint
-	cd services/auth-svc && npm run lint
-	cd services/driver-ms && npm run lint
-
-##@ Kubernetes / Helm
-
-k8s-context: ## Ver contexto actual de Kubernetes
-	kubectl config current-context
-
-k8s-switch-local: ## Cambiar a contexto local (Docker Desktop)
-	kubectl config use-context docker-desktop
-
-k8s-switch-azure: ## Cambiar a contexto de Azure
-	kubectl config use-context fuel-system-aks
-
-helm-install: ## Instalar/Actualizar con Helm
-	helm upgrade --install fuel-system $(HELM_CHART) \
-		--namespace $(NAMESPACE) \
-		--create-namespace \
-		--values $(HELM_CHART)/values.yaml \
-		--timeout 10m \
-		--wait
-
-helm-uninstall: ## Desinstalar Helm release
-	helm uninstall fuel-system --namespace $(NAMESPACE)
-
-helm-template: ## Ver templates de Helm sin instalar
-	helm template fuel-system $(HELM_CHART) \
-		--namespace $(NAMESPACE) \
-		--values $(HELM_CHART)/values.yaml
-
-helm-lint: ## Validar chart de Helm
-	helm lint $(HELM_CHART)
-
-k8s-pods: ## Ver pods en Kubernetes
+k8s-pods: ## Ver pods en AKS
 	kubectl get pods -n $(NAMESPACE)
 
-k8s-services: ## Ver servicios en Kubernetes
+k8s-services: ## Ver servicios en AKS
 	kubectl get services -n $(NAMESPACE)
 
-k8s-logs-%: ## Ver logs de un deployment (ej: make k8s-logs-api-gateway)
-	kubectl logs -f deployment/fuel-system-$* -n $(NAMESPACE)
+k8s-logs: ## Ver logs de un pod (uso: make k8s-logs POD=api-gateway-xxx)
+	kubectl logs -f $(POD) -n $(NAMESPACE)
 
-k8s-describe-%: ## Describir un deployment (ej: make k8s-describe-api-gateway)
-	kubectl describe deployment fuel-system-$* -n $(NAMESPACE)
+k8s-status: ## Ver estado completo del cluster
+	@echo "$(BLUE)📊 Estado del cluster:$(NC)"
+	@kubectl get all -n $(NAMESPACE)
+	@echo ""
+	@echo "$(BLUE)🔄 HPAs (Autoscaling):$(NC)"
+	@kubectl get hpa -n $(NAMESPACE)
 
-k8s-shell-%: ## Abrir shell en un pod (ej: make k8s-shell-api-gateway)
-	kubectl exec -it deployment/fuel-system-$* -n $(NAMESPACE) -- sh
+k8s-gateway-ip: ## Obtener IP del API Gateway
+	@echo "$(BLUE)🌐 IP del API Gateway:$(NC)"
+	@kubectl get service fuel-system-api-gateway -n $(NAMESPACE) -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+	@echo ""
 
-k8s-port-forward-%: ## Port forward a un servicio (ej: make k8s-port-forward-api-gateway)
-	kubectl port-forward service/fuel-system-$* 8080:8080 -n $(NAMESPACE)
-
-##@ Azure
-
-azure-login: ## Login en Azure
-	az login
-
-azure-setup: ## Configurar recursos de Azure
-	./deploy/scripts/setup-azure.sh
-
-azure-acr-login: ## Login en Azure Container Registry
-	az acr login --name $${ACR_NAME}
-
-azure-build-push: ## Construir y subir imágenes a ACR
-	@echo "$(GREEN)Construyendo y subiendo imágenes a ACR...$(RESET)"
-	./deploy/scripts/build-and-push-images.sh
-
-azure-get-credentials: ## Obtener credenciales de AKS
-	az aks get-credentials \
-		--resource-group $${AKS_RESOURCE_GROUP} \
-		--name $${AKS_CLUSTER_NAME} \
-		--overwrite-existing
-
-##@ Docker Registry
-
-docker-login-acr: ## Login en ACR con Docker
-	docker login $${ACR_LOGIN_SERVER} -u $${ACR_USERNAME} -p $${ACR_PASSWORD}
-
-docker-build-all: ## Construir todas las imágenes para producción
-	@echo "$(GREEN)Construyendo imágenes...$(RESET)"
-	docker build -t fuel-system/api-gateway:latest ./services/api-gateway
-	docker build -t fuel-system/auth-svc:latest ./services/auth-svc
-	docker build -t fuel-system/driver-ms:latest ./services/driver-ms
-	docker build -t fuel-system/users-srv:latest ./services/users-srv
-	docker build -t fuel-system/vehicles-svc:latest ./services/vehicles-svc
-	docker build -t fuel-system/email-svc:latest ./services/email-svc
-	docker build -t fuel-system/hello-svc:latest ./services/hello-svc
-	docker build -t fuel-system/logger-svc:latest ./services/logger-svc
-	docker build -t fuel-system/publisher-rabbit-srv:latest ./services/publisher-rabbit-srv
-
-##@ Utilidades
-
-check-env: ## Verificar variables de entorno
-	@echo "$(GREEN)Verificando variables de entorno...$(RESET)"
-	@test -n "$$POSTGRES_PASSWORD" && echo "✓ POSTGRES_PASSWORD configurado" || echo "✗ POSTGRES_PASSWORD no configurado"
-	@test -n "$$JWT_SECRET" && echo "✓ JWT_SECRET configurado" || echo "✗ JWT_SECRET no configurado"
-	@test -n "$$ACR_LOGIN_SERVER" && echo "✓ ACR_LOGIN_SERVER configurado" || echo "✗ ACR_LOGIN_SERVER no configurado"
-
-health-check: ## Verificar salud de los servicios
-	@echo "$(GREEN)Verificando salud de los servicios...$(RESET)"
-	@curl -f http://localhost:8080/health || echo "API Gateway no responde"
-	@curl -f http://localhost:8761 || echo "Eureka no responde"
-	@curl -f http://localhost:15672 || echo "RabbitMQ Management no responde"
-
-install-deps: ## Instalar dependencias de todos los servicios
-	@echo "$(GREEN)Instalando dependencias...$(RESET)"
-	cd services/api-gateway && npm install
-	cd services/auth-svc && npm install
-	cd services/driver-ms && npm install
-	cd services/users-srv && npm install
-	cd services/vehicles-svc && npm install
-	cd services/email-svc && npm install
-	cd services/hello-svc && npm install
-	cd services/logger-svc && npm install
-	cd services/publisher-rabbit-srv && npm install
-
-dev-setup: install-deps ## Setup inicial para desarrollo
-	@echo "$(GREEN)Setup de desarrollo completado$(RESET)"
-	@echo "Ejecuta 'make up' para iniciar los servicios"
-
-##@ Documentación
-
-docs-serve: ## Servir documentación localmente
-	@echo "$(GREEN)La documentación está en:$(RESET)"
-	@echo "  - README.md"
-	@echo "  - DEPLOYMENT.md"
-	@echo "  - deploy/AZURE_SETUP.md"
-
-version: ## Mostrar versiones de herramientas
-	@echo "$(GREEN)Versiones:$(RESET)"
-	@echo "Docker:      $$(docker --version)"
-	@echo "Docker Compose: $$(docker-compose --version)"
-	@echo "Kubectl:     $$(kubectl version --client --short 2>/dev/null || echo 'No instalado')"
-	@echo "Helm:        $$(helm version --short 2>/dev/null || echo 'No instalado')"
-	@echo "Azure CLI:   $$(az --version | head -n 1 || echo 'No instalado')"
-	@echo "Node.js:     $$(node --version 2>/dev/null || echo 'No instalado')"
-
+# ==============================================
+# Información
+# ==============================================
+info: ## Mostrar información del sistema
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  Fuel System - Información$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)🏠 Desarrollo Local:$(NC)"
+	@echo "  - API Gateway: http://localhost:8080"
+	@echo "  - Eureka: http://localhost:8761"
+	@echo "  - RabbitMQ: http://localhost:15672"
+	@echo "  - Kibana: http://localhost:5601"
+	@echo "  - PgAdmin: http://localhost:8081"
+	@echo ""
+	@echo "$(YELLOW)☁️  Producción (Azure):$(NC)"
+	@echo "  - Resource Group: $(RESOURCE_GROUP)"
+	@echo "  - AKS Cluster: $(AKS_CLUSTER)"
+	@echo "  - Namespace: $(NAMESPACE)"
+	@echo ""
+	@echo "$(YELLOW)📚 Documentación:$(NC)"
+	@echo "  - GitHub Actions: deploy/GITHUB_ACTIONS_DEPLOY.md"
+	@echo "  - Arquitectura: deploy/ARCHITECTURE.md"
+	@echo "  - Migraciones: deploy/MIGRATIONS_GUIDE.md"
+	@echo ""
+	@echo "$(YELLOW)🚀 Para desplegar a Azure:$(NC)"
+	@echo "  1. Configura GitHub Secrets (ver GITHUB_ACTIONS_DEPLOY.md)"
+	@echo "  2. Push a 'main' → Deploy automático"
+	@echo "  3. O usa: Actions → Deploy to AKS → Run workflow"
+	@echo ""

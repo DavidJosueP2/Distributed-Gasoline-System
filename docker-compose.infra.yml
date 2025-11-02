@@ -1,14 +1,12 @@
 # ==============================================
 # Docker Compose - SOLO INFRAESTRUCTURA
 # ==============================================
-# Contiene SOLO la infraestructura (DBs, Eureka, RabbitMQ, Elasticsearch)
+# Contiene SOLO la infraestructura (DBs, Eureka)
 # Úsalo cuando desarrolles microservicios localmente en Node.js
 #
 # Uso:
 #   npm run infra:up    (inicia infraestructura)
 #   npm run dev:auth    (corre microservicio local)
-
-version: '3.8'
 
 services:
   # ---------- Eureka Server ----------
@@ -101,9 +99,10 @@ services:
       POSTGRES_PASSWORD: ${DRIVER_DB_PASS:-admin}
       POSTGRES_DB: ${DRIVER_DB_NAME:-drivers}
     ports:
-      - "${DRIVER_DB_PORT:-5436}:5432"
+      - "${DRIVER_DB_PORT:-5438}:5432"
     volumes:
       - driver_db_data:/var/lib/postgresql/data
+      - ./services/driver-ms/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - fuel-network
     healthcheck:
@@ -112,7 +111,6 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
-
   # ---------- Fuel Db - Driver DB ----------
   fuel-db:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
@@ -132,6 +130,27 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+  # ---------- PostgreSQL - Routes DB ----------
+  routes-db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: fuel-routes-db
+    environment:
+      POSTGRES_USER: ${ROUTES_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ROUTES_DB_PASS:-admin}
+      POSTGRES_DB: ${ROUTES_DB_NAME:-routes}
+    ports:
+      - "${ROUTES_DB_PORT:-5437}:5432"
+    volumes:
+      - routes_db_data:/var/lib/postgresql/data
+      - ./services/routes-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - fuel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ROUTES_DB_USER:-postgres} -d ${ROUTES_DB_NAME:-routes}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
 
   # ---------- RabbitMQ ----------
@@ -196,6 +215,7 @@ services:
   #    retries: 5
   #  restart: unless-stopped
 
+
 networks:
   fuel-network:
     driver: bridge
@@ -205,6 +225,10 @@ volumes:
   users_db_data:
   vehicles_db_data:
   driver_db_data:
+<<<<<<< HEAD
   fuel_db_data:
+=======
+  routes_db_data:
+>>>>>>> e419cdfa4a88722791bb24e77492482ea183b098
   rabbitmq_data:
   elasticsearch_data:

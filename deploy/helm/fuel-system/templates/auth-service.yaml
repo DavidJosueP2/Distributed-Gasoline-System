@@ -23,7 +23,7 @@ spec:
       {{- include "fuel-system.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: auth-service
-        image: "{{ .Values.imageRegistry.url }}/{{ .Values.authService.image.repository }}:{{ .Values.authService.image.tag }}"
+        image: "{{ .Values.imageRegistry.url }}/{{ .Values.authService.image.repository }}:{{ .Values.authService.image.tag | default .Values.global.imageTag }}"
         imagePullPolicy: {{ .Values.authService.image.pullPolicy }}
         ports:
         - name: grpc

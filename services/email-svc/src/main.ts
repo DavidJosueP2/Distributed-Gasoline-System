@@ -17,10 +17,17 @@ import { EmailModule } from './email.module';
 async function bootstrap() {
   const PORT = Number(process.env.EMAIL_GRPC_PORT || 50052);
   const BIND_HOST = process.env.EMAIL_SERVICE_REGISTER_HOST || '0.0.0.0';
-  const PROTO_ROOT = join(__dirname, '../../../protos');
-    const SHOULD_REGISTER =
-        (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
-        (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
+  
+  // Soporta rutas absolutas y relativas para PROTO_ROOT
+  const PROTO_ROOT_ENV = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../protos');
+  const isAbsolutePath = PROTO_ROOT_ENV.startsWith('/');
+  const PROTO_ROOT = isAbsolutePath ? PROTO_ROOT_ENV : join(__dirname, '..', PROTO_ROOT_ENV);
+  
+  const SHOULD_REGISTER =
+    (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
+    (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
+
+  console.log(`[EMAIL-SERVICE] Using proto file: ${join(PROTO_ROOT, 'email.proto')}`);
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     EmailModule,
@@ -51,7 +58,7 @@ async function bootstrap() {
     }),
   );
 
-    const eureka = SHOULD_REGISTER ? registerInEureka() : undefined;
+  const eureka = SHOULD_REGISTER ? registerInEureka() : undefined;
 
   await app.listen();
   console.log(`[EMAIL-SERVICE] gRPC on ${BIND_HOST}:${PORT}`);

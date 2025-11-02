@@ -211,16 +211,92 @@ az postgres flexible-server replica create \
 ### Migraciones de Base de Datos
 
 **Servicios con Prisma** (users-srv, vehicles-svc):
+
+En **Kubernetes/Azure** (Producción):
+```yaml
+# Se ejecutan automáticamente en initContainer ANTES de iniciar la app
+initContainers:
+- name: prisma-migrate
+  command: ["npx", "prisma", "migrate", "deploy"]
+  # ✅ Fail-fast: Si migraciones fallan, pod no inicia
+  # ✅ Automático: Se ejecuta en cada deploy
+  # ✅ Idempotent: Se puede ejecutar múltiples veces
+```
+
+En **Docker Local** (Desarrollo):
 ```bash
-# Se ejecutan automáticamente en el initContainer
-npx prisma migrate deploy
+# Migraciones + Seeding automático al iniciar
+command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/main.js"
+# users-srv usa: npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed && node dist/src/main.js
 ```
 
 **Servicios con TypeORM** (auth-svc, driver-ms):
-```bash
-# Se ejecutan como Job de Kubernetes
-npm run typeorm:migrate
+```typescript
+// Las migraciones se ejecutan automáticamente al iniciar la aplicación
+await app.get(DataSource).runMigrations();
 ```
+
+**📚 Documentación:** Ver [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md) para más detalles
+
+### Seeding de Datos Iniciales
+
+**¿Qué es el seeding?**
+El seeding es el proceso de poblar la base de datos con datos iniciales necesarios para que la aplicación funcione correctamente (usuarios de prueba, roles, catálogos, etc.).
+
+**Servicios con Prisma**:
+
+Archivos de seed ubicados en `prisma/seed.ts`:
+- `users-srv/prisma/seed.ts` - Usuarios y roles iniciales (admin, supervisor, driver)
+- `vehicles-svc/prisma/seed.ts` - 20 modelos de vehículos con especificaciones completas
+
+Configuración en `package.json`:
+```json
+{
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}
+```
+
+Ejecución:
+```bash
+npx prisma db seed  # Ejecuta automáticamente en Docker
+```
+
+**Características de los seeds Prisma:**
+- ✅ Idempotentes (usa `upsert` para evitar duplicados)
+- ✅ TypeScript con type-safety
+- ✅ Se ejecutan después de migraciones
+- ✅ Automáticos en Docker Compose
+
+**Servicios con TypeORM** (driver-ms):
+
+Archivo de seed: `services/driver-ms/seed.sql`
+```sql
+-- Solo contiene INSERTs con ON CONFLICT DO NOTHING
+INSERT INTO drivers(user_id, full_name, phone_number, email, availability)
+VALUES (1, 'Juan Pérez', '+593999999999', 'juan.perez@example.com', 'AVAILABLE')
+ON CONFLICT (user_id) DO NOTHING;
+```
+
+Ejecución mediante script de entrada:
+```bash
+# docker-entrypoint.sh
+# 1. Inicia la aplicación (TypeORM crea tablas automáticamente)
+# 2. Espera 10 segundos
+# 3. Ejecuta seed.sql con psql en background
+```
+
+**Características de los seeds TypeORM:**
+- ✅ Idempotentes (usa `ON CONFLICT DO NOTHING`)
+- ✅ Se ejecutan después de que TypeORM crea las tablas
+- ✅ No bloquean el arranque del servicio
+- ✅ Logs claros de éxito/error
+
+**⚠️ Importante:**
+- Los seeds solo se ejecutan en **desarrollo** y **staging**
+- En **producción**, los datos reales son cargados por otros procesos
+- Todos los seeds son idempotentes (se pueden ejecutar múltiples veces sin causar errores)
 
 ### Backups
 

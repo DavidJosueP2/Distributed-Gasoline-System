@@ -46,8 +46,17 @@
   insert into users(first_name, last_name, email, phone, username, password_hash)
   values
     ('Alice', 'Admin', 'josuegarcab2@hotmail.com', '+51 111 222 333', 'alice_admin', crypt('admin123', gen_salt('bf'))),
-    ('Sam',   'Supervisor', 'sam.supervisor@example.com', '+51 444 555 666', 'sam_supervisor', crypt('supervisor123', gen_salt('bf'))),
-    ('Dylan', 'Driver', 'dylan.driver@example.com', '+51 777 888 999', 'dylan_driver', crypt('driver123', gen_salt('bf')))
+    ('Sam',   'Supervisor', 'samsupervisor@gmail.com', '+51 444 555 666', 'sam_supervisor', crypt('supervisor123', gen_salt('bf'))),
+    ('Dylan', 'Driver', 'dylandriver@gmail.com', '+51 777 888 999', 'dylan_driver', crypt('driver123', gen_salt('bf'))),
+    -- Admin extras
+    ('Bruce', 'Admin', 'bruceadmin@gmail.com', '+51 111 333 555', 'bruce_admin', crypt('admin123', gen_salt('bf'))),
+    ('Carol', 'Admin', 'caroladmin@gmail.com', '+51 111 444 666', 'carol_admin', crypt('admin123', gen_salt('bf'))),
+    -- Supervisors extras
+    ('Mark', 'Supervisor', 'marksupervisor@gmail.com', '+51 444 666 888', 'mark_supervisor', crypt('supervisor123', gen_salt('bf'))),
+    ('Lisa', 'Supervisor', 'lisasupervisor@gmail.com', '+51 444 777 999', 'lisa_supervisor', crypt('supervisor123', gen_salt('bf'))),
+    -- Drivers extras
+    ('John', 'Driver', 'johndriver@gmail.com', '+51 777 111 222', 'john_driver', crypt('driver123', gen_salt('bf'))),
+    ('Mary', 'Driver', 'marydriver@gmail.com', '+51 777 222 333', 'mary_driver', crypt('driver123', gen_salt('bf')))
   on conflict (username) do nothing;
 
   -- Asignar roles a usuarios
@@ -56,7 +65,13 @@
   from users u
   join roles r on (
     (u.username = 'alice_admin'     and r.name = 'ADMIN') or
+    (u.username = 'bruce_admin'     and r.name = 'ADMIN') or
+    (u.username = 'carol_admin'     and r.name = 'ADMIN') or
     (u.username = 'sam_supervisor'  and r.name = 'SUPERVISOR') or
+    (u.username = 'mark_supervisor' and r.name = 'SUPERVISOR') or
+    (u.username = 'lisa_supervisor' and r.name = 'SUPERVISOR') or
     (u.username = 'dylan_driver'    and r.name = 'DRIVER')
+    or (u.username = 'john_driver'   and r.name = 'DRIVER')
+    or (u.username = 'mary_driver'   and r.name = 'DRIVER')
   );
 

@@ -10,9 +10,15 @@ export interface GenerateGeneralReportRequest {
 export interface GenerateGeneralReportResponse {
     LIGHT: VehicleSummaryGeneralReport;
     HEAVY: VehicleSummaryGeneralReport;
+    ANY: VehicleSummaryGeneralReport;
 }
 
 export interface VehicleSummaryGeneralReport {
+    estimated: number;
+    actual: number;
+}
+
+export interface FuelSummaryAccumulator {
     estimated: number;
     actual: number;
 }

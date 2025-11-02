@@ -1,0 +1,177 @@
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../node_modules/prisma-client"
+  binaryTargets = ["native", "windows", "linux-musl-openssl-3.0.x"]
+}
+
+/* =========================
+   Enums
+   ========================= */
+
+enum MachineType {
+  HEAVY
+  LIGHT
+}
+
+enum ModelStatus {
+  ACTIVE
+  DEPRECATED
+}
+
+enum EngineType {
+  GASOLINE
+  DIESEL
+  HYBRID
+}
+
+enum OperationalStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+  ON_ROUTE
+}
+
+/* =========================
+   Modelos
+   ========================= */
+
+model VehicleModel {
+  modelId       BigInt       @id @default(autoincrement()) @map("model_id")
+  brand         String       @db.VarChar(60)
+  family        String       @db.VarChar(60)
+  trim          String?      @db.VarChar(60)
+  yearFrom      Int          @map("year_from")
+  yearTo        Int?         @map("year_to")
+  machineType   MachineType  @map("machine_type")
+  status        ModelStatus  @default(ACTIVE)
+  version       BigInt       @default(0)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt     DateTime     @updatedAt      @db.Timestamptz(6) @map("updated_at")
+  deletedAt     DateTime?    @db.Timestamptz(6)                 @map("deleted_at")
+
+  // Relaciones
+  engineSpec    ModelEngineSpec?
+  units         VehicleUnit[]
+  modelLicReqs  ModelLicenseRequirement[]
+
+  // Índices/uniques
+  @@index([brand, family], map: "idx_vehicle_models_brand_family")
+  @@index([status, yearFrom], map: "idx_vm_status_year")
+  @@index([machineType, deletedAt], map: "idx_vm_machine_type")
+  @@unique([brand, family, trim, yearFrom, yearTo, deletedAt], map: "uq_vm_identity_soft")
+
+  // Nombre de tabla
+  @@map("vehicle_models")
+}
+
+model ModelEngineSpec {
+  modelEngineSpecId BigInt       @id @default(autoincrement()) @map("model_engine_spec_id")
+  modelId           BigInt       @unique @map("model_id")
+  engineType        EngineType   @map("engine_type")
+  displacementCc    Decimal      @db.Decimal(10, 2) @map("displacement_cc")
+  powerHp           Decimal      @db.Decimal(10, 2) @map("power_hp")
+  baselineLPer100km Decimal      @db.Decimal(10, 3) @map("baseline_l_per_100km")
+  updatedAt         DateTime     @default(now()) @db.Timestamptz(6) @map("updated_at")
+  deletedAt         DateTime?    @db.Timestamptz(6) @map("deleted_at")
+
+  // Relación 1:1 con VehicleModel
+  model VehicleModel @relation(fields: [modelId], references: [modelId], onDelete: Cascade)
+
+  @@map("model_engine_specs")
+}
+
+model ModelLicenseRequirement {
+  modelLicenseReqId BigInt    @id @default(autoincrement()) @map("model_license_req_id")
+  modelId           BigInt    @map("model_id")
+  licenseTypeCode   String?   @db.VarChar(2) @map("license_type_code")
+  licenseTypeId     BigInt?   @map("license_type_id")
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt         DateTime  @updatedAt      @db.Timestamptz(6) @map("updated_at")
+  deletedAt         DateTime? @db.Timestamptz(6) @map("deleted_at")
+
+  // Relación N:1 con VehicleModel
+  model VehicleModel @relation(fields: [modelId], references: [modelId], onDelete: Cascade)
+
+  // Unique soft
+  @@unique([modelId, licenseTypeCode, licenseTypeId, deletedAt], map: "uq_mlr_soft")
+
+  @@map("model_license_requirements")
+}
+
+/* =========================
+   Unidades
+   ========================= */
+
+model VehicleUnit {
+  vehicleId         BigInt            @id @default(autoincrement()) @map("vehicle_id")
+  modelId           BigInt            @map("model_id")
+  plate             String            @db.Citext
+  serialVin         String?           @db.Citext @map("serial_vin")
+  operationalStatus OperationalStatus @default(ACTIVE) @map("operational_status")
+  tankCapacityL     Decimal           @db.Decimal(10, 2) @map("tank_capacity_l")
+  odometerKm        Decimal           @default(0) @db.Decimal(12, 1) @map("odometer_km")
+  version           BigInt            @default(0)
+  createdAt         DateTime          @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt         DateTime          @updatedAt      @db.Timestamptz(6) @map("updated_at")
+  deletedAt         DateTime?         @db.Timestamptz(6) @map("deleted_at")
+
+  // Relaciones
+  model        VehicleModel        @relation(fields: [modelId], references: [modelId])
+  consumption  UnitConsumptionSpec?
+  unitLicReqs  UnitLicenseRequirement[]
+
+  // Índices/uniques (soft)
+  @@index([operationalStatus], map: "idx_vehicle_units_status")
+  @@index([operationalStatus, plate], map: "idx_vu_status_plate")
+  @@index([plate], map: "idx_vu_plate")
+  @@index([modelId, deletedAt], map: "idx_vu_model_deleted")
+  @@unique([plate, deletedAt], map: "uq_vu_plate_soft")
+  @@unique([serialVin, deletedAt], map: "uq_vu_vin_soft")
+
+  @@map("vehicle_units")
+}
+
+model UnitConsumptionSpec {
+  vehicleId                 BigInt   @id @map("vehicle_id")
+  baselineOverrideLPer100km Decimal  @db.Decimal(10, 3) @map("baseline_override_l_per_100km")
+  calibrationK              Decimal  @default("1.00000") @db.Decimal(7, 5) @map("calibration_k")
+  updatedAt                 DateTime @default(now()) @db.Timestamptz(6)   @map("updated_at")
+
+  // Relación 1:1 con VehicleUnit
+  unit VehicleUnit @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
+
+  @@map("unit_consumption_specs")
+}
+
+model UnitLicenseRequirement {
+  unitLicenseReqId BigInt    @id @default(autoincrement()) @map("unit_license_req_id")
+  vehicleId        BigInt    @map("vehicle_id")
+  licenseTypeCode  String?   @db.VarChar(2) @map("license_type_code")
+  licenseTypeId    BigInt?   @map("license_type_id")
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt        DateTime  @updatedAt      @db.Timestamptz(6) @map("updated_at")
+  deletedAt        DateTime? @db.Timestamptz(6) @map("deleted_at")
+
+  // Relación N:1 con VehicleUnit
+  unit VehicleUnit @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
+
+  // Unique soft
+  @@unique([vehicleId, licenseTypeCode, licenseTypeId, deletedAt], map: "uq_ulr_soft")
+
+  @@map("unit_license_requirements")
+}
+
+model IdempotencyKey {
+  key          String   @id @db.Citext
+  resourceType String   @db.VarChar(40) @map("resource_type")
+  resourceId   BigInt   @map("resource_id")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  @@map("idempotency_keys")
+}

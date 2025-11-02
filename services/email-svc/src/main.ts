@@ -1,0 +1,79 @@
+import 'reflect-metadata';
+import { NestFactory } from '@nestjs/core';
+import { Module, ValidationPipe } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import {
+  MicroserviceOptions,
+  RpcException,
+  Transport,
+} from '@nestjs/microservices';
+import { status as GrpcStatus } from '@grpc/grpc-js';
+import { join } from 'path';
+
+import { flattenValidationErrors } from './validation/field-error.util';
+import { registerInEureka } from './discovery/eureka-register';
+import { EmailModule } from './email.module';
+
+async function bootstrap() {
+  const PORT = Number(process.env.EMAIL_GRPC_PORT || 50052);
+  const BIND_HOST = process.env.EMAIL_SERVICE_REGISTER_HOST || '0.0.0.0';
+  
+  // Soporta rutas absolutas y relativas para PROTO_ROOT
+  const PROTO_ROOT_ENV = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../protos');
+  const isAbsolutePath = PROTO_ROOT_ENV.startsWith('/');
+  const PROTO_ROOT = isAbsolutePath ? PROTO_ROOT_ENV : join(__dirname, '..', PROTO_ROOT_ENV);
+  
+  const SHOULD_REGISTER =
+    (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
+    (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
+
+  console.log(`[EMAIL-SERVICE] Using proto file: ${join(PROTO_ROOT, 'email.proto')}`);
+
+  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
+    EmailModule,
+    {
+      transport: Transport.GRPC,
+      options: {
+        package: 'email',
+        protoPath: join(PROTO_ROOT, 'email.proto'),
+        url: `${BIND_HOST}:${PORT}`,
+      },
+    },
+  );
+
+  // Validación global
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: (errors) => {
+        const fieldErrors = flattenValidationErrors(errors);
+        return new RpcException({
+          code: GrpcStatus.INVALID_ARGUMENT,
+          message: 'Validation failed',
+          details: JSON.stringify({ fieldErrors }),
+        });
+      },
+    }),
+  );
+
+  const eureka = SHOULD_REGISTER ? registerInEureka() : undefined;
+
+  await app.listen();
+  console.log(`[EMAIL-SERVICE] gRPC on ${BIND_HOST}:${PORT}`);
+
+  // Shutdown ordenado
+  const stop = async () => {
+    try {
+      await app.close();
+    } catch { }
+    try {
+      (eureka as any)?.stop?.();
+    } catch { }
+    process.exit(0);
+  };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
+}
+bootstrap();

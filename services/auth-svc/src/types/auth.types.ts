@@ -1,0 +1,63 @@
+import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsString, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class LoginRequest {
+  @IsEmail({}, { message: 'El correo no tiene un formato válido.' })
+  email: string;
+
+  @IsString({ message: 'La contraseña debe ser texto.' })
+  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres.' })
+  password: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;  // Cambiado de access_token a accessToken
+  tokenType: string;    // Cambiado de token_type a tokenType
+  expiresIn: string;    // Cambiado de expires_in a expiresIn
+}
+
+export class PasswordRecoveryRequest {
+  @IsEmail({}, { message: 'El correo no tiene un formato válido.' })
+  email: string;
+}
+
+export interface PasswordRecoveryResponse {
+  success: boolean;
+  message: string;
+}
+
+export class ResetPasswordRequest {
+  @IsString({ message: 'El token debe ser texto.' })
+  token: string;
+
+  @IsString({ message: 'La nueva contraseña debe ser texto.' })
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface UserResponse {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  username: string;
+  roles: string[];
+}
+
+export class UpdateFullnameRequest {
+  @Type(() => Number)
+  @IsNotEmpty({ message: 'El ID del usuario es obligatorio' })
+  @IsInt({ message: 'El ID del usuario debe ser un número entero' })
+  userId: number;
+
+  @IsString({ message: 'El nombre debe ser texto.' })
+  firstName: string;
+
+  @IsString({ message: 'El apellido debe ser texto.' })
+  lastName: string;
+}

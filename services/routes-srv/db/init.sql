@@ -115,19 +115,19 @@ WHERE NOT EXISTS (SELECT 1 FROM routes WHERE name = 'Ruta Centro-Comercial');
 
 -- VIAJE ACTIVO: Un conductor (driver_id=1) con viaje EN_RUTA
 INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, start_time, end_time, status, odometer_start, odometer_end, distance_km_planned, distance_km_real, fuel_estimated, fuel_actual, review_comment)
-SELECT 1, 2, 1, 319, NOW() - INTERVAL '2 hours', NULL, 'EN_RUTA', 15000.0, NULL, 15.5, NULL, 2.480, NULL, NULL
+SELECT 1, 2, 1, 2, NOW() - INTERVAL '2 hours', NULL, 'EN_RUTA', 15000.0, NULL, 15.5, NULL, 2.480, NULL, NULL
 WHERE NOT EXISTS (SELECT 1 FROM trips WHERE driver_id = 1 AND status = 'EN_RUTA');
 
 -- VIAJE ACTIVO: Un supervisor (supervisor_id=2) con viaje CREADO
 INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, start_time, end_time, status, odometer_start, odometer_end, distance_km_planned, distance_km_real, fuel_estimated, fuel_actual, review_comment)
-SELECT 3, 2, 2, 320, NULL, NULL, 'CREADO', 50000.0, NULL, 18.2, NULL, 2.050, NULL, NULL
+SELECT 3, 2, 2, 1, NULL, NULL, 'CREADO', 50000.0, NULL, 18.2, NULL, 2.050, NULL, NULL
 WHERE NOT EXISTS (SELECT 1 FROM trips WHERE supervisor_id = 2 AND status = 'CREADO' AND driver_id = 2);
 
 -- VIAJES TERMINADOS: El resto de viajes estarán TERMINADOS
 INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, start_time, end_time, status, odometer_start, odometer_end, distance_km_planned, distance_km_real, fuel_estimated, fuel_actual, review_comment)
-SELECT 4, 7, 3, 321, NOW() - INTERVAL '8 hours', NOW() - INTERVAL '7 hours 20 minutes', 'TERMINADO', 80200.0, 80223.0, 22.5, 23.0, 3.950, 4.020, 'Ruta extendida por desvíos'
+SELECT 4, 7, 3, 3, NOW() - INTERVAL '8 hours', NOW() - INTERVAL '7 hours 20 minutes', 'TERMINADO', 80200.0, 80223.0, 22.5, 23.0, 3.950, 4.020, 'Ruta extendida por desvíos'
 WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 4 AND driver_id = 3 AND status = 'TERMINADO');
 
 INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, start_time, end_time, status, odometer_start, odometer_end, distance_km_planned, distance_km_real, fuel_estimated, fuel_actual, review_comment)
-SELECT 5, 6, 2, 326, NOW() - INTERVAL '10 hours', NOW() - INTERVAL '9 hours 40 minutes', 'TERMINADO', 26000.0, 26026.0, 25.8, 26.1, 3.250, 3.300, 'Desempeño correcto'
+SELECT 5, 6, 2, 3, NOW() - INTERVAL '10 hours', NOW() - INTERVAL '9 hours 40 minutes', 'TERMINADO', 26000.0, 26026.0, 25.8, 26.1, 3.250, 3.300, 'Desempeño correcto'
 WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 5 AND driver_id = 2 AND status = 'TERMINADO' AND supervisor_id = 6);

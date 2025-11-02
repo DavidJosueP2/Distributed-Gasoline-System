@@ -4,7 +4,6 @@ import { GrpcMethod, RpcException } from '@nestjs/microservices';
 import { Metadata } from '@grpc/grpc-js';
 import { TripService } from '../../application/services/trip.service';
 import { TokenExtractorService } from '../../common/auth/token-extractor.service';
-import { GetUserInfo } from '../../common/auth/decorators/get-user.decorator';
 import { TripGrpcMapper } from '../../infra/grpc/mappers/trip-grpc.mapper';
 import { TripStatus } from '../../domain/value-objects/trip-status.vo';
 import { status as GrpcStatus } from '@grpc/grpc-js';
@@ -99,7 +98,7 @@ export class TripsController {
   }
 
   @GrpcMethod('TripsService', 'ListTrips')
-  async listTrips(request: any, @GetUserInfo() metadata: Metadata): Promise<any> {
+  async listTrips(request: any, metadata: Metadata): Promise<any> {
     try {
       // Extraer información del token
       let supervisorIdFilter: bigint | undefined = undefined;
@@ -189,7 +188,7 @@ export class TripsController {
   }
 
   @GrpcMethod('TripsService', 'StartTrip')
-  async startTrip(request: any, @GetUserInfo() metadata: Metadata): Promise<any> {
+  async startTrip(request: any, metadata: Metadata): Promise<any> {
     try {
       // Extraer información del token
       let callerDriverId: bigint | undefined;
@@ -234,10 +233,33 @@ export class TripsController {
   }
 
   @GrpcMethod('TripsService', 'FinishTrip')
-  async finishTrip(request: any): Promise<any> {
+  async finishTrip(request: any, metadata: Metadata): Promise<any> {
     try {
+      // Extraer información del token
+      let callerDriverId: bigint | undefined;
+      
+      try {
+        const userInfo = this.tokenExtractor.extractUserInfo(metadata);
+        
+        // Si el usuario es DRIVER, validar que es el conductor asignado
+        if (this.tokenExtractor.isDriver(userInfo)) {
+          const client = await this.grpcFactory.clientFor(
+            'DRIVER-SERVICE',
+            'driverms.v1',
+            'driver_ms.proto',
+          );
+          const driversClient = new DriversClient(client);
+          callerDriverId = await driversClient.getDriverIdByUserId(userInfo.userId);
+        }
+      } catch (error) {
+        this.logger.warn(`Could not extract driver info: ${(error as any)?.message}`);
+      }
+      
       const result = await this.tripService.finishTrip(
-        BigInt(request.id)
+        BigInt(request.id),
+        request.currentLat,
+        request.currentLng,
+        callerDriverId
       );
       return {
         endTime: {
@@ -282,13 +304,34 @@ export class TripsController {
   }
 
   @GrpcMethod('TripsService', 'UpdateTripLocation')
-  async updateTripLocation(request: any): Promise<any> {
+  async updateTripLocation(request: any, metadata: Metadata): Promise<any> {
     try {
+      // Extraer información del token
+      let callerDriverId: bigint | undefined;
+      
+      try {
+        const userInfo = this.tokenExtractor.extractUserInfo(metadata);
+        
+        // Si el usuario es DRIVER, validar que es el conductor asignado
+        if (this.tokenExtractor.isDriver(userInfo)) {
+          const client = await this.grpcFactory.clientFor(
+            'DRIVER-SERVICE',
+            'driverms.v1',
+            'driver_ms.proto',
+          );
+          const driversClient = new DriversClient(client);
+          callerDriverId = await driversClient.getDriverIdByUserId(userInfo.userId);
+        }
+      } catch (error) {
+        this.logger.warn(`Could not extract driver info: ${(error as any)?.message}`);
+      }
+      
       await this.tripService.updateTripLocation(
         BigInt(request.id),
         request.currentLat,
         request.currentLng,
-        request.currentDistance
+        request.currentDistance,
+        callerDriverId
       );
       return {};
     } catch (error) {

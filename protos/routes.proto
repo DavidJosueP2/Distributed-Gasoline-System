@@ -208,6 +208,8 @@ message StartTripResponse {
 
 message FinishTripRequest {
   int64 id = 1;
+  double current_lat = 2; // ubicación actual del conductor
+  double current_lng = 3; // ubicación actual del conductor
 }
 
 message FinishTripResponse {

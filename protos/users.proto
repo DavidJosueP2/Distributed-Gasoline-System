@@ -6,6 +6,7 @@ service UserService {
   rpc GetUser (UserIdRequest) returns (UserResponse);
   rpc GetUserByEmail (GetUserByEmailRequest) returns (GetUserByEmailResponse);
   rpc GetAllUsers (Empty) returns (UserList);
+  rpc GetAllSupervisors (Empty) returns (UserList);
   rpc GetAllInactiveUsers (Empty) returns (UserList);
   rpc CreateUser (CreateUserRequest) returns (UserResponse);
   rpc UpdateUser (UpdateUserRequest) returns (UserResponse);

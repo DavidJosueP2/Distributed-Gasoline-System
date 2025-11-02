@@ -11,4 +11,7 @@ export interface TripRepository {
   existsByRouteId(routeId: bigint): Promise<boolean>;
   findActiveTripByDriver(driverId: bigint): Promise<Trip | null>;
   findActiveTripByVehicle(vehicleId: bigint): Promise<Trip | null>;
+  countActiveTripsBySupervisor(supervisorId: bigint): Promise<number>;
+  countActiveTripsByDriver(driverId: bigint): Promise<number>;
+  countEnRutaTripsByDriver(driverId: bigint): Promise<number>;
 }

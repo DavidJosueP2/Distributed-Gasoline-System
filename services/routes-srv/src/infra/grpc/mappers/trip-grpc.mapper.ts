@@ -55,9 +55,7 @@ export class TripGrpcMapper {
       vehicleInfo: {
         id: trip.vehicleInfo.id,
         plate: trip.vehicleInfo.plate,
-        brand: trip.vehicleInfo.brand,
-        family: trip.vehicleInfo.family,
-        year: trip.vehicleInfo.year,
+        requiredLicenses: trip.vehicleInfo.requiredLicenses || [],
       },
       driverInfo: {
         id: trip.driverInfo.id,

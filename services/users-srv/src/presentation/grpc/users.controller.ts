@@ -102,9 +102,9 @@ export class UsersGrpcController {
     return result;
   }
 
-  @Roles('ADMIN')
+  @Public()
   @GrpcMethod('UserService', 'GetAllSupervisors')
-  async getAllSupervisors() {
+  async getAllSupervisors(data: any) {
     const users = await this.service.getAllSupervisors();
     const grpcResult = UserMapper.toGrpcList(users);
     return grpcResult;

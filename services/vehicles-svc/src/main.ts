@@ -14,7 +14,7 @@ import { flattenValidationErrors } from './infra/validation/field-error.util';
 class VehiclesBootstrapModule {}
 
 async function bootstrap() {
-    const PORT = Number(process.env.VEHICLES_GRPC_PORT || process.env.GRPC_PORT || 50051);
+    const PORT = Number(process.env.VEHICLES_GRPC_PORT || process.env.GRPC_PORT || 50055);
     const BIND_HOST = process.env.SERVICE_BIND_HOST || process.env.BIND_HOST || '0.0.0.0';
     const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || './protos';
     const APP_NAME = process.env.VEHICLES_APP_NAME || 'VEHICLES-SERVICE';

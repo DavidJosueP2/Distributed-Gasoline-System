@@ -72,7 +72,22 @@ export class TripsController {
   async getTrip(request: any): Promise<any> {
     try {
       const trip = await this.tripService.getTripEnriched(BigInt(request.id));
-      return { trip: TripGrpcMapper.toProtoEnriched(trip) };
+      
+      // Retornar trip y campos enriquecidos
+      return {
+        trip: TripGrpcMapper.toProto(trip),
+        driverInfo: {
+          firstName: trip.driverInfo.firstName,
+          lastName: trip.driverInfo.lastName,
+        },
+        supervisorInfo: {
+          firstName: trip.supervisorInfo.firstName,
+          lastName: trip.supervisorInfo.lastName,
+        },
+        vehicleInfo: {
+          plate: trip.vehicleInfo.plate,
+        },
+      };
     } catch (error) {
       this.logger.error(`GetTrip error: ${(error as any)?.message}`, (error as any)?.stack);
       if (error instanceof RpcException) throw error;
@@ -174,9 +189,34 @@ export class TripsController {
   }
 
   @GrpcMethod('TripsService', 'StartTrip')
-  async startTrip(request: any): Promise<any> {
+  async startTrip(request: any, @GetUserInfo() metadata: Metadata): Promise<any> {
     try {
-      const startTime = await this.tripService.startTrip(BigInt(request.id));
+      // Extraer información del token
+      let callerDriverId: bigint | undefined;
+      
+      try {
+        const userInfo = this.tokenExtractor.extractUserInfo(metadata);
+        
+        // Si el usuario es DRIVER, validar que es el conductor asignado
+        if (this.tokenExtractor.isDriver(userInfo)) {
+          const client = await this.grpcFactory.clientFor(
+            'DRIVER-SERVICE',
+            'driverms.v1',
+            'driver_ms.proto',
+          );
+          const driversClient = new DriversClient(client);
+          callerDriverId = await driversClient.getDriverIdByUserId(userInfo.userId);
+        }
+      } catch (error) {
+        this.logger.warn(`Could not extract driver info: ${(error as any)?.message}`);
+      }
+      
+      const startTime = await this.tripService.startTrip(
+        BigInt(request.id), 
+        callerDriverId, 
+        request.currentLat, 
+        request.currentLng
+      );
       return {
         startTime: {
           seconds: Math.floor(startTime.getTime() / 1000),
@@ -274,6 +314,51 @@ export class TripsController {
       };
     } catch (error) {
       this.logger.error(`CalculateTripMetrics error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'GetAssignableDrivers')
+  async getAssignableDrivers(): Promise<any> {
+    try {
+      const drivers = await this.tripService.getAssignableDrivers();
+      return { drivers };
+    } catch (error) {
+      this.logger.error(`GetAssignableDrivers error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'GetAssignableVehicles')
+  async getAssignableVehicles(): Promise<any> {
+    try {
+      const vehicles = await this.tripService.getAssignableVehicles();
+      return { vehicles };
+    } catch (error) {
+      this.logger.error(`GetAssignableVehicles error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'GetAssignableSupervisors')
+  async getAssignableSupervisors(): Promise<any> {
+    try {
+      const supervisors = await this.tripService.getAssignableSupervisors();
+      return { supervisors };
+    } catch (error) {
+      this.logger.error(`GetAssignableSupervisors error: ${(error as any)?.message}`, (error as any)?.stack);
       if (error instanceof RpcException) throw error;
       throw new RpcException({
         code: GrpcStatus.INTERNAL,

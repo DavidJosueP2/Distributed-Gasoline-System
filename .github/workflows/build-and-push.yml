@@ -24,8 +24,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  OWNER_LC: ${{ toLower(github.repository_owner) }}
-  IMAGE_PREFIX: ${{ toLower(github.repository_owner) }}/fuel-system
 
 jobs:
   build-and-push:
@@ -71,6 +69,12 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
+      - name: 🔧 Convert repository name to lowercase
+        id: repo_name
+        run: |
+          echo "repository_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -85,7 +89,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}
+          images: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
@@ -99,6 +103,8 @@ jobs:
             org.opencontainers.image.vendor=Fuel System Team
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT
+          flavor: |
+            latest=auto
 
       - name: 🔨 Build and push Docker image (without build args)
         if: ${{ !matrix.service.needs_build_args }}
@@ -109,8 +115,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache,mode=max
           provenance: false
           sbom: false
 
@@ -124,8 +130,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ matrix.service.build_args }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}:buildcache,mode=max
           provenance: false
           sbom: false
 
@@ -134,7 +140,7 @@ jobs:
           echo "## ✅ Image pushed: ${{ matrix.service.name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Registry:** GitHub Container Registry (GHCR)" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/${{ matrix.service.name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags created:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -147,6 +153,12 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
+      - name: 🔧 Convert repository name to lowercase
+        id: repo_name
+        run: |
+          echo "repository_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: 📋 Build Summary
         run: |
           echo "## 🚀 Build and Push Summary" >> $GITHUB_STEP_SUMMARY
@@ -164,7 +176,7 @@ jobs:
           echo "| 👥 users-srv (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚙 vehicles-svc (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry:** \`ghcr.io/${{ env.OWNER_LC }}/fuel-system/\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** \`ghcr.io/${{ steps.repo_name.outputs.repository_lc }}/fuel-system/\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Commit SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Short SHA:** \`$(echo ${{ github.sha }} | cut -c1-7)\`" >> $GITHUB_STEP_SUMMARY
@@ -182,4 +194,4 @@ jobs:
           echo "### 🔗 View Images" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All images are available at:" >> $GITHUB_STEP_SUMMARY
-          echo "https://github.com/${{ env.OWNER_LC }}?tab=packages" >> $GITHUB_STEP_SUMMARY
+          echo "https://github.com/${{ steps.repo_name.outputs.owner_lc }}?tab=packages" >> $GITHUB_STEP_SUMMARY

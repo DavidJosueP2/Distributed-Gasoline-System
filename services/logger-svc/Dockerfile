@@ -3,7 +3,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package.json ./
+COPY services/logger-svc/package.json ./
 
 # Instalar solo dependencias de producción
 RUN npm install --production --no-package-lock && npm cache clean --force
@@ -12,14 +12,17 @@ RUN npm install --production --no-package-lock && npm cache clean --force
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package.json ./
+# Copiar archivos de dependencias y configuración
+COPY services/logger-svc/package.json ./
+COPY services/logger-svc/tsconfig.json ./
+COPY services/logger-svc/tsconfig.build.json ./
+COPY services/logger-svc/nest-cli.json ./
 
 # Instalar todas las dependencias
 RUN npm install --no-package-lock
 
 # Copiar código fuente
-COPY . .
+COPY services/logger-svc/src ./src
 
 # Construir la aplicación
 RUN npm run build
@@ -41,7 +44,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 
 # Copiar package.json
-COPY package.json ./
+COPY services/logger-svc/package.json ./
 
 # Crear usuario no-root
 RUN addgroup -g 1001 -S nodejs && \
@@ -58,4 +61,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
 
 # Comando de inicio
 CMD ["node", "dist/main.js"]
-

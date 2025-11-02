@@ -8,6 +8,13 @@ on:
       - 'protos/**'
       - '.github/workflows/build-and-push.yml'
       - 'Docker-compose.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'protos/**'
+      - '.github/workflows/build-and-push.yml'
+      - 'Docker-compose.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -17,7 +24,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/fuel-system
+  OWNER_LC: ${{ toLower(github.repository_owner) }}
+  IMAGE_PREFIX: ${{ toLower(github.repository_owner) }}/fuel-system
 
 jobs:
   build-and-push:
@@ -40,9 +48,6 @@ jobs:
             needs_build_args: false
           - name: email-svc
             dockerfile: ./services/email-svc/Dockerfile
-            needs_build_args: false
-          - name: hello-svc
-            dockerfile: ./services/hello-svc/Dockerfile
             needs_build_args: false
           - name: logger-svc
             dockerfile: ./services/logger-svc/Dockerfile
@@ -82,17 +87,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}
           tags: |
-            # latest tag para branch main
             type=raw,value=latest,enable={{is_default_branch}}
-            # Tag con nombre de branch
             type=ref,event=branch
-            # Tag con SHA completo: main-abc123def...
             type=sha,prefix=main-,format=long
-            # Tag con SHA corto: abc123d
             type=sha,prefix=,format=short
-            # Tag personalizado desde workflow_dispatch
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != 'manual' }}
-            # Fecha de build
             type=raw,value={{date 'YYYYMMDD-HHmmss'}}
           labels: |
             org.opencontainers.image.title=${{ matrix.service.name }}
@@ -124,9 +123,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # ⚠️ NOTA: Estos build-args son TEMPORALES para `npx prisma generate`
-          # NO se persisten en la imagen final (multi-stage build)
-          # Solo se usan en stage "deps" y "build", NO en "runtime"
           build-args: ${{ matrix.service.build_args }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:buildcache,mode=max
@@ -163,13 +159,12 @@ jobs:
           echo "| 🔐 auth-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚗 driver-ms | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📧 email-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 👋 hello-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📝 logger-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📤 publisher-rabbit-srv | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 👥 users-srv (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚙 vehicles-svc (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry:** \`ghcr.io/${{ github.repository_owner }}/fuel-system/\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** \`ghcr.io/${{ env.OWNER_LC }}/fuel-system/\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Commit SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Short SHA:** \`$(echo ${{ github.sha }} | cut -c1-7)\`" >> $GITHUB_STEP_SUMMARY
@@ -184,34 +179,7 @@ jobs:
           echo "- \`$(echo ${{ github.sha }} | cut -c1-7)\` (short SHA for convenience)" >> $GITHUB_STEP_SUMMARY
           echo "- \`$(date +%Y%m%d-%H%M%S)\` (timestamp)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Usage Examples" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "# Pull latest version" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/${{ github.repository_owner }}/fuel-system/api-gateway:latest" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Pull specific commit (short SHA)" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/${{ github.repository_owner }}/fuel-system/api-gateway:$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Pull with full SHA for exact traceability" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/${{ github.repository_owner }}/fuel-system/api-gateway:main-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 💰 Cost Benefits" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **GitHub Container Registry is FREE for public repositories**" >> $GITHUB_STEP_SUMMARY
-          echo "✅ No monthly fees or storage costs" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Unlimited bandwidth for public images" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 View Images" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All images are available at:" >> $GITHUB_STEP_SUMMARY
-          echo "https://github.com/${{ github.repository_owner }}?tab=packages" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚠️ Important Notes" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Prisma Build Args (users-srv, vehicles-svc):**" >> $GITHUB_STEP_SUMMARY
-          echo "- Build args with \`DATABASE_URL\` are used ONLY for \`npx prisma generate\`" >> $GITHUB_STEP_SUMMARY
-          echo "- These are TEMPORARY and NOT persisted in the final image" >> $GITHUB_STEP_SUMMARY
-          echo "- Multi-stage build ensures only runtime stage is in final image" >> $GITHUB_STEP_SUMMARY
-          echo "- Real database credentials are provided at runtime via K8s secrets" >> $GITHUB_STEP_SUMMARY
+          echo "https://github.com/${{ env.OWNER_LC }}?tab=packages" >> $GITHUB_STEP_SUMMARY

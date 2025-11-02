@@ -110,14 +110,15 @@ export class TypeOrmTripRepository implements TripRepository {
     
     const queryBuilder = this.repository
       .createQueryBuilder('trip')
-      .leftJoinAndSelect('trip.route', 'route');
+      .leftJoinAndSelect('trip.route', 'route')
+      .where('trip.status = :status', { status: 'TERMINADO' });
 
     if (vehicleTypeFilter) {
       // TypeORM usa el nombre del campo de la entidad en camelCase
-      queryBuilder.where('route.vehicleType = :vehicleType', { vehicleType: vehicleTypeFilter });
+      queryBuilder.andWhere('route.vehicleType = :vehicleType', { vehicleType: vehicleTypeFilter });
       this.logger.log(`Query filter applied: route.vehicleType = ${vehicleTypeFilter}`);
     } else {
-      this.logger.log('No filter applied, returning all trips');
+      this.logger.log('No vehicle type filter, but filtering by TERMINADO status');
     }
 
     const sql = queryBuilder.getSql();
@@ -128,13 +129,20 @@ export class TypeOrmTripRepository implements TripRepository {
     const entities = await queryBuilder.getMany();
     this.logger.log(`Found ${entities.length} trips`);
     
-    // Log de debug: verificar que las rutas tienen el tipo correcto
+    // Log de debug: verificar que las rutas tienen el tipo correcto y los estados
     if (entities.length > 0) {
-      entities.slice(0, 3).forEach((entity, idx) => {
+      const statusCount: Record<string, number> = {};
+      entities.forEach((entity) => {
+        const status = entity.status || 'UNKNOWN';
+        statusCount[status] = (statusCount[status] || 0) + 1;
         if ((entity as any).route) {
-          this.logger.log(`Trip ${idx}: route.vehicleType = ${(entity as any).route.vehicleType}`);
+          // Log de los primeros 3 para debug
+          if (entities.indexOf(entity) < 3) {
+            this.logger.log(`Trip ${entities.indexOf(entity)}: status=${entity.status}, route.vehicleType = ${(entity as any).route.vehicleType}`);
+          }
         }
       });
+      this.logger.log(`Trips by status: ${JSON.stringify(statusCount)}`);
     }
     
     return entities.map(entity => this.toDomain(entity));

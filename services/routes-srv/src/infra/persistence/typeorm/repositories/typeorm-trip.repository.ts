@@ -1,14 +1,17 @@
 // src/infra/persistence/typeorm/repositories/typeorm-trip.repository.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { TripRepository } from 'src/domain/repositories/trip.repository';
 import { Trip } from 'src/domain/entities/trip.entity';
 import { TripStatus } from 'src/domain/value-objects/trip-status.vo';
+import { VehicleType } from 'src/domain/value-objects/vehicle-type.vo';
 import { TripEntity } from '../entities/trip.entity';
 
 @Injectable()
 export class TypeOrmTripRepository implements TripRepository {
+  private readonly logger = new Logger(TypeOrmTripRepository.name);
+
   constructor(
     @InjectRepository(TripEntity)
     private readonly repository: Repository<TripEntity>,
@@ -100,6 +103,54 @@ export class TypeOrmTripRepository implements TripRepository {
         status: 'EN_RUTA'
       }
     });
+  }
+
+  async findAllByVehicleType(vehicleTypeFilter?: VehicleType): Promise<Trip[]> {
+    this.logger.log(`findAllByVehicleType called with filter: ${vehicleTypeFilter || 'NONE'}`);
+    
+    const queryBuilder = this.repository
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.route', 'route');
+
+    if (vehicleTypeFilter) {
+      // TypeORM usa el nombre del campo de la entidad en camelCase
+      queryBuilder.where('route.vehicleType = :vehicleType', { vehicleType: vehicleTypeFilter });
+      this.logger.log(`Query filter applied: route.vehicleType = ${vehicleTypeFilter}`);
+    } else {
+      this.logger.log('No filter applied, returning all trips');
+    }
+
+    const sql = queryBuilder.getSql();
+    const params = queryBuilder.getParameters();
+    this.logger.log(`Generated SQL: ${sql}`);
+    this.logger.log(`Query parameters: ${JSON.stringify(params)}`);
+
+    const entities = await queryBuilder.getMany();
+    this.logger.log(`Found ${entities.length} trips`);
+    
+    // Log de debug: verificar que las rutas tienen el tipo correcto
+    if (entities.length > 0) {
+      entities.slice(0, 3).forEach((entity, idx) => {
+        if ((entity as any).route) {
+          this.logger.log(`Trip ${idx}: route.vehicleType = ${(entity as any).route.vehicleType}`);
+        }
+      });
+    }
+    
+    return entities.map(entity => this.toDomain(entity));
+  }
+
+  async findAllByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]> {
+    // Buscar viajes que intersectan con el rango de tiempo
+    // Un viaje intersecta si: start_time <= endTime AND (end_time >= startTime OR end_time IS NULL)
+    const entities = await this.repository
+      .createQueryBuilder('trip')
+      .where('trip.startTime IS NOT NULL')
+      .andWhere('trip.startTime <= :endTime', { endTime })
+      .andWhere('(trip.endTime >= :startTime OR trip.endTime IS NULL)', { startTime })
+      .getMany();
+
+    return entities.map(entity => this.toDomain(entity));
   }
 
   private toDomain(entity: TripEntity): Trip {

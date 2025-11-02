@@ -263,6 +263,10 @@ service TripsService {
   rpc GetAssignableDrivers (GetAssignableDriversRequest) returns (GetAssignableDriversResponse);
   rpc GetAssignableVehicles (GetAssignableVehiclesRequest) returns (GetAssignableVehiclesResponse);
   rpc GetAssignableSupervisors (GetAssignableSupervisorsRequest) returns (GetAssignableSupervisorsResponse);
+
+  // Filtros adicionales para consumo por otros servicios
+  rpc ListTripsByVehicleType (ListTripsByVehicleTypeRequest) returns (ListTripsByVehicleTypeResponse);
+  rpc ListTripsByTimeRange (ListTripsByTimeRangeRequest) returns (ListTripsByTimeRangeResponse);
 }
 
 message UpdateTripLocationRequest {
@@ -326,4 +330,39 @@ message GetAssignableSupervisorsRequest {}
 
 message GetAssignableSupervisorsResponse {
   repeated AssignableSupervisor supervisors = 1;
+}
+
+// =====================================================
+// List Trips By Vehicle Type Messages
+// =====================================================
+
+message ListTripsByVehicleTypeRequest {
+  VehicleType vehicle_type_filter = 1; // opcional, si es 0 (UNSPECIFIED) devuelve todos
+}
+
+message ListTripsByVehicleTypeResponse {
+  // Viajes segmentados por tipo de vehículo
+  message SegmentedTripsByVehicleType {
+    repeated Trip LIVIANO = 1;
+    repeated Trip PESADO = 2;
+    repeated Trip CUALQUIERA = 3;
+  }
+  
+  SegmentedTripsByVehicleType trips = 1;
+  int64 total_trips = 2;
+}
+
+// =====================================================
+// List Trips By Time Range Messages
+// =====================================================
+
+message ListTripsByTimeRangeRequest {
+  // Fecha en formato string YYYY-MM-DD (ejemplo: "2024-01-16")
+  string start_time = 1;
+  string end_time = 2;
+}
+
+message ListTripsByTimeRangeResponse {
+  repeated Trip trips = 1;
+  int64 total_trips = 2;
 }

@@ -14,11 +14,14 @@ import {
   UpdateTripDto, 
   GetTripDto, 
   ListTripsDto, 
+  ListTripsByVehicleTypeDto,
+  ListTripsByTimeRangeDto,
   StartTripDto,
   FinishTripDto,
   ReviewTripDto,
   DeleteTripDto 
 } from '../../application/dto/trips';
+import { VehicleType } from '../../domain/value-objects/vehicle-type.vo';
 
 @Controller()
 export class TripsController {
@@ -406,6 +409,116 @@ export class TripsController {
       throw new RpcException({
         code: GrpcStatus.INTERNAL,
         message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'ListTripsByVehicleType')
+  async listTripsByVehicleType(request: ListTripsByVehicleTypeDto): Promise<any> {
+    try {
+      this.logger.log(`ListTripsByVehicleType called with request: ${JSON.stringify(request)}`);
+      this.logger.log(`Vehicle type filter: ${request.vehicleTypeFilter}`);
+      
+      const segmentedTrips = await this.tripService.listTripsByVehicleType(request.vehicleTypeFilter);
+      
+      this.logger.log(`Trips segmented - LIVIANO: ${segmentedTrips.LIVIANO.length}, PESADO: ${segmentedTrips.PESADO.length}, CUALQUIERA: ${segmentedTrips.CUALQUIERA.length}, Total: ${segmentedTrips.total}`);
+
+      return {
+        trips: {
+          LIVIANO: segmentedTrips.LIVIANO.map(t => TripGrpcMapper.toProto(t)),
+          PESADO: segmentedTrips.PESADO.map(t => TripGrpcMapper.toProto(t)),
+          CUALQUIERA: segmentedTrips.CUALQUIERA.map(t => TripGrpcMapper.toProto(t))
+        },
+        totalTrips: segmentedTrips.total
+      };
+    } catch (error) {
+      this.logger.error(`ListTripsByVehicleType error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'ListTripsByTimeRange')
+  async listTripsByTimeRange(request: any): Promise<any> {
+    try {
+      this.logger.log(`ListTripsByTimeRange called with raw request: ${JSON.stringify(request)}`);
+      
+      // Si el DTO no funcionó, leer directamente del request
+      let startTime: Date;
+      let endTime: Date;
+      
+      // Intentar leer desde el DTO transformado
+      if (request.startTime instanceof Date) {
+        startTime = request.startTime;
+        endTime = request.endTime;
+        this.logger.log(`Using transformed dates from DTO`);
+      } else {
+        // Leer directamente desde el request en snake_case
+        const startTimeStr = request.start_time ?? request.startTime;
+        const endTimeStr = request.end_time ?? request.endTime;
+        
+        this.logger.log(`Reading dates from request: start_time=${startTimeStr}, end_time=${endTimeStr}`);
+        
+        if (!startTimeStr || typeof startTimeStr !== 'string') {
+          throw new RpcException({
+            code: GrpcStatus.INVALID_ARGUMENT,
+            message: 'La fecha de inicio es obligatoria y debe ser un string en formato YYYY-MM-DD',
+          });
+        }
+        
+        if (!endTimeStr || typeof endTimeStr !== 'string') {
+          throw new RpcException({
+            code: GrpcStatus.INVALID_ARGUMENT,
+            message: 'La fecha de fin es obligatoria y debe ser un string en formato YYYY-MM-DD',
+          });
+        }
+        
+        // Validar formato
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(startTimeStr)) {
+          throw new RpcException({
+            code: GrpcStatus.INVALID_ARGUMENT,
+            message: `La fecha de inicio debe estar en formato YYYY-MM-DD, recibido: ${startTimeStr}`,
+          });
+        }
+        
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(endTimeStr)) {
+          throw new RpcException({
+            code: GrpcStatus.INVALID_ARGUMENT,
+            message: `La fecha de fin debe estar en formato YYYY-MM-DD, recibido: ${endTimeStr}`,
+          });
+        }
+        
+        // Crear fechas
+        startTime = new Date(startTimeStr + 'T00:00:00.000Z');
+        endTime = new Date(endTimeStr + 'T23:59:59.999Z');
+        
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+          throw new RpcException({
+            code: GrpcStatus.INVALID_ARGUMENT,
+            message: 'Fechas inválidas',
+          });
+        }
+      }
+
+      this.logger.log(`Using dates - Start: ${startTime.toISOString()}, End: ${endTime.toISOString()}`);
+
+      const trips = await this.tripService.listTripsByTimeRange(startTime, endTime);
+
+      this.logger.log(`Found ${trips.length} trips in time range`);
+
+      return {
+        trips: trips.map(t => TripGrpcMapper.toProto(t)),
+        totalTrips: trips.length
+      };
+    } catch (error) {
+      this.logger.error(`ListTripsByTimeRange error: ${(error as any)?.message}`, (error as any)?.stack);
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: `Error interno del servidor: ${(error as any)?.message || 'Error desconocido'}`,
       });
     }
   }

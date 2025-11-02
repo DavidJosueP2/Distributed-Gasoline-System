@@ -1,6 +1,7 @@
 // src/domain/repositories/trip.repository.ts
 import { Trip } from '../entities/trip.entity';
 import { TripStatus } from '../value-objects/trip-status.vo';
+import { VehicleType } from '../value-objects/vehicle-type.vo';
 
 export interface TripRepository {
   findById(id: bigint): Promise<Trip | null>;
@@ -14,4 +15,6 @@ export interface TripRepository {
   countActiveTripsBySupervisor(supervisorId: bigint): Promise<number>;
   countActiveTripsByDriver(driverId: bigint): Promise<number>;
   countEnRutaTripsByDriver(driverId: bigint): Promise<number>;
+  findAllByVehicleType(vehicleTypeFilter?: VehicleType): Promise<Trip[]>;
+  findAllByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]>;
 }

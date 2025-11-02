@@ -162,11 +162,12 @@ export class TripsController {
   @Post(':id/finish')
   finishTrip(
     @Param('id') id: string,
+    @Body() body: { currentLat?: number; currentLng?: number },
     @Req() req: RequestWithGrpc,
   ): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
-        (svc as any).FinishTrip({ id }, req._grpcMetadata),
+        (svc as any).FinishTrip({ id, currentLat: body.currentLat, currentLng: body.currentLng }, req._grpcMetadata),
       ),
     );
   }

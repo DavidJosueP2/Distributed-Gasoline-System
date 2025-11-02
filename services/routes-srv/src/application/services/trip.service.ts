@@ -298,7 +298,7 @@ export class TripService {
     return startTime;
   }
 
-  async finishTrip(id: bigint, currentLat?: number, currentLng?: number): Promise<{ endTime: Date }> {
+  async finishTrip(id: bigint, currentLat?: number, currentLng?: number, callerDriverId?: bigint): Promise<{ endTime: Date }> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
@@ -306,6 +306,14 @@ export class TripService {
 
     if (trip.status !== TripStatus.EN_RUTA) {
       throw new TripNotInCorrectStatusException('EN_RUTA', trip.status);
+    }
+
+    // Validar que solo el conductor asignado puede finalizar el viaje
+    if (callerDriverId !== undefined && callerDriverId !== trip.driverId) {
+      throw new RpcException({
+        code: GrpcStatus.PERMISSION_DENIED,
+        message: `No tienes permiso para finalizar este viaje. El conductor asignado es ${trip.driverId}`,
+      });
     }
 
     // Validar que el conductor esté en el destino si se proporcionan coordenadas
@@ -350,52 +358,54 @@ export class TripService {
     );
 
     // Obtener consumo efectivo y calcular consumo real
+    let fuelActual: number;
     try {
       const vehiclesClient = await this.vehiclesClient();
       const consumptionProfile = await vehiclesClient.getConsumptionProfile(trip.vehicleId);
-      const fuelActual = FuelCalculatorService.calculateActualFuel(
+      fuelActual = FuelCalculatorService.calculateActualFuel(
         consumptionProfile.effectiveLPer100km,
         distanceKmReal
       );
-
-      // Calcular desviación para requerir comentario si excede umbral
-      const deviationPercentage = FuelCalculatorService.calculateDeviationPercentage(
-        trip.distanceKmPlanned,
-        distanceKmReal
-      );
-      if (FuelCalculatorService.requiresReviewComment(deviationPercentage) && !reviewComment?.trim()) {
-        throw new ReviewCommentRequiredException(deviationPercentage);
-      }
-
-      const reviewedAt = new Date();
-      await this.tripRepo.update(id, {
-        status: TripStatus.TERMINADO,
-        odometerEnd,
-        distanceKmReal,
-        fuelActual,
-        reviewComment: reviewComment?.trim() || null,
-      });
-
-      // Liberar driver y vehículo
-      try {
-        const driversClient = await this.driversClient();
-        const vehiclesClient = await this.vehiclesClient();
-        
-        this.logger.log(`Liberando driver ${trip.driverId} a AVAILABLE...`);
-        const driverResult = await driversClient.updateDriverToAvailable(trip.driverId);
-        this.logger.log(`Driver ${trip.driverId} liberado exitosamente`);
-        
-        this.logger.log(`Liberando vehicle ${trip.vehicleId} a ACTIVE...`);
-        const vehicleResult = await vehiclesClient.updateVehicleToActive(trip.vehicleId);
-        this.logger.log(`Vehicle ${trip.vehicleId} liberado exitosamente`);
-      } catch (error) {
-        this.logger.error(`Error updating driver/vehicle status: ${error.message}`, error.stack);
-      }
-
-      return { reviewedAt, distanceKmReal, fuelActual };
     } catch (error) {
+      this.logger.error(`Error getting consumption profile for vehicle ${trip.vehicleId}: ${error.message}`, error.stack);
       throw new VehicleServiceUnavailableException(trip.vehicleId);
     }
+
+    // Calcular desviación para requerir comentario si excede umbral
+    const deviationPercentage = FuelCalculatorService.calculateDeviationPercentage(
+      trip.distanceKmPlanned,
+      distanceKmReal
+    );
+    if (FuelCalculatorService.requiresReviewComment(deviationPercentage) && !reviewComment?.trim()) {
+      throw new ReviewCommentRequiredException(deviationPercentage);
+    }
+
+    const reviewedAt = new Date();
+    await this.tripRepo.update(id, {
+      status: TripStatus.TERMINADO,
+      odometerEnd,
+      distanceKmReal,
+      fuelActual,
+      reviewComment: reviewComment?.trim() || null,
+    });
+
+    // Liberar driver y vehículo
+    try {
+      const driversClient = await this.driversClient();
+      const vehiclesClient = await this.vehiclesClient();
+      
+      this.logger.log(`Liberando driver ${trip.driverId} a AVAILABLE...`);
+      const driverResult = await driversClient.updateDriverToAvailable(trip.driverId);
+      this.logger.log(`Driver ${trip.driverId} liberado exitosamente`);
+      
+      this.logger.log(`Liberando vehicle ${trip.vehicleId} a ACTIVE...`);
+      const vehicleResult = await vehiclesClient.updateVehicleToActive(trip.vehicleId);
+      this.logger.log(`Vehicle ${trip.vehicleId} liberado exitosamente`);
+    } catch (error) {
+      this.logger.error(`Error updating driver/vehicle status: ${error.message}`, error.stack);
+    }
+
+    return { reviewedAt, distanceKmReal, fuelActual };
   }
 
   async calculateTripMetrics(id: bigint, odometerEnd: number): Promise<{ distanceKmReal: number; fuelActual: number }> {
@@ -536,7 +546,7 @@ export class TripService {
   /**
    * Actualiza la ubicación del conductor durante el viaje
    */
-  async updateTripLocation(id: bigint, currentLat: number, currentLng: number, currentDistance?: number): Promise<void> {
+  async updateTripLocation(id: bigint, currentLat: number, currentLng: number, currentDistance?: number, callerDriverId?: bigint): Promise<void> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
@@ -546,10 +556,18 @@ export class TripService {
       throw new TripNotInCorrectStatusException(trip.status, 'EN_RUTA');
     }
 
+    // Validar que solo el conductor asignado puede actualizar la ubicación
+    if (callerDriverId !== undefined && callerDriverId !== trip.driverId) {
+      throw new RpcException({
+        code: GrpcStatus.PERMISSION_DENIED,
+        message: `No tienes permiso para actualizar la ubicación de este viaje. El conductor asignado es ${trip.driverId}`,
+      });
+    }
+
     await this.tripRepo.update(id, {
       currentLat,
       currentLng,
-      currentDistance: currentDistance ?? null,
+      currentDistance: currentDistance === undefined ? null : currentDistance,
     });
 
     this.logger.log(`Ubicación actualizada para viaje ${id}: (${currentLat}, ${currentLng}), distancia: ${currentDistance?.toFixed(2) || 'N/A'} km`);

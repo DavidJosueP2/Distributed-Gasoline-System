@@ -154,8 +154,21 @@ message GetTripRequest {
   int64 id = 1;
 }
 
+message TripInfo {
+  string first_name = 1;
+  string last_name = 2;
+}
+
+message VehicleInfo {
+  string plate = 1;
+}
+
 message GetTripResponse {
   Trip trip = 1;
+  // Información enriquecida
+  TripInfo driver_info = 2;
+  TripInfo supervisor_info = 3;
+  VehicleInfo vehicle_info = 4;
 }
 
 message ListTripsRequest {
@@ -185,6 +198,8 @@ message UpdateTripRequest {
 
 message StartTripRequest {
   int64 id = 1;
+  double current_lat = 2; // ubicación actual del conductor
+  double current_lng = 3; // ubicación actual del conductor
 }
 
 message StartTripResponse {
@@ -241,6 +256,11 @@ service TripsService {
 
   // Previsualiza métricas reales sin persistir cambios
   rpc CalculateTripMetrics (CalculateTripMetricsRequest) returns (CalculateTripMetricsResponse);
+
+  // Assignable Resources (para combos y filtros en frontend)
+  rpc GetAssignableDrivers (GetAssignableDriversRequest) returns (GetAssignableDriversResponse);
+  rpc GetAssignableVehicles (GetAssignableVehiclesRequest) returns (GetAssignableVehiclesResponse);
+  rpc GetAssignableSupervisors (GetAssignableSupervisorsRequest) returns (GetAssignableSupervisorsResponse);
 }
 
 message UpdateTripLocationRequest {
@@ -260,4 +280,48 @@ message CalculateTripMetricsRequest {
 message CalculateTripMetricsResponse {
   double distance_km_real = 1;
   double fuel_actual = 2;
+}
+
+// =====================================================
+// Assignable Resources Messages
+// =====================================================
+
+message AssignableDriver {
+  int64 id = 1;
+  int64 user_id = 2;
+  string first_name = 3;
+  string last_name = 4;
+  bool is_assignable = 5;
+}
+
+message AssignableVehicle {
+  int64 id = 1;
+  string plate = 2;
+  bool is_assignable = 3;
+}
+
+message AssignableSupervisor {
+  int64 id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  bool is_assignable = 4;
+  int32 active_trips_count = 5;
+}
+
+message GetAssignableDriversRequest {}
+
+message GetAssignableDriversResponse {
+  repeated AssignableDriver drivers = 1;
+}
+
+message GetAssignableVehiclesRequest {}
+
+message GetAssignableVehiclesResponse {
+  repeated AssignableVehicle vehicles = 1;
+}
+
+message GetAssignableSupervisorsRequest {}
+
+message GetAssignableSupervisorsResponse {
+  repeated AssignableSupervisor supervisors = 1;
 }

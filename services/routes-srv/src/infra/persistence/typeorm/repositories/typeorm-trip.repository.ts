@@ -1,7 +1,7 @@
 // src/infra/persistence/typeorm/repositories/typeorm-trip.repository.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { TripRepository } from 'src/domain/repositories/trip.repository';
 import { Trip } from 'src/domain/entities/trip.entity';
 import { TripStatus } from 'src/domain/value-objects/trip-status.vo';
@@ -59,7 +59,7 @@ export class TypeOrmTripRepository implements TripRepository {
     const entity = await this.repository.findOne({
       where: {
         driverId: driverId.toString(),
-        status: 'CREADO' // Solo viajes creados (no iniciados)
+        status: 'EN_RUTA' // Solo viajes en ruta (activos)
       }
     });
     return entity ? this.toDomain(entity) : null;
@@ -69,10 +69,37 @@ export class TypeOrmTripRepository implements TripRepository {
     const entity = await this.repository.findOne({
       where: {
         vehicleId: vehicleId.toString(),
-        status: 'CREADO' // Solo viajes creados (no iniciados)
+        status: 'EN_RUTA' // Solo viajes en ruta (activos)
       }
     });
     return entity ? this.toDomain(entity) : null;
+  }
+  
+  async countActiveTripsBySupervisor(supervisorId: bigint): Promise<number> {
+    return await this.repository.count({
+      where: {
+        supervisorId: supervisorId.toString(),
+        status: In(['CREADO', 'EN_RUTA', 'EN_REVISION'])
+      }
+    });
+  }
+  
+  async countActiveTripsByDriver(driverId: bigint): Promise<number> {
+    return await this.repository.count({
+      where: {
+        driverId: driverId.toString(),
+        status: In(['CREADO', 'EN_RUTA', 'EN_REVISION'])
+      }
+    });
+  }
+  
+  async countEnRutaTripsByDriver(driverId: bigint): Promise<number> {
+    return await this.repository.count({
+      where: {
+        driverId: driverId.toString(),
+        status: 'EN_RUTA'
+      }
+    });
   }
 
   private toDomain(entity: TripEntity): Trip {

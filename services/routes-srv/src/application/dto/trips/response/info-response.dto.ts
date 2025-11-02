@@ -1,9 +1,7 @@
 export interface VehicleInfoDto {
   id: number;
   plate: string;
-  brand: string;
-  family: string;
-  year: number;
+  requiredLicenses?: string[];
 }
 
 export interface DriverInfoDto {

@@ -65,6 +65,8 @@ export interface ListTripsRequest {
 
 export interface StartTripRequest {
     id: LongLike;
+    currentLat?: number;
+    currentLng?: number;
 }
 
 export interface FinishTripRequest {

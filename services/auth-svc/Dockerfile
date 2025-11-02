@@ -3,7 +3,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package.json ./
+COPY services/auth-svc/package.json ./
 
 # Instalar solo dependencias de producción
 RUN npm install --production --no-package-lock && npm cache clean --force
@@ -12,17 +12,25 @@ RUN npm install --production --no-package-lock && npm cache clean --force
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package.json ./
+# Copiar archivos de dependencias y configuración
+COPY services/auth-svc/package.json ./
+COPY services/auth-svc/tsconfig.json ./
+COPY services/auth-svc/tsconfig.build.json ./
+COPY services/auth-svc/nest-cli.json ./
 
 # Instalar todas las dependencias (incluidas dev)
 RUN npm install --no-package-lock
 
 # Copiar código fuente
-COPY . .
+COPY services/auth-svc/src ./src
 
 # Construir la aplicación
 RUN npm run build
+
+# Crear directorio y copiar archivos .proto necesarios desde la raíz del proyecto
+RUN mkdir -p ./protos
+COPY protos/auth.proto ./protos/auth.proto
+COPY protos/users.proto ./protos/users.proto
 
 # ===== STAGE 3: Runtime =====
 FROM node:20-alpine AS runtime
@@ -31,14 +39,17 @@ WORKDIR /app
 # Variables de entorno
 ENV NODE_ENV=production
 
+# Copiar package.json
+COPY services/auth-svc/package.json ./
+
 # Copiar dependencias de producción
 COPY --from=deps /app/node_modules ./node_modules
 
+# Copiar archivo .proto (necesario para gRPC)
+COPY --from=build /app/protos ./protos
+
 # Copiar código compilado
 COPY --from=build /app/dist ./dist
-
-# Copiar package.json para información del proyecto
-COPY package.json ./
 
 # Crear usuario no-root para seguridad
 RUN addgroup -g 1001 -S nodejs && \

@@ -3,7 +3,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package.json ./
+COPY services/email-svc/package.json ./
 
 # Instalar solo dependencias de producción
 RUN npm install --production --no-package-lock && npm cache clean --force
@@ -12,17 +12,24 @@ RUN npm install --production --no-package-lock && npm cache clean --force
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package.json ./
+# Copiar archivos de dependencias y configuración
+COPY services/email-svc/package.json ./
+COPY services/email-svc/tsconfig.json ./
+COPY services/email-svc/tsconfig.build.json ./
+COPY services/email-svc/nest-cli.json ./
 
 # Instalar todas las dependencias
 RUN npm install --no-package-lock
 
 # Copiar código fuente
-COPY . .
+COPY services/email-svc/src ./src
 
 # Construir la aplicación
 RUN npm run build
+
+# Copiar archivo .proto desde la raíz del proyecto
+RUN mkdir -p ./protos
+COPY protos/email.proto ./protos/email.proto
 
 # ===== STAGE 3: Runtime =====
 FROM node:20-alpine AS runtime
@@ -31,14 +38,17 @@ WORKDIR /app
 # Variables de entorno
 ENV NODE_ENV=production
 
+# Copiar package.json
+COPY services/email-svc/package.json ./
+
 # Copiar dependencias de producción
 COPY --from=deps /app/node_modules ./node_modules
 
+# Copiar archivo .proto (necesario para gRPC)
+COPY --from=build /app/protos ./protos
+
 # Copiar código compilado
 COPY --from=build /app/dist ./dist
-
-# Copiar package.json
-COPY package.json ./
 
 # Crear usuario no-root
 RUN addgroup -g 1001 -S nodejs && \

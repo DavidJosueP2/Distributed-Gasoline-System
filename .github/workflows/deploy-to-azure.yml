@@ -1,12 +1,14 @@
 name: Deploy to Azure AKS
 
+# ⚠️ TEMPORALMENTE DESHABILITADO - Solo build a GHCR por ahora
+# Se habilitará a futuro para el deploy completo
 on:
-  workflow_run:
-    workflows: ["Build and Push Docker Images"]
-    types:
-      - completed
-    branches:
-      - main
+  # workflow_run:
+  #   workflows: ["Build and Push Docker Images"]
+  #   types:
+  #     - completed
+  #   branches:
+  #     - main
   workflow_dispatch:
     inputs:
       environment:
@@ -24,6 +26,8 @@ env:
   AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
   HELM_CHART_PATH: ./deploy/helm/fuel-system
   NAMESPACE: fuel-system
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/fuel-system
 
 jobs:
   deploy:
@@ -51,12 +55,12 @@ jobs:
         run: |
           kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create Azure Container Registry Secret
+      - name: Create GitHub Container Registry Secret
         run: |
-          kubectl create secret docker-registry acr-secret \
-            --docker-server=${{ secrets.ACR_LOGIN_SERVER }} \
-            --docker-username=${{ secrets.ACR_USERNAME }} \
-            --docker-password=${{ secrets.ACR_PASSWORD }} \
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=${{ env.REGISTRY }} \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GHCR_PAT }} \
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
@@ -70,21 +74,32 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo update
 
+      - name: Get image tag
+        id: image-tag
+        run: |
+          # Usar el SHA corto del commit como tag
+          echo "tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
       - name: Deploy with Helm
         run: |
           helm upgrade --install fuel-system ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} \
             --create-namespace \
-            --set imageRegistry.url=${{ secrets.ACR_LOGIN_SERVER }} \
-            --set global.imagePullSecrets[0]=acr-secret \
+            --set imageRegistry.url=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }} \
+            --set global.imagePullSecrets[0]=ghcr-secret \
+            --set global.imageTag=${{ steps.image-tag.outputs.tag }} \
             --set postgresql.external.enabled=true \
             --set postgresql.external.host=${{ secrets.POSTGRES_HOST }} \
             --set postgresql.external.username=${{ secrets.POSTGRES_USERNAME }} \
             --set postgresql.external.password=${{ secrets.POSTGRES_PASSWORD }} \
             --set postgresql.external.sslMode=require \
+            --set secrets.postgresql.username=${{ secrets.POSTGRES_USERNAME }} \
             --set secrets.postgresql.password=${{ secrets.POSTGRES_PASSWORD }} \
+            --set secrets.rabbitmq.username=admin \
             --set secrets.rabbitmq.password=${{ secrets.RABBITMQ_PASSWORD }} \
             --set secrets.jwt.secret=${{ secrets.JWT_SECRET }} \
+            --set secrets.smtp.host=smtp.gmail.com \
+            --set secrets.smtp.port=587 \
             --set secrets.smtp.user=${{ secrets.SMTP_USER }} \
             --set secrets.smtp.password=${{ secrets.SMTP_PASSWORD }} \
             --set ingress.hosts[0].host=${{ secrets.DOMAIN_NAME }} \
@@ -126,6 +141,9 @@ jobs:
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** GitHub Container Registry (GHCR)" >> $GITHUB_STEP_SUMMARY
+          echo "**Images from:** \`${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pods Status" >> $GITHUB_STEP_SUMMARY
           kubectl get pods -n ${{ env.NAMESPACE }} -o wide >> $GITHUB_STEP_SUMMARY || true
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -141,4 +159,3 @@ jobs:
             echo "❌ Deployment to Azure AKS failed!"
             exit 1
           fi
-

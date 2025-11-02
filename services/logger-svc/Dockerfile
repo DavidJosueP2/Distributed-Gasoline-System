@@ -28,6 +28,9 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
+# Instalar curl para healthchecks
+RUN apk add --no-cache curl
+
 # Variables de entorno
 ENV NODE_ENV=production
 
@@ -46,12 +49,12 @@ RUN addgroup -g 1001 -S nodejs && \
 
 USER nestjs
 
-# Exponer puerto gRPC
-EXPOSE 50057
+# Exponer puerto HTTP
+EXPOSE 3200
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:50057/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# Health check usando el puerto HTTP correcto
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3200/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Comando de inicio
 CMD ["node", "dist/main.js"]

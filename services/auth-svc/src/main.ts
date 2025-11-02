@@ -17,7 +17,7 @@ import { registerInEureka } from './discovery/eureka-register';
 async function bootstrap() {
   const PORT = Number(process.env.AUTH_GRPC_PORT || 50052);
   const BIND_HOST = process.env.AUTH_SERVICE_REGISTER_HOST || '0.0.0.0';
-  const PROTO_ROOT = join(__dirname, '../../../protos');
+  const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../protos');
     const SHOULD_REGISTER =
         (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
         (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';

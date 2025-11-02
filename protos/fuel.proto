@@ -2,8 +2,50 @@ syntax = "proto3";
 
 package fuel;
 
-service FuelService { rpc GetFuel(GetFuelRequest) returns (GetFuelResponse); }
+service FuelService {
+    rpc GetFuel(GetFuelRequest) returns (GetFuelResponse);
+    rpc GenerateGeneralReport(GenerateGeneralReportRequest) returns (GenerateGeneralReportResponse);
+    rpc GenerateVehicleDetailReport(GenerateVehicleDetailReportRequest) returns (GenerateVehicleDetailReportResponse);
+}
 
-message GetFuelRequest { string id = 1; }
+message GetFuelRequest {
+    string id = 1;
+}
 
-message GetFuelResponse { string fuel = 1; }
+message GetFuelResponse {
+    string fuel = 1;
+}
+
+message GenerateGeneralReportRequest {
+    string startDate = 1;
+    string endDate = 2;
+}
+
+message VehicleSummary {
+    double estimated = 1;
+    double actual = 2;
+}
+
+message GenerateGeneralReportResponse {
+    VehicleSummary LIGHT = 1;
+    VehicleSummary HEAVY = 2;
+}
+
+message GenerateVehicleDetailReportRequest {
+    string startDate = 1;
+    string endDate = 2;
+    string machineType = 3; // 'LIGHT' or 'HEAVY'
+}
+
+message VehicleDetailSummary {
+    int64 vehicleId = 1;
+    int64 trips = 2;
+    double estimated = 3;
+    double actual = 4;
+    double difference = 5;
+    double efficiency = 6;
+}
+
+message GenerateVehicleDetailReportResponse {
+    repeated VehicleDetailSummary vehicles = 1;
+}

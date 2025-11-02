@@ -31,9 +31,51 @@ spec:
         app.kubernetes.io/component: {{ $config.name }}
     spec:
       {{- include "fuel-system.imagePullSecrets" $ | nindent 6 }}
+      {{- if $config.prisma }}
+      # 🚀 Init Container para migraciones de Prisma
+      initContainers:
+      - name: prisma-migrate
+        image: "{{ $.Values.imageRegistry.url }}/{{ $config.config.image.repository }}:{{ $config.config.image.tag | default $.Values.global.imageTag }}"
+        imagePullPolicy: {{ $config.config.image.pullPolicy }}
+        command: ["sh", "-c", "npx prisma migrate deploy"]
+        env:
+        - name: NODE_ENV
+          value: "production"
+        {{- if $config.needsDB }}
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_PORT
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: password
+        {{- end }}
+        {{- if eq $config.name "users-service" }}
+        - name: USERS_DATABASE_URL
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public&sslmode=require"
+        {{- else if eq $config.name "vehicles-service" }}
+        - name: DATABASE_URL
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode=require"
+        - name: SHADOW_DATABASE_URL
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode=require"
+        {{- end }}
+      {{- end }}
       containers:
       - name: {{ $config.name }}
-        image: "{{ $.Values.imageRegistry.url }}/{{ $config.config.image.repository }}:{{ $config.config.image.tag }}"
+        image: "{{ $.Values.imageRegistry.url }}/{{ $config.config.image.repository }}:{{ $config.config.image.tag | default $.Values.global.imageTag }}"
         imagePullPolicy: {{ $config.config.image.pullPolicy }}
         ports:
         - name: grpc

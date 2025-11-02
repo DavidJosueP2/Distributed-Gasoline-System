@@ -10,6 +10,7 @@ import { GrpcTimeoutInterceptor } from './grpc/grpc-timeout.interceptor';
 import { GrpcErrorInterceptor } from './grpc/grpc-error.interceptor';
 
 import { HelloController } from './http/hello-srv/hello.controller';
+import { HealthController } from './http/health.controller';
 import { DriversHttpController } from './http/drivers-svc/drivers.controller';
 import { LicenseTypesHttpController } from './http/drivers-svc/license-types.controller';
 import { DriverLicensesHttpController } from './http/drivers-svc/driver-licenses.controller';
@@ -48,6 +49,7 @@ const globalProviders: Provider[] = [
         DiscoveryModule,
     ],
     controllers: [
+        HealthController,
         HelloController,
         DriversHttpController,
         LicenseTypesHttpController,

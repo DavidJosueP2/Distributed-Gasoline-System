@@ -273,8 +273,10 @@ export class RouteService {
     // Filtrar los nulls
     let validRoutes = routesWithTrips.filter(r => r !== null) as Array<{ route: Route; trips: TripEnriched[] }>;
     
-    // Filtrar por vehicleType si se proporciona (CUALQUIERA no aplica filtro)
-    if (vehicleType && vehicleType !== VehicleType.CUALQUIERA) {
+    // Filtrar por vehicleType si se proporciona
+    // Si vehicleType es CUALQUIERA, filtra solo las rutas con tipo CUALQUIERA
+    // Si vehicleType es LIVIANO o PESADO, filtra solo las rutas de ese tipo
+    if (vehicleType) {
       validRoutes = validRoutes.filter(r => r.route.vehicleType === vehicleType);
       this.logger.log(`Filtered to ${validRoutes.length} routes with vehicleType ${vehicleType}`);
     }

@@ -49,4 +49,30 @@ export class FuelHttpController {
       ),
     );
   }
+
+  @Get('reports/vehicle-routes')
+  @GrpcTimeout(10000)
+  generateVehicleRoutesReport(
+    @Query('vehicleId') vehicleId: string,
+    @Req() req: any,
+    @Query('status') status?: string,
+  ) {
+    if (!vehicleId) {
+      throw new BadRequestException('vehicleId is required');
+    }
+
+    const vehicleIdNum = Number.parseInt(vehicleId, 10);
+    if (Number.isNaN(vehicleIdNum)) {
+      throw new BadRequestException('vehicleId must be a valid number');
+    }
+
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GenerateVehicleRoutesReport(
+          { vehicleId: vehicleIdNum, status },
+          req._grpcMetadata,
+        ),
+      ),
+    );
+  }
 }

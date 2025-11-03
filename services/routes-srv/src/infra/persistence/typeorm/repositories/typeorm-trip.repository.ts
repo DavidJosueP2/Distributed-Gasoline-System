@@ -174,6 +174,24 @@ export class TypeOrmTripRepository implements TripRepository {
     return entities.map(entity => this.toDomain(entity));
   }
 
+  async findAllByVehicleIdAndStatus(vehicleId: bigint, status: TripStatus): Promise<Trip[]> {
+    this.logger.log(`findAllByVehicleIdAndStatus called with vehicleId: ${vehicleId}, status: ${status}`);
+    
+    const entities = await this.repository.find({
+      where: {
+        vehicleId: vehicleId.toString(),
+        status: status
+      },
+      order: {
+        createdAt: 'DESC'
+      }
+    });
+
+    this.logger.log(`Found ${entities.length} trips for vehicle ${vehicleId} with status ${status}`);
+    
+    return entities.map(entity => this.toDomain(entity));
+  }
+
   private toDomain(entity: TripEntity): Trip {
     return {
       id: BigInt(entity.id),

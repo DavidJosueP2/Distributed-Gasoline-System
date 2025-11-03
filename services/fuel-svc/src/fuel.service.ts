@@ -5,12 +5,18 @@ import {
     type GenerateVehicleDetailReportRequest,
     type GenerateVehicleDetailReportResponse,
     type VehicleDetailSummary,
+    type GenerateVehicleRoutesReportRequest,
+    type GenerateVehicleRoutesReportResponse,
+    type RouteDetailSummary,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
 import { safeGrpcCall } from './common/auth/utils/grpc-call.util';
 import { Metadata } from '@grpc/grpc-js';
-import type { RoutesServiceClient } from './types/routes-client';
+import type {
+    RoutesServiceClient,
+    GetRoutesByVehicleAndStatusRequest,
+} from './types/routes-client';
 import type { DriversServiceClient } from './types/driver-client';
 import {
     ListTripsByTimeRangeRequest,
@@ -206,6 +212,70 @@ export class FuelService {
         vehicleSummaries.sort((a, b) => a.vehicleId - b.vehicleId);
 
         return { vehicles: vehicleSummaries };
+    }
+
+    public async generateVehicleRoutesReport(
+        data: GenerateVehicleRoutesReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateVehicleRoutesReportResponse> {
+        console.log('data', data);
+
+        const routesClient = await this.routesClient();
+
+        const request: GetRoutesByVehicleAndStatusRequest = {
+            vehicleId: Number(data.vehicleId),
+            status: data.status,
+        };
+
+        const { totalRoutes, totalTrips, routes } = await safeGrpcCall(
+            routesClient.GetRoutesByVehicleAndStatus(request, metadata),
+            'FuelService.GetRoutesByVehicleAndStatus',
+        );
+
+        if (Number(totalRoutes) === 0 || Number(totalTrips) === 0) {
+            return { routes: [] };
+        }
+
+        // Mapear cada ruta con sus viajes a RouteDetailSummary
+        const routeDetails: RouteDetailSummary[] = routes.map(
+            (routeWithTrips) => {
+                const route = routeWithTrips.route;
+                const trips = routeWithTrips.trips || [];
+
+                // Sumar consumos de todos los viajes de esta ruta
+                let totalEstimated = 0;
+                let totalActual = 0;
+
+                for (const trip of trips) {
+                    totalEstimated += trip.fuelEstimated || 0;
+                    totalActual += trip.fuelActual || 0;
+                }
+
+                const difference = totalActual - totalEstimated;
+                // Desviación porcentual: ((actual - estimado) / estimado) * 100
+                const deviation =
+                    totalEstimated > 0
+                        ? (difference / totalEstimated) * 100
+                        : 0;
+
+                return {
+                    routeId: route.id,
+                    routeName:
+                        route.name || `R${String(route.id).padStart(3, '0')}`,
+                    originName: route.originName,
+                    destinationName: route.destinationName,
+                    estimated: totalEstimated,
+                    actual: totalActual,
+                    difference: difference,
+                    deviation: deviation,
+                };
+            },
+        );
+
+        // Ordenar por routeId
+        routeDetails.sort((a, b) => a.routeId - b.routeId);
+
+        return { routes: routeDetails };
     }
 
     /**

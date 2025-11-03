@@ -6,6 +6,10 @@ export interface RoutesServiceClient {
         data: GetRouteRequest,
         metadata?: any,
     ): Observable<GetRouteResponse>;
+    GetRoutesByVehicleAndStatus(
+        data: GetRoutesByVehicleAndStatusRequest,
+        metadata?: any,
+    ): Observable<GetRoutesByVehicleAndStatusResponse>;
 }
 
 export interface GetRouteRequest {
@@ -37,4 +41,43 @@ export enum VehicleType {
     LIVIANO = 1,
     PESADO = 2,
     CUALQUIERA = 3,
+}
+
+export interface GetRoutesByVehicleAndStatusRequest {
+    vehicleId: number;
+    status?: string; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+export interface RouteWithTrips {
+    route: Route;
+    trips: Trip[];
+}
+
+export interface GetRoutesByVehicleAndStatusResponse {
+    routes: RouteWithTrips[];
+    totalRoutes: number;
+    totalTrips: number;
+}
+
+export interface Trip {
+    id: number;
+    routeId: number;
+    supervisorId: number;
+    driverId: number;
+    vehicleId: number;
+    startTime?: string | { seconds: number; nanos: number };
+    endTime?: string | { seconds: number; nanos: number };
+    status: number;
+    odometerStart: number;
+    odometerEnd?: number;
+    distanceKmReal?: number;
+    distanceKmPlanned: number;
+    fuelEstimated: number;
+    fuelActual?: number;
+    reviewComment?: string;
+    createdAt?: string | { seconds: number; nanos: number };
+    updatedAt?: string | { seconds: number; nanos: number };
+    currentLat?: number;
+    currentLng?: number;
+    currentDistance?: number;
 }

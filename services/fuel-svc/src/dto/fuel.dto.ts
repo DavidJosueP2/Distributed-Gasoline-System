@@ -62,3 +62,23 @@ export interface VehicleDetailSummary {
     difference: number;
     efficiency: number;
 }
+
+export interface GenerateVehicleRoutesReportRequest {
+    vehicleId: number;
+    status?: string; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+export interface RouteDetailSummary {
+    routeId: number;
+    routeName: string;
+    originName: string;
+    destinationName: string;
+    estimated: number;
+    actual: number;
+    difference: number;
+    deviation: number; // porcentaje de desviación
+}
+
+export interface GenerateVehicleRoutesReportResponse {
+    routes: RouteDetailSummary[];
+}

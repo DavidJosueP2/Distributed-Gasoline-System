@@ -101,6 +101,26 @@ message DeleteRouteRequest { int64 id = 1; }
 message DeleteRouteResponse {}
 
 // =====================================================
+// Get Routes By Vehicle And Status Messages
+// =====================================================
+
+message GetRoutesByVehicleAndStatusRequest {
+  int64 vehicle_id = 1;
+  string status = 2; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+message RouteWithTrips {
+  Route route = 1;
+  repeated Trip trips = 2; // Viajes con todos los datos (lat, lng, etc.)
+}
+
+message GetRoutesByVehicleAndStatusResponse {
+  repeated RouteWithTrips routes = 1;
+  int64 total_routes = 2;
+  int64 total_trips = 3;
+}
+
+// =====================================================
 // Trip Messages
 // =====================================================
 
@@ -237,6 +257,10 @@ service RoutesService {
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
   rpc UpdateRoute(UpdateRouteRequest) returns (Route);
   rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+
+  // Obtener rutas con viajes filtrados por vehículo y estado
+  rpc GetRoutesByVehicleAndStatus(GetRoutesByVehicleAndStatusRequest)
+      returns (GetRoutesByVehicleAndStatusResponse);
 }
 
 service TripsService {

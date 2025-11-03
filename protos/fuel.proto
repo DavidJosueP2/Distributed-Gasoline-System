@@ -8,6 +8,8 @@ service FuelService {
       returns (GenerateGeneralReportResponse);
   rpc GenerateVehicleDetailReport(GenerateVehicleDetailReportRequest)
       returns (GenerateVehicleDetailReportResponse);
+  rpc GenerateVehicleRoutesReport(GenerateVehicleRoutesReportRequest)
+      returns (GenerateVehicleRoutesReportResponse);
 }
 
 message GetFuelRequest { string id = 1; }
@@ -50,4 +52,24 @@ message VehicleDetailSummary {
   double actual = 4;
   double difference = 5;
   double efficiency = 6;
+}
+
+message GenerateVehicleRoutesReportRequest {
+  int64 vehicle_id = 1;
+  string status = 2; // opcional: CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+message RouteDetailSummary {
+  int64 route_id = 1;
+  string route_name = 2;
+  string origin_name = 3;
+  string destination_name = 4;
+  double estimated = 5;
+  double actual = 6;
+  double difference = 7;
+  double deviation = 8; // porcentaje de desviación
+}
+
+message GenerateVehicleRoutesReportResponse {
+  repeated RouteDetailSummary routes = 1;
 }

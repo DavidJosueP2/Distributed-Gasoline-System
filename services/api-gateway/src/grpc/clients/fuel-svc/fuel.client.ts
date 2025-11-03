@@ -40,6 +40,26 @@ export interface GenerateVehicleDetailReportResponse {
   vehicles: VehicleDetailSummary[];
 }
 
+export interface GenerateVehicleRoutesReportRequest {
+  vehicleId: number;
+  status?: string; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+export interface RouteDetailSummary {
+  routeId: number;
+  routeName: string;
+  originName: string;
+  destinationName: string;
+  estimated: number;
+  actual: number;
+  difference: number;
+  deviation: number; // porcentaje de desviación
+}
+
+export interface GenerateVehicleRoutesReportResponse {
+  routes: RouteDetailSummary[];
+}
+
 export interface FuelServiceClient {
   GenerateGeneralReport(
     data: GenerateGeneralReportRequest,
@@ -50,4 +70,9 @@ export interface FuelServiceClient {
     data: GenerateVehicleDetailReportRequest,
     metadata?: any,
   ): Observable<GenerateVehicleDetailReportResponse>;
+
+  GenerateVehicleRoutesReport(
+    data: GenerateVehicleRoutesReportRequest,
+    metadata?: any,
+  ): Observable<GenerateVehicleRoutesReportResponse>;
 }

@@ -5,6 +5,12 @@ import { RouteRepository } from '../../domain/repositories/route.repository';
 import { TripRepository } from '../../domain/repositories/trip.repository';
 import { Route } from '../../domain/entities/route.entity';
 import { VehicleType } from '../../domain/value-objects/vehicle-type.vo';
+import { TripStatus } from '../../domain/value-objects/trip-status.vo';
+import { TripEnriched } from '../interfaces/trip-enriched.interface';
+import { VehiclesClient } from '../../infra/clients/vehicles.client';
+import { DriversClient } from '../../infra/clients/drivers.client';
+import { UsersClient } from '../../infra/clients/users.client';
+import { GrpcClientFactory } from '../../infra/grpc/grpc-client.factory';
 import { 
   NotFoundException, 
   InvalidDistanceException,
@@ -22,7 +28,35 @@ export class RouteService {
     private readonly routeRepo: RouteRepository,
     @Inject(TOKENS.TripRepository)
     private readonly tripRepo: TripRepository,
+    private readonly grpcClientFactory: GrpcClientFactory,
   ) {}
+
+  private async vehiclesClient(): Promise<VehiclesClient> {
+    const client = await this.grpcClientFactory.clientFor(
+      'VEHICLES-SERVICE',
+      'vehicles.v1',
+      'vehicles.proto',
+    );
+    return new VehiclesClient(client);
+  }
+
+  private async driversClient(): Promise<DriversClient> {
+    const client = await this.grpcClientFactory.clientFor(
+      'DRIVER-SERVICE',
+      'driverms.v1',
+      'driver_ms.proto',
+    );
+    return new DriversClient(client);
+  }
+
+  private async usersClient(): Promise<UsersClient> {
+    const client = await this.grpcClientFactory.clientFor(
+      'USERS-SERVICE',
+      'users',
+      'users.proto',
+    );
+    return new UsersClient(client);
+  }
 
   async createRoute(input: {
     name: string;
@@ -166,5 +200,82 @@ export class RouteService {
     }
 
     await this.routeRepo.delete(id);
+  }
+
+  async getRoutesByVehicleAndStatus(vehicleId: bigint, status: TripStatus): Promise<Array<{ route: Route; trips: TripEnriched[] }>> {
+    this.logger.log(`getRoutesByVehicleAndStatus called with vehicleId: ${vehicleId}, status: ${status}`);
+    
+    // Obtener todos los viajes con ese vehículo y estado
+    const trips = await this.tripRepo.findAllByVehicleIdAndStatus(vehicleId, status);
+    this.logger.log(`Found ${trips.length} trips for vehicle ${vehicleId} with status ${status}`);
+    
+    if (trips.length === 0) {
+      return [];
+    }
+    
+    // Obtener todos los clientes una vez para enriquecer los viajes
+    const [vehiclesClient, driversClient, usersClient] = await Promise.all([
+      this.vehiclesClient(),
+      this.driversClient(),
+      this.usersClient()
+    ]);
+    
+    // Enriquecer todos los viajes
+    const enrichedTrips = await Promise.all(
+      trips.map(async (trip) => {
+        const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
+          this.routeRepo.findById(trip.routeId),
+          vehiclesClient.getVehicleInfo(trip.vehicleId),
+          driversClient.getDriverInfo(trip.driverId, usersClient),
+          usersClient.getUserInfo(trip.supervisorId)
+        ]);
+
+        return {
+          ...trip,
+          vehicleInfo,
+          driverInfo,
+          supervisorInfo,
+          routeName: route?.name,
+          originName: route?.originName,
+          destinationName: route?.destinationName
+        } as TripEnriched;
+      })
+    );
+    
+    // Agrupar viajes enriquecidos por route_id
+    const tripsByRouteId = new Map<bigint, TripEnriched[]>();
+    for (const trip of enrichedTrips) {
+      const routeId = trip.routeId;
+      if (!tripsByRouteId.has(routeId)) {
+        tripsByRouteId.set(routeId, []);
+      }
+      tripsByRouteId.get(routeId)!.push(trip);
+    }
+    
+    this.logger.log(`Trips grouped into ${tripsByRouteId.size} unique routes`);
+    
+    // Obtener las rutas y construir la respuesta
+    const routesWithTrips = await Promise.all(
+      Array.from(tripsByRouteId.entries()).map(async ([routeId, routeTrips]) => {
+        const route = await this.routeRepo.findById(routeId);
+        if (!route) {
+          this.logger.warn(`Route ${routeId} not found for trip`);
+          return null;
+        }
+        
+        return {
+          route,
+          trips: routeTrips
+        };
+      })
+    );
+    
+    // Filtrar los nulls y ordenar por fecha de creación de la ruta (más reciente primero)
+    const validRoutes = routesWithTrips.filter(r => r !== null) as Array<{ route: Route; trips: TripEnriched[] }>;
+    validRoutes.sort((a, b) => b.route.createdAt.getTime() - a.route.createdAt.getTime());
+    
+    this.logger.log(`Returning ${validRoutes.length} routes with enriched trips`);
+    
+    return validRoutes;
   }
 }

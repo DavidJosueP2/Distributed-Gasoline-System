@@ -46,6 +46,7 @@ export enum VehicleType {
 export interface GetRoutesByVehicleAndStatusRequest {
     vehicleId: number;
     status?: string; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+    vehicleType?: VehicleType; // LIVIANO, PESADO, CUALQUIERA
 }
 
 export interface RouteWithTrips {

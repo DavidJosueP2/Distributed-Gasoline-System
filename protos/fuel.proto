@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package fuel;
+import "google/protobuf/timestamp.proto";
 
 service FuelService {
   rpc GetFuel(GetFuelRequest) returns (GetFuelResponse);
@@ -57,6 +58,11 @@ message VehicleDetailSummary {
 message GenerateVehicleRoutesReportRequest {
   int64 vehicle_id = 1;
   string status = 2; // opcional: CREADO, EN_RUTA, EN_REVISION, TERMINADO
+  VehicleType vehicle_type = 3; // LIVIANO, PESADO, CUALQUIERA
+}
+
+message GenerateVehicleRoutesReportResponse {
+  repeated RouteDetailSummary routes = 1;
 }
 
 message RouteDetailSummary {
@@ -67,9 +73,13 @@ message RouteDetailSummary {
   double estimated = 5;
   double actual = 6;
   double difference = 7;
-  double deviation = 8; // porcentaje de desviación
+  // double deviation = 8;          // porcentaje de desviación
+  repeated TripDetail trips = 9; // viajes asociados a esta ruta
 }
 
-message GenerateVehicleRoutesReportResponse {
-  repeated RouteDetailSummary routes = 1;
+message TripDetail {
+  int64 id = 1;
+  double fuel_estimated = 2;
+  double fuel_actual = 3;
+  double difference = 4;
 }

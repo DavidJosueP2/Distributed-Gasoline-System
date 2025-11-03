@@ -111,26 +111,6 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
-  # ---------- Fuel Db - Driver DB ----------
-  fuel-db:
-    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
-    container_name: fuel-fuel-db
-    environment:
-      POSTGRES_USER: ${FUEL_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${FUEL_DB_PASS:-admin}
-      POSTGRES_DB: ${FUEL_DB_NAME:-fuel}
-    ports:
-      - "${FUEL_DB_PORT:-5499}:5432"
-    volumes:
-      - fuel_db_data:/var/lib/postgresql/data
-    networks:
-      - fuel-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${FUEL_DB_USER:-postgres} -d ${FUEL_DB_NAME:-fuel}"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    restart: unless-stopped
   # ---------- PostgreSQL - Routes DB ----------
   routes-db:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}

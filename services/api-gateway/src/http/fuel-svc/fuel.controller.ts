@@ -56,6 +56,7 @@ export class FuelHttpController {
     @Query('vehicleId') vehicleId: string,
     @Req() req: any,
     @Query('status') status?: string,
+    @Query('vehicleType') vehicleType?: VehicleType,
   ) {
     if (!vehicleId) {
       throw new BadRequestException('vehicleId is required');
@@ -69,7 +70,7 @@ export class FuelHttpController {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
         svc.GenerateVehicleRoutesReport(
-          { vehicleId: vehicleIdNum, status },
+          { vehicleId: vehicleIdNum, status, vehicleType },
           req._grpcMetadata,
         ),
       ),

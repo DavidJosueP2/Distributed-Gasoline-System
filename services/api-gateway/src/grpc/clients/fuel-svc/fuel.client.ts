@@ -43,6 +43,11 @@ export interface GenerateVehicleDetailReportResponse {
 export interface GenerateVehicleRoutesReportRequest {
   vehicleId: number;
   status?: string; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+  vehicleType?: VehicleType; // LIVIANO, PESADO, CUALQUIERA
+}
+
+export interface GenerateVehicleRoutesReportResponse {
+  routes: RouteDetailSummary[];
 }
 
 export interface RouteDetailSummary {
@@ -53,11 +58,15 @@ export interface RouteDetailSummary {
   estimated: number;
   actual: number;
   difference: number;
-  deviation: number; // porcentaje de desviación
+  //deviation: number; // porcentaje de desviación
+  trips: TripDetail[];
 }
 
-export interface GenerateVehicleRoutesReportResponse {
-  routes: RouteDetailSummary[];
+export interface TripDetail {
+  id: number;
+  fuelEstimated: number;
+  fuelActual?: number;
+  difference: number;
 }
 
 export interface FuelServiceClient {

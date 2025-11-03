@@ -25,6 +25,7 @@ import {
     VehicleType as TripVehicleType,
     type ListTripsByVehicleTypeRequest,
 } from './types/trips-client';
+import { VehiclesServiceClient } from './types/vehicle-client';
 
 @Injectable()
 export class FuelService {
@@ -55,6 +56,15 @@ export class FuelService {
             'drivers.proto',
         );
         return client.getService<DriversServiceClient>('DriversService');
+    }
+
+    private async vehiclesClient(): Promise<VehiclesServiceClient> {
+        const client = await this.grpcClientFactory.clientFor(
+            'VEHICLES-SERVICE',
+            'vehicles.v1',
+            'vehicles.proto',
+        );
+        return client.getService<VehiclesServiceClient>('VehiclesService');
     }
 
     public async generateGeneralReport(
@@ -148,6 +158,9 @@ export class FuelService {
             'FuelService.ListTripsByVehicleType',
         );
 
+        console.log('totalTrips', totalTrips);
+        console.log('segmentedTrips', segmentedTrips);
+
         // Combinar todos los viajes del tipo solicitado
         let allTrips: typeof segmentedTrips.LIVIANO = [];
         if (data.vehicleType === TripVehicleType.LIVIANO) {
@@ -176,10 +189,10 @@ export class FuelService {
 
         // Procesar viajes y agrupar por vehículo
         for (const trip of filteredTrips) {
-            const vehicleId = trip.vehicleId;
+            const vehicleId = Number(trip.vehicleId);
 
-            if (!vehicleMap.has(vehicleId)) {
-                vehicleMap.set(vehicleId, {
+            if (!vehicleMap.has(Number(vehicleId))) {
+                vehicleMap.set(Number(vehicleId), {
                     vehicleId,
                     trips: 0,
                     estimated: 0,
@@ -189,7 +202,7 @@ export class FuelService {
                 });
             }
 
-            const summary = vehicleMap.get(vehicleId)!;
+            const summary = vehicleMap.get(Number(vehicleId))!;
             summary.trips += 1;
             summary.estimated += trip.fuelEstimated || 0;
             summary.actual += trip.fuelActual || 0;
@@ -209,7 +222,11 @@ export class FuelService {
         }
 
         // Ordenar por vehicleId
-        vehicleSummaries.sort((a, b) => a.vehicleId - b.vehicleId);
+        vehicleSummaries.sort(
+            (a, b) => Number(a.vehicleId) - Number(b.vehicleId),
+        );
+
+        console.log('Vehicle summaries', vehicleSummaries);
 
         return { vehicles: vehicleSummaries };
     }
@@ -218,13 +235,12 @@ export class FuelService {
         data: GenerateVehicleRoutesReportRequest,
         metadata?: Metadata,
     ): Promise<GenerateVehicleRoutesReportResponse> {
-        console.log('data', data);
-
         const routesClient = await this.routesClient();
 
         const request: GetRoutesByVehicleAndStatusRequest = {
             vehicleId: Number(data.vehicleId),
             status: data.status,
+            vehicleType: data.vehicleType,
         };
 
         const { totalRoutes, totalTrips, routes } = await safeGrpcCall(
@@ -253,10 +269,10 @@ export class FuelService {
 
                 const difference = totalActual - totalEstimated;
                 // Desviación porcentual: ((actual - estimado) / estimado) * 100
-                const deviation =
+                /* const deviation =
                     totalEstimated > 0
                         ? (difference / totalEstimated) * 100
-                        : 0;
+                        : 0; */
 
                 return {
                     routeId: route.id,
@@ -267,7 +283,15 @@ export class FuelService {
                     estimated: totalEstimated,
                     actual: totalActual,
                     difference: difference,
-                    deviation: deviation,
+                    //deviation: deviation,
+                    trips: trips.map((trip) => ({
+                        id: trip.id,
+                        fuelEstimated: trip.fuelEstimated,
+                        fuelActual: trip.fuelActual,
+                        difference: trip.fuelActual
+                            ? trip.fuelActual - trip.fuelEstimated
+                            : 0,
+                    })),
                 };
             },
         );

@@ -152,6 +152,108 @@ export class PrismaVehicleUnitRepository implements VehicleUnitRepository {
     } catch (e) { throw GrpcErrorMapper.toRpc(e); }
   }
 
+  async listAllWithDetails(filters?: {
+    machineTypeFilter?: MachineType;
+    licenseTypeCodesFilter?: string[];
+    statusFilter?: string;
+    platePrefix?: string;
+    modelIdFilter?: bigint;
+  }, tx?: Tx): Promise<Array<{ unit: VehicleUnit; requiredLicenses: string[]; machineType: MachineType }>> {
+    try {
+      // Construir la consulta SQL usando la vista v_unit_required_licenses
+      let sql = `
+        SELECT 
+          vu.vehicle_id,
+          vu.model_id,
+          vu.plate,
+          vu.serial_vin,
+          vu.operational_status,
+          vu.tank_capacity_l,
+          vu.odometer_km,
+          vu.version,
+          vu.created_at,
+          vu.updated_at,
+          vu.deleted_at,
+          vm.machine_type,
+          COALESCE(vul.required_codes, ARRAY[]::TEXT[]) AS required_licenses
+        FROM vehicle_units vu
+        INNER JOIN vehicle_models vm ON vm.model_id = vu.model_id AND vm.deleted_at IS NULL
+        LEFT JOIN v_unit_required_licenses vul ON vul.vehicle_id = vu.vehicle_id
+        WHERE vu.deleted_at IS NULL
+      `;
+      
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (filters?.statusFilter) {
+        sql += ` AND vu.operational_status = $${paramIndex}::"OperationalStatus"`;
+        params.push(filters.statusFilter);
+        paramIndex++;
+      }
+
+      if (filters?.machineTypeFilter) {
+        sql += ` AND vm.machine_type = $${paramIndex}::"MachineType"`;
+        params.push(filters.machineTypeFilter);
+        paramIndex++;
+      }
+
+      if (filters?.modelIdFilter) {
+        sql += ` AND vu.model_id = $${paramIndex}`;
+        params.push(filters.modelIdFilter.toString());
+        paramIndex++;
+      }
+
+      if (filters?.platePrefix) {
+        sql += ` AND vu.plate ILIKE $${paramIndex}`;
+        params.push(`${filters.platePrefix}%`);
+        paramIndex++;
+      }
+
+      // Filtrar por licencias si se proporciona el array
+      // La lógica es:
+      // 1. Si el vehículo NO tiene licencias requeridas (array vacío o NULL), es compatible con cualquier conductor
+      // 2. Si el vehículo tiene licencias requeridas, el conductor debe tener AL MENOS UNA de ellas
+      if (filters?.licenseTypeCodesFilter && filters.licenseTypeCodesFilter.length > 0) {
+        // El vehículo es válido si:
+        // - No tiene licencias requeridas (array vacío o NULL), O
+        // - Hay al menos una licencia en común entre las requeridas del vehículo y las del conductor (operador &&)
+        // Usamos cardinality() que devuelve 0 para arrays vacíos o NULL
+        // IMPORTANTE: Hacer cast de vul.required_codes a TEXT[] para que ambos lados del operador && sean del mismo tipo
+        sql += ` AND (
+          COALESCE(cardinality(vul.required_codes), 0) = 0 
+          OR vul.required_codes::TEXT[] && $${paramIndex}::TEXT[]
+        )`;
+        params.push(filters.licenseTypeCodesFilter);
+        paramIndex++;
+      }
+
+      sql += ` ORDER BY vu.vehicle_id ASC`;
+
+      const rows = await (this.db(tx) as any).$queryRawUnsafe(sql, ...params) as any[];
+
+      // Obtener los datos completos de cada unidad usando Prisma
+      const results = await Promise.all(
+        rows.map(async (row) => {
+          const unit = await this.findById(BigInt(row.vehicle_id), tx);
+          if (!unit) return null;
+
+          const requiredLicenses = (row.required_licenses || []) as string[];
+          const machineType = row.machine_type === 'LIGHT' ? MachineType.LIGHT : MachineType.HEAVY;
+
+          return {
+            unit,
+            requiredLicenses,
+            machineType,
+          };
+        })
+      );
+
+      return results.filter(r => r !== null) as Array<{ unit: VehicleUnit; requiredLicenses: string[]; machineType: MachineType }>;
+    } catch (e) {
+      throw GrpcErrorMapper.toRpc(e);
+    }
+  }
+
   private toDomain(r: any): VehicleUnit {
     const modelBaseline = r.model?.engineSpec?.baselineLPer100km
       ? Number(r.model.engineSpec.baselineLPer100km)

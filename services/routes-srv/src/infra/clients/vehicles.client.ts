@@ -32,6 +32,7 @@ export interface ConsumptionProfileResponse {
 
 export interface VehiclesServiceClient {
   ListUnits(data?: any): Observable<any>;
+  ListUnitsWithDetails(data?: any): Observable<any>;
   GetUnit(data: { vehicleId: number }): Observable<VehicleUnitResponse>;
   GetUnitConsumptionProfile(data: { vehicleId: number }): Observable<ConsumptionProfileResponse>;
   UpdateUnitStatus(data: { vehicleId: number; newStatus: string }): Observable<any>;
@@ -102,5 +103,40 @@ export class VehiclesClient {
   async getAllVehicles(): Promise<any[]> {
     const response = await lastValueFrom(this.vehiclesService.ListUnits({}));
     return response.units || [];
+  }
+
+  async getAllVehiclesWithDetails(filters?: {
+    licenseTypeCodes?: string[];
+    machineTypeFilter?: number; // 1 = LIGHT, 2 = HEAVY
+  }): Promise<any[]> {
+    // Enviar en camelCase - NestJS transformará automáticamente a snake_case para gRPC
+    const request: any = {};
+    if (filters?.licenseTypeCodes && filters.licenseTypeCodes.length > 0) {
+      request.licenseTypeCodesFilter = filters.licenseTypeCodes;
+    }
+    if (filters?.machineTypeFilter) {
+      request.machineTypeFilter = filters.machineTypeFilter;
+    }
+    const response = await lastValueFrom(this.vehiclesService.ListUnitsWithDetails(request));
+    
+    // El proto devuelve required_licenses en snake_case como array de LicenseRef
+    // Mapear a un formato consistente para uso interno
+    const units = (response.units || []).map((unit: any) => {
+      // Manejar ambos casos: snake_case (desde proto) y camelCase (si viene mapeado)
+      const requiredLicenses = unit.required_licenses || unit.requiredLicenses || [];
+      // Extraer los códigos de licencia de LicenseRef (puede venir como license_type_code o licenseTypeCode)
+      const licenseCodes = requiredLicenses.map((ref: any) => 
+        ref.license_type_code || ref.licenseTypeCode || ''
+      ).filter((code: string) => code !== '');
+      
+      return {
+        ...unit,
+        unit: unit.unit || {},
+        requiredLicenses: licenseCodes, // Formato consistente para uso interno
+        machineType: unit.machine_type || unit.machineType
+      };
+    });
+    
+    return units;
   }
 }

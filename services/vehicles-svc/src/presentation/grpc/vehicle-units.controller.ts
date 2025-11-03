@@ -7,6 +7,13 @@ import { UnitDtoMapper } from '../../application/mappers/unit-dto.mapper';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { MachineType } from '../../domain/value-objects/machine-type';
 
+// Función helper para mapear MachineType a número (igual que en model-grpc.mapper)
+function mapMachineType(s: string | MachineType | undefined): number {
+  if (s === 'LIGHT' || s === MachineType.LIGHT) return 1;
+  if (s === 'HEAVY' || s === MachineType.HEAVY) return 2;
+  return 0; // MACHINE_TYPE_UNSPECIFIED
+}
+
 @Controller()
 export class VehicleUnitsController {
   constructor(private readonly unitSvc: VehicleUnitService) {}
@@ -25,6 +32,48 @@ export class VehicleUnitsController {
     
     const units = await this.unitSvc.listAll(machineTypeFilter);
     return { units: units.map(GrpcUnitMapper.toProto), page: { nextPageToken: '' } };
+  }
+
+  @GrpcMethod('VehiclesService', 'ListUnitsWithDetails')
+  async listUnitsWithDetails(req?: any): Promise<any> {
+    let machineTypeFilter: MachineType | undefined;
+    // Priorizar camelCase (comunicación entre servicios) y uego snake_case (Postman)
+    const machineType = req?.machineTypeFilter || req?.machine_type_filter;
+    
+    // Manejar tanto número como string (gRPC puede enviar cualquiera de los dos)
+    if (machineType === 1 || machineType === 'LIGHT') {
+      machineTypeFilter = MachineType.LIGHT;
+    } else if (machineType === 2 || machineType === 'HEAVY') {
+      machineTypeFilter = MachineType.HEAVY;
+    }
+
+    // Priorizar camelCase (comunicación entre servicios) y luego snake_case (Postman)
+    const licenseTypeCodesFilter = req?.licenseTypeCodesFilter || req?.license_type_codes_filter;
+    const statusFilter = req?.statusFilter || req?.status_filter;
+    const platePrefix = req?.platePrefix || req?.plate_prefix;
+    const modelIdFilter = req?.modelIdFilter || req?.model_id_filter
+      ? BigInt(req?.modelIdFilter || req?.model_id_filter) 
+      : undefined;
+
+    const results = await this.unitSvc.listAllWithDetails({
+      machineTypeFilter,
+      licenseTypeCodesFilter: licenseTypeCodesFilter ? (Array.isArray(licenseTypeCodesFilter) ? licenseTypeCodesFilter : [licenseTypeCodesFilter]) : undefined,
+      statusFilter,
+      platePrefix,
+      modelIdFilter,
+    });
+
+    // Devolver en camelCase - NestJS transformará automáticamente a snake_case para gRPC
+    return {
+      units: results.map(r => ({
+        unit: GrpcUnitMapper.toProto(r.unit),
+        // El proto espera required_licenses como array de LicenseRef
+        // Devolver en camelCase - NestJS transformará automáticamente
+        requiredLicenses: r.requiredLicenses.map(code => ({ licenseTypeCode: code })),
+        machineType: mapMachineType(r.machineType),
+      })),
+      page: { nextPageToken: '' },
+    };
   }
 
   @GrpcMethod('VehiclesService', 'GetUnit')

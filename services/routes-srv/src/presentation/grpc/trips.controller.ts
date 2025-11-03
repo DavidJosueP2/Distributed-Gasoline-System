@@ -442,7 +442,53 @@ export class TripsController {
   async getAssignableDrivers(): Promise<any> {
     try {
       const drivers = await this.tripService.getAssignableDrivers();
-      return { drivers };
+      this.logger.log(`GetAssignableDrivers - Received ${drivers.length} drivers from service`);
+      
+      // Mapear en camelCase (como users-srv) - NestJS transformará a snake_case según el proto
+      // El proto espera int64 para id y user_id, pero NestJS transforma automáticamente
+      const mapped = drivers.map(d => {
+        // Convertir id - puede venir como string o number
+        let idValue: number = 0;
+        if (typeof d.id === 'string') {
+          idValue = parseInt(d.id, 10);
+        } else if (typeof d.id === 'number') {
+          idValue = d.id;
+        } else if (d.id) {
+          idValue = Number(d.id);
+        }
+        
+        // Convertir userId - puede venir como string, number o Long de gRPC
+        let userIdValue: number = 0;
+        if (typeof d.userId === 'string') {
+          userIdValue = parseInt(d.userId, 10);
+        } else if (typeof d.userId === 'number') {
+          userIdValue = d.userId;
+        } else if (d.userId && typeof d.userId === 'object' && 'low' in (d.userId as any)) {
+          userIdValue = (d.userId as any).low || 0;
+        } else if (d.userId) {
+          userIdValue = Number(d.userId);
+        }
+        
+        // Devolver en camelCase - NestJS transformará automáticamente a snake_case según el proto
+        const mappedDriver = {
+          id: isNaN(idValue) || idValue <= 0 ? 0 : idValue,
+          userId: isNaN(userIdValue) || userIdValue <= 0 ? 0 : userIdValue,
+          firstName: String(d.firstName || ''),
+          lastName: String(d.lastName || ''),
+          isAssignable: Boolean(d.isAssignable),
+          licenseTypeCodes: Array.isArray(d.licenseTypeCodes) ? d.licenseTypeCodes : []
+        };
+        
+        this.logger.debug(`Mapping driver - Original: id=${d.id} (${typeof d.id}), userId=${d.userId} (${typeof d.userId}), firstName="${d.firstName}", lastName="${d.lastName}", licenses=${JSON.stringify(d.licenseTypeCodes)}`);
+        this.logger.debug(`Mapping driver - Mapped (camelCase): id=${mappedDriver.id}, userId=${mappedDriver.userId}, firstName="${mappedDriver.firstName}", lastName="${mappedDriver.lastName}", licenses=${JSON.stringify(mappedDriver.licenseTypeCodes)}`);
+        
+        return mappedDriver;
+      });
+      
+      const response = { drivers: mapped };
+      this.logger.log(`GetAssignableDrivers response (camelCase): ${JSON.stringify(response, null, 2)}`);
+      
+      return response;
     } catch (error) {
       this.logger.error(
         `GetAssignableDrivers error: ${(error as any)?.message}`,
@@ -457,9 +503,18 @@ export class TripsController {
   }
 
   @GrpcMethod('TripsService', 'GetAssignableVehicles')
-  async getAssignableVehicles(): Promise<any> {
+  async getAssignableVehicles(request?: any): Promise<any> {
     try {
-      const vehicles = await this.tripService.getAssignableVehicles();
+      // Extraer parámetros opcionales del request
+      // Priorizar camelCase (comunicación entre servicios NestJS) y luego snake_case (Postman directo)
+      const driverLicenseTypeCodes = request?.driverLicenseTypeCodes || request?.driver_license_type_codes;
+      const routeVehicleType = request?.routeVehicleType || request?.route_vehicle_type;
+      
+      const vehicles = await this.tripService.getAssignableVehicles(
+        driverLicenseTypeCodes ? (Array.isArray(driverLicenseTypeCodes) ? driverLicenseTypeCodes : [driverLicenseTypeCodes]) : undefined,
+        routeVehicleType as VehicleType
+      );
+      
       return { vehicles };
     } catch (error) {
       this.logger.error(

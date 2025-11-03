@@ -71,25 +71,17 @@ message CreateRouteRequest {
   VehicleType vehicle_type = 9;
 }
 
-message CreateRouteResponse {
-  int64 id = 1;
-}
+message CreateRouteResponse { int64 id = 1; }
 
-message GetRouteRequest {
-  int64 id = 1;
-}
+message GetRouteRequest { int64 id = 1; }
 
-message GetRouteResponse {
-  Route route = 1;
-}
+message GetRouteResponse { Route route = 1; }
 
 message ListRoutesRequest {
   VehicleType vehicle_type_filter = 1; // opcional
 }
 
-message ListRoutesResponse {
-  repeated RouteListItem routes = 1;
-}
+message ListRoutesResponse { repeated RouteListItem routes = 1; }
 
 message UpdateRouteRequest {
   int64 id = 1;
@@ -104,9 +96,7 @@ message UpdateRouteRequest {
   VehicleType vehicle_type = 10;
 }
 
-message DeleteRouteRequest {
-  int64 id = 1;
-}
+message DeleteRouteRequest { int64 id = 1; }
 
 message DeleteRouteResponse {}
 
@@ -156,7 +146,8 @@ message Trip {
   // Ubicación actual durante el viaje (solo aplica en EN_RUTA)
   double current_lat = 18;
   double current_lng = 19;
-  double current_distance = 20; // distancia recorrida o restante, según implementación
+  double current_distance =
+      20; // distancia recorrida o restante, según implementación
   // Información enriquecida para listados (opcional, solo en ListTrips)
   string route_name = 21;
   string driver_first_name = 22;
@@ -178,18 +169,14 @@ message CreateTripResponse {
   double fuel_estimated = 2; // calculado automáticamente
 }
 
-message GetTripRequest {
-  int64 id = 1;
-}
+message GetTripRequest { int64 id = 1; }
 
 message TripInfo {
   string first_name = 1;
   string last_name = 2;
 }
 
-message VehicleInfo {
-  string plate = 1;
-}
+message VehicleInfo { string plate = 1; }
 
 message GetTripResponse {
   Trip trip = 1;
@@ -209,7 +196,7 @@ message GetTripResponse {
 
 message ListTripsRequest {
   TripStatus status_filter = 1; // opcional
-  int64 driver_id_filter = 2; // opcional
+  int64 driver_id_filter = 2;   // opcional
 }
 
 message ListTripsResponse {
@@ -238,9 +225,7 @@ message StartTripRequest {
   double current_lng = 3; // ubicación actual del conductor
 }
 
-message StartTripResponse {
-  google.protobuf.Timestamp start_time = 1;
-}
+message StartTripResponse { google.protobuf.Timestamp start_time = 1; }
 
 message FinishTripRequest {
   int64 id = 1;
@@ -248,9 +233,7 @@ message FinishTripRequest {
   double current_lng = 3; // ubicación actual del conductor
 }
 
-message FinishTripResponse {
-  google.protobuf.Timestamp end_time = 1;
-}
+message FinishTripResponse { google.protobuf.Timestamp end_time = 1; }
 
 message ReviewTripRequest {
   int64 id = 1;
@@ -270,42 +253,50 @@ message ReviewTripResponse {
 
 service RoutesService {
   // Routes CRUD
-  rpc CreateRoute (CreateRouteRequest) returns (Route);
-  rpc GetRoute (GetRouteRequest) returns (GetRouteResponse);
-  rpc ListRoutes (ListRoutesRequest) returns (ListRoutesResponse);
-  rpc UpdateRoute (UpdateRouteRequest) returns (Route);
-  rpc DeleteRoute (DeleteRouteRequest) returns (DeleteRouteResponse);
-  
+  rpc CreateRoute(CreateRouteRequest) returns (Route);
+  rpc GetRoute(GetRouteRequest) returns (GetRouteResponse);
+  rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
+  rpc UpdateRoute(UpdateRouteRequest) returns (Route);
+  rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+
   // Obtener rutas con viajes filtrados por vehículo y estado
-  rpc GetRoutesByVehicleAndStatus (GetRoutesByVehicleAndStatusRequest) returns (GetRoutesByVehicleAndStatusResponse);
+  rpc GetRoutesByVehicleAndStatus(GetRoutesByVehicleAndStatusRequest)
+      returns (GetRoutesByVehicleAndStatusResponse);
 }
 
 service TripsService {
   // Trips CRUD
-  rpc CreateTrip (CreateTripRequest) returns (CreateTripResponse);
-  rpc GetTrip (GetTripRequest) returns (GetTripResponse);
-  rpc ListTrips (ListTripsRequest) returns (ListTripsResponse);
-  rpc UpdateTrip (UpdateTripRequest) returns (Trip);
-  
+  rpc CreateTrip(CreateTripRequest) returns (CreateTripResponse);
+  rpc GetTrip(GetTripRequest) returns (GetTripResponse);
+  rpc ListTrips(ListTripsRequest) returns (ListTripsResponse);
+  rpc UpdateTrip(UpdateTripRequest) returns (Trip);
+
   // Trip Flow
-  rpc StartTrip (StartTripRequest) returns (StartTripResponse);
-  rpc FinishTrip (FinishTripRequest) returns (FinishTripResponse);
-  rpc ReviewTrip (ReviewTripRequest) returns (ReviewTripResponse);
+  rpc StartTrip(StartTripRequest) returns (StartTripResponse);
+  rpc FinishTrip(FinishTripRequest) returns (FinishTripResponse);
+  rpc ReviewTrip(ReviewTripRequest) returns (ReviewTripResponse);
 
   // Actualiza la ubicación actual del viaje en ruta
-  rpc UpdateTripLocation (UpdateTripLocationRequest) returns (UpdateTripLocationResponse);
+  rpc UpdateTripLocation(UpdateTripLocationRequest)
+      returns (UpdateTripLocationResponse);
 
   // Previsualiza métricas reales sin persistir cambios
-  rpc CalculateTripMetrics (CalculateTripMetricsRequest) returns (CalculateTripMetricsResponse);
+  rpc CalculateTripMetrics(CalculateTripMetricsRequest)
+      returns (CalculateTripMetricsResponse);
 
   // Assignable Resources (para combos y filtros en frontend)
-  rpc GetAssignableDrivers (GetAssignableDriversRequest) returns (GetAssignableDriversResponse);
-  rpc GetAssignableVehicles (GetAssignableVehiclesRequest) returns (GetAssignableVehiclesResponse);
-  rpc GetAssignableSupervisors (GetAssignableSupervisorsRequest) returns (GetAssignableSupervisorsResponse);
+  rpc GetAssignableDrivers(GetAssignableDriversRequest)
+      returns (GetAssignableDriversResponse);
+  rpc GetAssignableVehicles(GetAssignableVehiclesRequest)
+      returns (GetAssignableVehiclesResponse);
+  rpc GetAssignableSupervisors(GetAssignableSupervisorsRequest)
+      returns (GetAssignableSupervisorsResponse);
 
   // Filtros adicionales para consumo por otros servicios
-  rpc ListTripsByVehicleType (ListTripsByVehicleTypeRequest) returns (ListTripsByVehicleTypeResponse);
-  rpc ListTripsByTimeRange (ListTripsByTimeRangeRequest) returns (ListTripsByTimeRangeResponse);
+  rpc ListTripsByVehicleType(ListTripsByVehicleTypeRequest)
+      returns (ListTripsByVehicleTypeResponse);
+  rpc ListTripsByTimeRange(ListTripsByTimeRangeRequest)
+      returns (ListTripsByTimeRangeResponse);
 }
 
 message UpdateTripLocationRequest {
@@ -356,9 +347,7 @@ message AssignableSupervisor {
 
 message GetAssignableDriversRequest {}
 
-message GetAssignableDriversResponse {
-  repeated AssignableDriver drivers = 1;
-}
+message GetAssignableDriversResponse { repeated AssignableDriver drivers = 1; }
 
 message GetAssignableVehiclesRequest {
   repeated string driver_license_type_codes = 1; // opcional - códigos de licencia del conductor (ej: ["B", "C"])
@@ -380,7 +369,8 @@ message GetAssignableSupervisorsResponse {
 // =====================================================
 
 message ListTripsByVehicleTypeRequest {
-  VehicleType vehicle_type_filter = 1; // opcional, si es 0 (UNSPECIFIED) devuelve todos
+  VehicleType vehicle_type_filter =
+      1; // opcional, si es 0 (UNSPECIFIED) devuelve todos
 }
 
 message ListTripsByVehicleTypeResponse {
@@ -390,7 +380,7 @@ message ListTripsByVehicleTypeResponse {
     repeated Trip PESADO = 2;
     repeated Trip CUALQUIERA = 3;
   }
-  
+
   SegmentedTripsByVehicleType trips = 1;
   int64 total_trips = 2;
 }

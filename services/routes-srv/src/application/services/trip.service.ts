@@ -358,6 +358,10 @@ export class TripService {
   }
 
   async listTripsByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]> {
+
+    Logger.log('startTime', startTime);
+    Logger.log('endTime', endTime);
+
     return await this.tripRepo.findAllByTimeRange(startTime, endTime);
   }
 

@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package fuel;
+import "google/protobuf/timestamp.proto";
+
+service FuelService {
+  rpc GetFuel(GetFuelRequest) returns (GetFuelResponse);
+  rpc GenerateGeneralReport(GenerateGeneralReportRequest)
+      returns (GenerateGeneralReportResponse);
+  rpc GenerateVehicleDetailReport(GenerateVehicleDetailReportRequest)
+      returns (GenerateVehicleDetailReportResponse);
+  rpc GenerateVehicleRoutesReport(GenerateVehicleRoutesReportRequest)
+      returns (GenerateVehicleRoutesReportResponse);
+}
+
+message GetFuelRequest { string id = 1; }
+
+message GetFuelResponse { string fuel = 1; }
+
+message GenerateGeneralReportRequest {
+  string startDate = 1;
+  string endDate = 2;
+}
+
+message VehicleSummary {
+  double estimated = 1;
+  double actual = 2;
+}
+
+message GenerateGeneralReportResponse {
+  VehicleSummary LIGHT = 1;
+  VehicleSummary HEAVY = 2;
+  VehicleSummary ANY = 3;
+}
+
+message GenerateVehicleDetailReportRequest { VehicleType vehicleType = 1; }
+
+enum VehicleType {
+  VEHICLE_TYPE_UNSPECIFIED = 0;
+  LIVIANO = 1;
+  PESADO = 2;
+  CUALQUIERA = 3;
+}
+
+message GenerateVehicleDetailReportResponse {
+  repeated VehicleDetailSummary vehicles = 1;
+}
+
+message VehicleDetailSummary {
+  int64 vehicle_id = 1;
+  int64 trips = 2;
+  double estimated = 3;
+  double actual = 4;
+  double difference = 5;
+  double efficiency = 6;
+}
+
+message GenerateVehicleRoutesReportRequest {
+  int64 vehicle_id = 1;
+  string status = 2; // opcional: CREADO, EN_RUTA, EN_REVISION, TERMINADO
+  VehicleType vehicle_type = 3; // LIVIANO, PESADO, CUALQUIERA
+}
+
+message GenerateVehicleRoutesReportResponse {
+  repeated RouteDetailSummary routes = 1;
+}
+
+message RouteDetailSummary {
+  int64 route_id = 1;
+  string route_name = 2;
+  string origin_name = 3;
+  string destination_name = 4;
+  double estimated = 5;
+  double actual = 6;
+  double difference = 7;
+  // double deviation = 8;          // porcentaje de desviación
+  repeated TripDetail trips = 9; // viajes asociados a esta ruta
+}
+
+message TripDetail {
+  int64 id = 1;
+  double fuel_estimated = 2;
+  double fuel_actual = 3;
+  double difference = 4;
+  string start_time = 5;
+  string end_time = 6;
+  string driver_first_name = 7;
+  string driver_last_name = 8;
+}

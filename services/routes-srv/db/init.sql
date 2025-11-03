@@ -131,3 +131,7 @@ WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 4 AND driver_id = 3 AND s
 INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, start_time, end_time, status, odometer_start, odometer_end, distance_km_planned, distance_km_real, fuel_estimated, fuel_actual, review_comment)
 SELECT 5, 6, 2, 3, NOW() - INTERVAL '10 hours', NOW() - INTERVAL '9 hours 40 minutes', 'TERMINADO', 26000.0, 26026.0, 25.8, 26.1, 3.250, 3.300, 'Desempeño correcto'
 WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 5 AND driver_id = 2 AND status = 'TERMINADO' AND supervisor_id = 6);
+
+INSERT INTO trips (route_id, supervisor_id, driver_id, vehicle_id, start_time, end_time, status, odometer_start, odometer_end, distance_km_planned, distance_km_real, fuel_estimated, fuel_actual, review_comment)
+SELECT 5, 6, 3, 3, NOW() - INTERVAL '12 hours', NOW() - INTERVAL '11 hours 30 minutes', 'TERMINADO', 26500.0, 26526.0, 25.8, 26.0, 3.250, 3.280, 'Viaje adicional completado'
+WHERE NOT EXISTS (SELECT 1 FROM trips WHERE route_id = 3 AND vehicle_id = 3 AND status = 'TERMINADO' AND driver_id = 3);

@@ -28,7 +28,14 @@ export class TypeOrmTripRepository implements TripRepository {
     if (driverIdFilter) where.driverId = driverIdFilter.toString();
     if (supervisorIdFilter) where.supervisorId = supervisorIdFilter.toString();
     
-    const entities = await this.repository.find({ where });
+    // Ordenar por updatedAt DESC (más reciente primero), y si son iguales, por createdAt DESC
+    const entities = await this.repository.find({ 
+      where,
+      order: {
+        updatedAt: 'DESC',
+        createdAt: 'DESC' // Orden secundario por createdAt si updatedAt es igual
+      }
+    });
     return entities.map(entity => this.toDomain(entity));
   }
 
@@ -126,6 +133,10 @@ export class TypeOrmTripRepository implements TripRepository {
     this.logger.log(`Generated SQL: ${sql}`);
     this.logger.log(`Query parameters: ${JSON.stringify(params)}`);
 
+    // Ordenar por updatedAt DESC
+    queryBuilder.orderBy('trip.updatedAt', 'DESC');
+    queryBuilder.addOrderBy('trip.createdAt', 'DESC');
+
     const entities = await queryBuilder.getMany();
     this.logger.log(`Found ${entities.length} trips`);
     
@@ -156,6 +167,8 @@ export class TypeOrmTripRepository implements TripRepository {
       .where('trip.startTime IS NOT NULL')
       .andWhere('trip.startTime <= :endTime', { endTime })
       .andWhere('(trip.endTime >= :startTime OR trip.endTime IS NULL)', { startTime })
+      .orderBy('trip.updatedAt', 'DESC')
+      .addOrderBy('trip.createdAt', 'DESC')
       .getMany();
 
     return entities.map(entity => this.toDomain(entity));

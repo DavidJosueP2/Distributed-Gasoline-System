@@ -52,6 +52,15 @@ export class TripGrpcMapper {
       currentLng: trip.currentLng ?? 0,
       currentDistance: trip.currentDistance ?? 0,
       // Información enriquecida
+      routeName: trip.routeName || '',
+      originName: trip.originName || '',
+      destinationName: trip.destinationName || '',
+      vehiclePlate: trip.vehicleInfo.plate,
+      driverFirstName: trip.driverInfo.firstName,
+      driverLastName: trip.driverInfo.lastName,
+      supervisorFirstName: trip.supervisorInfo.firstName,
+      supervisorLastName: trip.supervisorInfo.lastName,
+      // Mantener compatibilidad con estructura anterior
       vehicleInfo: {
         id: trip.vehicleInfo.id,
         plate: trip.vehicleInfo.plate,

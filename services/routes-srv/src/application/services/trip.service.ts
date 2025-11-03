@@ -195,7 +195,8 @@ export class TripService {
     ]);
 
     // Obtener información enriquecida de todos los servicios
-    const [vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
+    const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
+      this.routeRepo.findById(trip.routeId),
       vehiclesClient.getVehicleInfo(trip.vehicleId),
       driversClient.getDriverInfo(trip.driverId, usersClient),
       usersClient.getUserInfo(trip.supervisorId)
@@ -205,8 +206,50 @@ export class TripService {
       ...trip,
       vehicleInfo,
       driverInfo,
-      supervisorInfo
+      supervisorInfo,
+      routeName: route?.name,
+      originName: route?.originName,
+      destinationName: route?.destinationName,
+      originLat: route?.originLat,
+      originLng: route?.originLng,
+      destinationLat: route?.destinationLat,
+      destinationLng: route?.destinationLng
     };
+  }
+
+  async listTripsEnriched(statusFilter?: TripStatus, driverIdFilter?: bigint, supervisorIdFilter?: bigint): Promise<TripEnriched[]> {
+    const trips = await this.tripRepo.findAll(statusFilter, driverIdFilter, supervisorIdFilter);
+    
+    // Obtener todos los clientes una vez
+    const [vehiclesClient, driversClient, usersClient] = await Promise.all([
+      this.vehiclesClient(),
+      this.driversClient(),
+      this.usersClient()
+    ]);
+
+    // Obtener información enriquecida para todos los viajes
+    const enrichedTrips = await Promise.all(
+      trips.map(async (trip) => {
+        const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
+          this.routeRepo.findById(trip.routeId),
+          vehiclesClient.getVehicleInfo(trip.vehicleId),
+          driversClient.getDriverInfo(trip.driverId, usersClient),
+          usersClient.getUserInfo(trip.supervisorId)
+        ]);
+
+        return {
+          ...trip,
+          vehicleInfo,
+          driverInfo,
+          supervisorInfo,
+          routeName: route?.name,
+          originName: route?.originName,
+          destinationName: route?.destinationName
+        };
+      })
+    );
+
+    return enrichedTrips;
   }
 
   async listTrips(statusFilter?: TripStatus, driverIdFilter?: bigint, supervisorIdFilter?: bigint): Promise<Trip[]> {
@@ -260,8 +303,97 @@ export class TripService {
     return segmented;
   }
 
+  async listTripsEnrichedByVehicleType(vehicleTypeFilter?: VehicleType): Promise<{
+    LIVIANO: TripEnriched[];
+    PESADO: TripEnriched[];
+    CUALQUIERA: TripEnriched[];
+    total: number;
+  }> {
+    const segmented = await this.listTripsByVehicleType(vehicleTypeFilter);
+    
+    // Obtener todos los clientes una vez
+    const [vehiclesClient, driversClient, usersClient] = await Promise.all([
+      this.vehiclesClient(),
+      this.driversClient(),
+      this.usersClient()
+    ]);
+
+    // Función para enriquecer un array de trips
+    const enrichTrips = async (trips: Trip[]): Promise<TripEnriched[]> => {
+      return await Promise.all(
+        trips.map(async (trip) => {
+          const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
+            this.routeRepo.findById(trip.routeId),
+            vehiclesClient.getVehicleInfo(trip.vehicleId),
+            driversClient.getDriverInfo(trip.driverId, usersClient),
+            usersClient.getUserInfo(trip.supervisorId)
+          ]);
+
+          return {
+            ...trip,
+            vehicleInfo,
+            driverInfo,
+            supervisorInfo,
+            routeName: route?.name,
+            originName: route?.originName,
+            destinationName: route?.destinationName
+          };
+        })
+      );
+    };
+
+    // Enriquecer cada segmento
+    const [enrichedLIVIANO, enrichedPESADO, enrichedCUALQUIERA] = await Promise.all([
+      enrichTrips(segmented.LIVIANO),
+      enrichTrips(segmented.PESADO),
+      enrichTrips(segmented.CUALQUIERA)
+    ]);
+
+    return {
+      LIVIANO: enrichedLIVIANO,
+      PESADO: enrichedPESADO,
+      CUALQUIERA: enrichedCUALQUIERA,
+      total: segmented.total
+    };
+  }
+
   async listTripsByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]> {
     return await this.tripRepo.findAllByTimeRange(startTime, endTime);
+  }
+
+  async listTripsEnrichedByTimeRange(startTime: Date, endTime: Date): Promise<TripEnriched[]> {
+    const trips = await this.tripRepo.findAllByTimeRange(startTime, endTime);
+    
+    // Obtener todos los clientes una vez
+    const [vehiclesClient, driversClient, usersClient] = await Promise.all([
+      this.vehiclesClient(),
+      this.driversClient(),
+      this.usersClient()
+    ]);
+
+    // Obtener información enriquecida para todos los viajes
+    const enrichedTrips = await Promise.all(
+      trips.map(async (trip) => {
+        const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
+          this.routeRepo.findById(trip.routeId),
+          vehiclesClient.getVehicleInfo(trip.vehicleId),
+          driversClient.getDriverInfo(trip.driverId, usersClient),
+          usersClient.getUserInfo(trip.supervisorId)
+        ]);
+
+        return {
+          ...trip,
+          vehicleInfo,
+          driverInfo,
+          supervisorInfo,
+          routeName: route?.name,
+          originName: route?.originName,
+          destinationName: route?.destinationName
+        };
+      })
+    );
+
+    return enrichedTrips;
   }
 
   async updateTrip(id: bigint, input: {

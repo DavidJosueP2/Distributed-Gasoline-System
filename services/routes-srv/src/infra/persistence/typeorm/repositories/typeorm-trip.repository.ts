@@ -112,6 +112,24 @@ export class TypeOrmTripRepository implements TripRepository {
     });
   }
 
+  async countActiveTripsByVehicle(vehicleId: bigint): Promise<number> {
+    return await this.repository.count({
+      where: {
+        vehicleId: vehicleId.toString(),
+        status: In(['CREADO', 'EN_RUTA', 'EN_REVISION'])
+      }
+    });
+  }
+
+  async countCreatedTripsByVehicle(vehicleId: bigint): Promise<number> {
+    return await this.repository.count({
+      where: {
+        vehicleId: vehicleId.toString(),
+        status: 'CREADO'
+      }
+    });
+  }
+
   async findAllByVehicleType(vehicleTypeFilter?: VehicleType): Promise<Trip[]> {
     this.logger.log(`findAllByVehicleType called with filter: ${vehicleTypeFilter || 'NONE'}`);
     

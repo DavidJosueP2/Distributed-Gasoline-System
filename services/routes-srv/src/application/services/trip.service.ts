@@ -873,11 +873,12 @@ export class TripService {
    * Obtiene lista de conductores asignables con información básica y bandera de disponibilidad
    */
   async getAssignableDrivers(): Promise<Array<{
-    id: number;
-    userId: number;
+    id: string | number;
+    userId: string | number;
     firstName: string;
     lastName: string;
     isAssignable: boolean;
+    licenseTypeCodes: string[];
   }>> {
     try {
       const [driversClient, usersClient] = await Promise.all([
@@ -887,34 +888,63 @@ export class TripService {
       const drivers = await driversClient.getAllDrivers();
       
       const result = await Promise.all(
-        drivers.map(async (driver: any) => {
-          const driverId = BigInt(driver.driverId || driver.id);
-          const userId = BigInt(driver.userId || driver.user_id);
+        drivers.map(async (driver) => {
+          // Manejar driverId (puede venir como driverId, id, driver_id)
+          const driverId = BigInt(
+            driver.driverId || driver.id || driver.driver_id || 0
+          );
+          
+          // Manejar userId (puede venir como userId, user_id, y puede ser Long de gRPC)
+          let userIdValue: any = driver.userId || driver.user_id;
+          if (userIdValue && typeof userIdValue === 'object' && 'low' in userIdValue) {
+            userIdValue = userIdValue.low || 0;
+          }
+          const userId = BigInt(Number(userIdValue) || 0);
           
           // Obtener información del usuario desde el servicio users
           let firstName = '';
           let lastName = '';
-          try {
-            const userInfo = await usersClient.getUserInfo(userId);
-            firstName = userInfo.firstName;
-            lastName = userInfo.lastName;
-          } catch (error) {
-            this.logger.error(`Error getting user info for userId ${userId}:`, error);
+          if (userId && userId > 0) {
+            try {
+              const userInfo = await usersClient.getUserInfo(userId);
+              firstName = userInfo.firstName || '';
+              lastName = userInfo.lastName || '';
+            } catch (error) {
+              this.logger.error(`Error getting user info for userId ${userId}:`, error);
+            }
           }
           
+          // Obtener licencias del conductor desde el campo summary
+          // Ahora driver.summary está tipado como DriverSummary
+          const summary = driver.summary || {};
+          // Priorizar camelCase porque según el log viene así desde drivers-svc
+          const licenseTypeCodes = summary.licenseTypes 
+            || summary.license_types 
+            || [];
+          
+          this.logger.debug(`Driver ${driverId} - userId: ${userId}, Summary: ${JSON.stringify(summary)}, LicenseCodes: ${JSON.stringify(licenseTypeCodes)}, firstName: ${firstName}, lastName: ${lastName}`);
+          
+          // Contar TODOS los viajes activos (CREADO, EN_RUTA, EN_REVISION) - máximo 3
           const activeTripsCount = await this.tripRepo.countActiveTripsByDriver(driverId);
+          
+          // Contar viajes EN_RUTA (máximo 1)
           const enRutaCount = await this.tripRepo.countEnRutaTripsByDriver(driverId);
           
-          // Puede tener máximo 3 viajes activos y 1 en ruta
+          // Puede tener máximo 3 viajes activos (de cualquier estado) y 0 en ruta
           const isAssignable = activeTripsCount < 3 && enRutaCount === 0;
           
-          return {
-            id: driverId.toString() as any,
-            userId: userId.toString() as any,
+          const result = {
+            id: String(driverId),
+            userId: String(userId),
             firstName,
             lastName,
-            isAssignable
+            isAssignable,
+            licenseTypeCodes: Array.isArray(licenseTypeCodes) ? licenseTypeCodes : []
           };
+          
+          this.logger.debug(`Returning driver result: ${JSON.stringify(result)}`);
+          
+          return result;
         })
       );
       
@@ -927,25 +957,48 @@ export class TripService {
 
   /**
    * Obtiene lista de vehículos asignables con información básica y bandera de disponibilidad
+   * @param driverLicenseTypeCodes - Array de códigos de licencia del conductor (ej: ["B", "C"])
+   * @param routeVehicleType - Tipo de vehículo requerido por la ruta (LIVIANO, PESADO, CUALQUIERA)
    */
-  async getAssignableVehicles(): Promise<Array<{
+  async getAssignableVehicles(driverLicenseTypeCodes?: string[], routeVehicleType?: VehicleType): Promise<Array<{
     id: number;
     plate: string;
     isAssignable: boolean;
   }>> {
     try {
       const vehiclesClient = await this.vehiclesClient();
-      const vehicles = await vehiclesClient.getAllVehicles();
+      
+      // Determinar el filtro de tipo de máquina según el tipo de vehículo de la ruta
+      let machineTypeFilter: number | undefined;
+      if (routeVehicleType === VehicleType.LIVIANO) {
+        machineTypeFilter = 1; // LIGHT
+      } else if (routeVehicleType === VehicleType.PESADO) {
+        machineTypeFilter = 2; // HEAVY
+      }
+      // Si es CUALQUIERA, no pasamos filtro (machineTypeFilter será undefined)
+      
+      // Obtener vehículos con filtros de licencia y tipo
+      const vehicles = await vehiclesClient.getAllVehiclesWithDetails({
+        licenseTypeCodes: driverLicenseTypeCodes,
+        machineTypeFilter,
+      });
       
       const result = await Promise.all(
-        vehicles.map(async (vehicle: any) => {
-          const vehicleId = BigInt(vehicle.vehicleId || vehicle.id);
+        vehicles.map(async (vehicleWithDetails: any) => {
+          const vehicleId = BigInt(vehicleWithDetails.unit.vehicleId || vehicleWithDetails.unit.id);
+          
+          // Verificar viajes EN_RUTA
           const activeVehicleTrip = await this.tripRepo.findActiveTripByVehicle(vehicleId);
           
-          // Está disponible si no tiene viajes EN_RUTA
-          const isAssignable = !activeVehicleTrip;
+          // Contar TODOS los viajes activos (CREADO, EN_RUTA, EN_REVISION) - máximo 3
+          const activeTripsCount = await this.tripRepo.countActiveTripsByVehicle(vehicleId);
           
-          const plate = vehicle.plate || '';
+          // Está disponible si:
+          // 1. No tiene viajes EN_RUTA
+          // 2. Tiene menos de 3 viajes activos (de cualquier estado)
+          const isAssignable = !activeVehicleTrip && activeTripsCount < 3;
+          
+          const plate = vehicleWithDetails.unit.plate || '';
           
           return {
             id: vehicleId.toString() as any,

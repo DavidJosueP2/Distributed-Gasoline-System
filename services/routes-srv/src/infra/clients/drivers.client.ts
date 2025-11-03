@@ -21,8 +21,36 @@ export interface DriverResponse {
   licenses?: string[];
 }
 
+export interface DriverSummary {
+  licenseTypes?: string[];
+  license_types?: string[];
+  totalLicenses?: number;
+  total_licenses?: number;
+  activeLicenses?: number;
+  active_licenses?: number;
+  expiredLicenses?: number;
+  expired_licenses?: number;
+  suspendedLicenses?: number;
+  suspended_licenses?: number;
+}
+
+export interface DriverListItem {
+  driverId: number;
+  driver_id?: number;
+  id?: number;
+  userId?: number | { low?: number; high?: number };
+  user_id?: number | { low?: number; high?: number };
+  summary?: DriverSummary;
+  availability?: number | string;
+}
+
+export interface DriversListResponse {
+  drivers: DriverListItem[];
+  total?: number;
+}
+
 export interface DriversServiceClient {
-  FindAll(data: {}): Observable<any>;
+  FindAll(data: {}): Observable<DriversListResponse>;
   FindOne(data: { id: number }): Observable<DriverResponse>;
   FindByUserId(data: { userId: number }): Observable<DriverResponse>;
   Update(data: { id: number; availability: string }): Observable<any>;
@@ -116,8 +144,17 @@ export class DriversClient {
     return result;
   }
   
-  async getAllDrivers(): Promise<any[]> {
-    const response = await lastValueFrom(this.driversService.FindAll({}));
-    return response.drivers || [];
+  async getAllDrivers(): Promise<DriverListItem[]> {
+    const response: any = await lastValueFrom(this.driversService.FindAll({}));
+    // Manejar ambos casos: camelCase y snake_case (viene desde gRPC)
+    const drivers = response.drivers || [];
+    return drivers.map((driver: any) => ({
+      driverId: driver.driverId || driver.driver_id || driver.id || 0,
+      id: driver.id || driver.driverId || driver.driver_id,
+      userId: driver.userId || driver.user_id,
+      summary: driver.summary || {},
+      availability: driver.availability,
+      ...driver
+    }));
   }
 }

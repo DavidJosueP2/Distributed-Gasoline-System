@@ -228,18 +228,97 @@ export class TripsController {
   getAssignableDrivers(@Req() req: RequestWithGrpc): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
-        (svc as any).GetAssignableDrivers({}, req._grpcMetadata),
+        (svc as any).GetAssignableDrivers({}, req._grpcMetadata).pipe(
+          map((res: any) => {
+            // Mapear de snake_case (proto) a camelCase (gateway/API)
+            const drivers = res?.drivers || [];
+            return drivers.map((driver: any) => ({
+              id: toPlainNumber(driver.id || driver.user_id),
+              userId: toPlainNumber(driver.user_id || driver.userId),
+              firstName: driver.first_name || driver.firstName || '',
+              lastName: driver.last_name || driver.lastName || '',
+              isAssignable: driver.is_assignable ?? driver.isAssignable ?? false,
+              licenseTypeCodes: driver.license_type_codes || driver.licenseTypeCodes || [],
+            }));
+          }),
+        ),
       ),
     );
   }
 
-  @Get('assignable/vehicles')
-  getAssignableVehicles(@Req() req: RequestWithGrpc): Observable<any> {
-    return from(this.svc(req)).pipe(
-      switchMap((svc) =>
-        (svc as any).GetAssignableVehicles({}, req._grpcMetadata),
-      ),
+  // Helper method para procesar la petición de vehículos asignables
+  private processAssignableVehiclesRequest(
+    driverLicenseTypeCodes?: string | string[],
+    routeVehicleType?: string,
+    req?: RequestWithGrpc,
+  ): Observable<any> {
+    const requestWithGrpc = req || {} as RequestWithGrpc;
+    return from(this.svc(requestWithGrpc)).pipe(
+      switchMap((svc) => {
+        // Preparar parámetros para gRPC
+        // IMPORTANTE: Enviar en camelCase - NestJS transformará automáticamente a snake_case para el proto
+        // (igual que en users-srv y otros servicios)
+        const request: any = {};
+        
+        // Convertir driverLicenseTypeCodes a array si viene como string
+        // Solo agregar al request si tiene valores válidos (no undefined, null, o array vacío)
+        if (driverLicenseTypeCodes !== undefined && driverLicenseTypeCodes !== null) {
+          let codes: string[] = [];
+          
+          if (Array.isArray(driverLicenseTypeCodes)) {
+            codes = driverLicenseTypeCodes.filter(code => code && typeof code === 'string' && code.trim() !== '');
+          } else if (typeof driverLicenseTypeCodes === 'string' && driverLicenseTypeCodes.trim() !== '') {
+            codes = driverLicenseTypeCodes.split(',').map(c => c.trim()).filter(c => c !== '');
+          }
+          
+          // Solo agregar si hay códigos válidos
+          if (codes.length > 0) {
+            // Enviar en camelCase - NestJS transformará a snake_case automáticamente
+            request.driverLicenseTypeCodes = codes;
+          }
+        }
+        
+        // Convertir routeVehicleType (puede venir como string "LIVIANO", "PESADO", "CUALQUIERA")
+        // Solo agregar si tiene un valor válido
+        if (routeVehicleType !== undefined && routeVehicleType !== null && routeVehicleType !== '') {
+          // Enviar en camelCase - NestJS transformará a snake_case automáticamente
+          request.routeVehicleType = routeVehicleType;
+        }
+        
+        return (svc as any).GetAssignableVehicles(request, requestWithGrpc._grpcMetadata).pipe(
+          map((res: any) => {
+            // Mapear de snake_case (proto) a camelCase (gateway/API)
+            const vehicles = res?.vehicles || [];
+            return vehicles.map((vehicle: any) => ({
+              id: toPlainNumber(vehicle.id),
+              plate: vehicle.plate || '',
+              isAssignable: vehicle.is_assignable ?? vehicle.isAssignable ?? false,
+            }));
+          }),
+        );
+      }),
     );
+  }
+
+  @Get('assignable/vehicles')
+  getAssignableVehicles(
+    @Query('driverLicenseTypeCodes') driverLicenseTypeCodes?: string | string[],
+    @Query('routeVehicleType') routeVehicleType?: string,
+    @Req() req: RequestWithGrpc = {} as RequestWithGrpc,
+  ): Observable<any> {
+    return this.processAssignableVehiclesRequest(driverLicenseTypeCodes, routeVehicleType, req);
+  }
+
+  @Post('assignable/vehicles')
+  getAssignableVehiclesPost(
+    @Body() body: any,
+    @Req() req: RequestWithGrpc = {} as RequestWithGrpc,
+  ): Observable<any> {
+    // Aceptar tanto camelCase como snake_case del body
+    const driverLicenseTypeCodes = body?.driverLicenseTypeCodes || body?.driver_license_type_codes;
+    const routeVehicleType = body?.routeVehicleType || body?.route_vehicle_type;
+    
+    return this.processAssignableVehiclesRequest(driverLicenseTypeCodes, routeVehicleType, req);
   }
 
   @Get('assignable/supervisors')

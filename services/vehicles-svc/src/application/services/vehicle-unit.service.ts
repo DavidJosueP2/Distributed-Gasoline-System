@@ -45,6 +45,16 @@ export class VehicleUnitService {
     return this.unitRepo.listAll(machineTypeFilter);
   }
 
+  async listAllWithDetails(filters?: {
+    machineTypeFilter?: MachineType;
+    licenseTypeCodesFilter?: string[];
+    statusFilter?: string;
+    platePrefix?: string;
+    modelIdFilter?: bigint;
+  }) {
+    return this.unitRepo.listAllWithDetails(filters);
+  }
+
   async createUnit(input: CreateUnitInput): Promise<bigint> {
     // Validaciones básicas ANTES de la transacción (solo de formato)
     const serialVin: string | null = (input.serialVin?.trim() || '') || null;

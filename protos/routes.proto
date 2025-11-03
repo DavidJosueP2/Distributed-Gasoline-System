@@ -127,6 +127,13 @@ message Trip {
   double current_lng = 19;
   double current_distance =
       20; // distancia recorrida o restante, según implementación
+  // Información enriquecida para listados (opcional, solo en ListTrips)
+  string route_name = 21;
+  string driver_first_name = 22;
+  string driver_last_name = 23;
+  string supervisor_first_name = 24;
+  string supervisor_last_name = 25;
+  string vehicle_plate = 26;
 }
 
 message CreateTripRequest {
@@ -156,6 +163,14 @@ message GetTripResponse {
   TripInfo driver_info = 2;
   TripInfo supervisor_info = 3;
   VehicleInfo vehicle_info = 4;
+  // Información de la ruta
+  string route_name = 5;
+  string origin_name = 6;
+  string destination_name = 7;
+  double origin_lat = 8;
+  double origin_lng = 9;
+  double destination_lat = 10;
+  double destination_lng = 11;
 }
 
 message ListTripsRequest {

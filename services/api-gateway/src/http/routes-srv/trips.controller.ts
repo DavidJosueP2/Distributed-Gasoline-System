@@ -111,6 +111,13 @@ export class TripsController {
         svc.GetTrip({ id }, req._grpcMetadata).pipe(
           map((res: any) => ({
             ...normalizeTrip(res.trip),
+            routeName: res.routeName || res.route_name || '',
+            originName: res.originName || res.origin_name || '',
+            destinationName: res.destinationName || res.destination_name || '',
+            originLat: res.originLat ?? res.origin_lat ?? 0,
+            originLng: res.originLng ?? res.origin_lng ?? 0,
+            destinationLat: res.destinationLat ?? res.destination_lat ?? 0,
+            destinationLng: res.destinationLng ?? res.destination_lng ?? 0,
             driverInfo: res.driverInfo || res.driver_info,
             supervisorInfo: res.supervisorInfo || res.supervisor_info,
             vehicleInfo: res.vehicleInfo || res.vehicle_info,

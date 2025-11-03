@@ -94,6 +94,13 @@ export class TripsController {
         vehicleInfo: {
           plate: trip.vehicleInfo.plate,
         },
+        routeName: trip.routeName || '',
+        originName: trip.originName || '',
+        destinationName: trip.destinationName || '',
+        originLat: trip.originLat ?? 0,
+        originLng: trip.originLng ?? 0,
+        destinationLat: trip.destinationLat ?? 0,
+        destinationLng: trip.destinationLng ?? 0,
       };
     } catch (error) {
       this.logger.error(
@@ -157,8 +164,8 @@ export class TripsController {
         // Esto permite que endpoints públicos funcionen
       }
 
-      // Obtener todos los viajes según los filtros
-      const allTrips = await this.tripService.listTrips(
+      // Obtener todos los viajes según los filtros (enriquecidos con info adicional)
+      const allTrips = await this.tripService.listTripsEnriched(
         undefined,
         driverIdFilter,
         supervisorIdFilter,
@@ -174,13 +181,17 @@ export class TripsController {
 
       const response = {
         trips: {
-          CREADO: tripsByStatus.CREADO.map((t) => TripGrpcMapper.toProto(t)),
-          EN_RUTA: tripsByStatus.EN_RUTA.map((t) => TripGrpcMapper.toProto(t)),
+          CREADO: tripsByStatus.CREADO.map((t) =>
+            TripGrpcMapper.toProtoEnriched(t),
+          ),
+          EN_RUTA: tripsByStatus.EN_RUTA.map((t) =>
+            TripGrpcMapper.toProtoEnriched(t),
+          ),
           EN_REVISION: tripsByStatus.EN_REVISION.map((t) =>
-            TripGrpcMapper.toProto(t),
+            TripGrpcMapper.toProtoEnriched(t),
           ),
           TERMINADO: tripsByStatus.TERMINADO.map((t) =>
-            TripGrpcMapper.toProto(t),
+            TripGrpcMapper.toProtoEnriched(t),
           ),
         },
         userRole,
@@ -491,9 +502,10 @@ export class TripsController {
       );
       this.logger.log(`Vehicle type filter: ${request.vehicleTypeFilter}`);
 
-      const segmentedTrips = await this.tripService.listTripsByVehicleType(
-        request.vehicleTypeFilter,
-      );
+      const segmentedTrips =
+        await this.tripService.listTripsEnrichedByVehicleType(
+          request.vehicleTypeFilter,
+        );
 
       this.logger.log(
         `Trips segmented - LIVIANO: ${segmentedTrips.LIVIANO.length}, PESADO: ${segmentedTrips.PESADO.length}, CUALQUIERA: ${segmentedTrips.CUALQUIERA.length}, Total: ${segmentedTrips.total}`,
@@ -501,10 +513,14 @@ export class TripsController {
 
       return {
         trips: {
-          LIVIANO: segmentedTrips.LIVIANO.map((t) => TripGrpcMapper.toProto(t)),
-          PESADO: segmentedTrips.PESADO.map((t) => TripGrpcMapper.toProto(t)),
+          LIVIANO: segmentedTrips.LIVIANO.map((t) =>
+            TripGrpcMapper.toProtoEnriched(t),
+          ),
+          PESADO: segmentedTrips.PESADO.map((t) =>
+            TripGrpcMapper.toProtoEnriched(t),
+          ),
           CUALQUIERA: segmentedTrips.CUALQUIERA.map((t) =>
-            TripGrpcMapper.toProto(t),
+            TripGrpcMapper.toProtoEnriched(t),
           ),
         },
         totalTrips: segmentedTrips.total,
@@ -596,7 +612,7 @@ export class TripsController {
         `Using dates - Start: ${startTime.toISOString()}, End: ${endTime.toISOString()}`,
       );
 
-      const trips = await this.tripService.listTripsByTimeRange(
+      const trips = await this.tripService.listTripsEnrichedByTimeRange(
         startTime,
         endTime,
       );
@@ -604,7 +620,7 @@ export class TripsController {
       this.logger.log(`Found ${trips.length} trips in time range`);
 
       return {
-        trips: trips.map((t) => TripGrpcMapper.toProto(t)),
+        trips: trips.map((t) => TripGrpcMapper.toProtoEnriched(t)),
         totalTrips: trips.length,
       };
     } catch (error) {

@@ -248,6 +248,8 @@ export class FuelService {
             'FuelService.GetRoutesByVehicleAndStatus',
         );
 
+        console.log('routes', routes);
+
         if (Number(totalRoutes) === 0 || Number(totalTrips) === 0) {
             return { routes: [] };
         }
@@ -257,6 +259,8 @@ export class FuelService {
             (routeWithTrips) => {
                 const route = routeWithTrips.route;
                 const trips = routeWithTrips.trips || [];
+
+                console.log('trips', trips);
 
                 // Sumar consumos de todos los viajes de esta ruta
                 let totalEstimated = 0;
@@ -268,11 +272,6 @@ export class FuelService {
                 }
 
                 const difference = totalActual - totalEstimated;
-                // Desviación porcentual: ((actual - estimado) / estimado) * 100
-                /* const deviation =
-                    totalEstimated > 0
-                        ? (difference / totalEstimated) * 100
-                        : 0; */
 
                 return {
                     routeId: route.id,
@@ -284,14 +283,33 @@ export class FuelService {
                     actual: totalActual,
                     difference: difference,
                     //deviation: deviation,
-                    trips: trips.map((trip) => ({
-                        id: trip.id,
-                        fuelEstimated: trip.fuelEstimated,
-                        fuelActual: trip.fuelActual,
-                        difference: trip.fuelActual
-                            ? trip.fuelActual - trip.fuelEstimated
-                            : 0,
-                    })),
+                    trips: trips.map((trip) => {
+                        // Convertir timestamps a string
+                        const formatTimestamp = (
+                            ts?: string | { seconds: number; nanos: number },
+                        ): string => {
+                            if (!ts) return '';
+                            if (typeof ts === 'string') return ts;
+                            const date = new Date(
+                                Number(ts.seconds) * 1000 +
+                                    Number(ts.nanos || 0) / 1e6,
+                            );
+                            return date.toISOString();
+                        };
+
+                        return {
+                            id: trip.id,
+                            startTime: formatTimestamp(trip.startTime),
+                            endTime: formatTimestamp(trip.endTime),
+                            driverFirstName: trip.driverFirstName || '',
+                            driverLastName: trip.driverLastName || '',
+                            fuelEstimated: trip.fuelEstimated,
+                            fuelActual: trip.fuelActual,
+                            difference: trip.fuelActual
+                                ? trip.fuelActual - trip.fuelEstimated
+                                : 0,
+                        };
+                    }),
                 };
             },
         );

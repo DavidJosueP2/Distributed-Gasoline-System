@@ -82,4 +82,8 @@ message TripDetail {
   double fuel_estimated = 2;
   double fuel_actual = 3;
   double difference = 4;
+  string start_time = 5;
+  string end_time = 6;
+  string driver_first_name = 7;
+  string driver_last_name = 8;
 }

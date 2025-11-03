@@ -81,4 +81,6 @@ export interface Trip {
     currentLat?: number;
     currentLng?: number;
     currentDistance?: number;
+    driverLastName?: string;
+    driverFirstName?: string;
 }

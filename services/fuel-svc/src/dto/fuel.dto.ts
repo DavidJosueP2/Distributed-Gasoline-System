@@ -87,6 +87,10 @@ export interface RouteDetailSummary {
 
 export interface TripDetail {
     id: number;
+    startTime: string;
+    endTime: string;
+    driverFirstName: string;
+    driverLastName: string;
     fuelEstimated: number;
     fuelActual?: number;
     difference: number;

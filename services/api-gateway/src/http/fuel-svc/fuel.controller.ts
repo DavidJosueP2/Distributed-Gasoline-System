@@ -40,7 +40,7 @@ export class FuelHttpController {
   @Get('reports/vehicle-detail')
   @GrpcTimeout(10000)
   generateVehicleDetailReport(
-    @Query('vehicleType') vehicleType: VehicleType,
+    @Query('vehicleType') vehicleType: VehicleType, // Este si corresponde al tipo de vehiculo espeardo
     @Req() req: any,
   ) {
     return from(this.svc(req)).pipe(
@@ -56,7 +56,7 @@ export class FuelHttpController {
     @Query('vehicleId') vehicleId: string,
     @Req() req: any,
     @Query('status') status?: string,
-    @Query('vehicleType') vehicleType?: VehicleType,
+    @Query('vehicleType') vehicleType?: VehicleType, // En realidad esto corresponde al tipo de vehiculo permitido en la ruta.
   ) {
     if (!vehicleId) {
       throw new BadRequestException('vehicleId is required');

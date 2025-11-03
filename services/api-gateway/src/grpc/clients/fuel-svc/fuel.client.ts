@@ -67,6 +67,10 @@ export interface TripDetail {
   fuelEstimated: number;
   fuelActual?: number;
   difference: number;
+  startTime: string;
+  endTime: string;
+  driverFirstName: string;
+  driverLastName: string;
 }
 
 export interface FuelServiceClient {

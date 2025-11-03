@@ -177,7 +177,8 @@ export class RoutesController {
     try {
       const routesWithTrips = await this.routeService.getRoutesByVehicleAndStatus(
         BigInt(request.vehicleId),
-        request.status
+        request.status,
+        request.vehicleType
       );
       
       this.logger.log(`Found ${routesWithTrips.length} routes with trips`);

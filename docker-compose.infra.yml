@@ -225,10 +225,7 @@ volumes:
   users_db_data:
   vehicles_db_data:
   driver_db_data:
-<<<<<<< HEAD
   fuel_db_data:
-=======
   routes_db_data:
->>>>>>> e419cdfa4a88722791bb24e77492482ea183b098
   rabbitmq_data:
   elasticsearch_data:

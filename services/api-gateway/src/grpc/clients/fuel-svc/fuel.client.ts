@@ -1,8 +1,8 @@
 import { Observable } from 'rxjs';
 
 export interface VehicleSummary {
-    estimated: number;
-    actual: number;
+  estimated: number;
+  actual: number;
 }
 
 export interface GenerateGeneralReportRequest {
@@ -13,12 +13,18 @@ export interface GenerateGeneralReportRequest {
 export interface GenerateGeneralReportResponse {
   LIGHT: VehicleSummary;
   HEAVY: VehicleSummary;
+  ANY: VehicleSummary;
 }
 
 export interface GenerateVehicleDetailReportRequest {
-  startDate: string;
-  endDate: string;
-  machineType: 'LIGHT' | 'HEAVY';
+  vehicleType: VehicleType;
+}
+
+export enum VehicleType {
+  VEHICLE_TYPE_UNSPECIFIED = 0,
+  LIVIANO = 1,
+  PESADO = 2,
+  CUALQUIERA = 3,
 }
 
 export interface VehicleDetailSummary {

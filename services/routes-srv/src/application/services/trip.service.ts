@@ -213,6 +213,61 @@ export class TripService {
     return await this.tripRepo.findAll(statusFilter, driverIdFilter, supervisorIdFilter);
   }
 
+  async listTripsByVehicleType(vehicleTypeFilter?: VehicleType): Promise<{
+    LIVIANO: Trip[];
+    PESADO: Trip[];
+    CUALQUIERA: Trip[];
+    total: number;
+  }> {
+    const allTrips = await this.tripRepo.findAllByVehicleType(vehicleTypeFilter);
+    
+    const segmented = {
+      LIVIANO: [] as Trip[],
+      PESADO: [] as Trip[],
+      CUALQUIERA: [] as Trip[],
+      total: allTrips.length
+    };
+
+    // Si hay filtro, todos los viajes son del tipo filtrado
+    if (vehicleTypeFilter) {
+      const tripsForType = allTrips;
+      if (vehicleTypeFilter === VehicleType.LIVIANO) {
+        segmented.LIVIANO = tripsForType;
+      } else if (vehicleTypeFilter === VehicleType.PESADO) {
+        segmented.PESADO = tripsForType;
+      } else {
+        segmented.CUALQUIERA = tripsForType;
+      }
+      return segmented;
+    }
+
+    // Sin filtro: necesitamos obtener las rutas para segmentar por tipo de vehículo
+    const routeIds = [...new Set(allTrips.map(t => t.routeId))];
+    const routes = await Promise.all(routeIds.map(id => this.routeRepo.findById(id)));
+    const routeMap = new Map(routes.filter(r => r !== null).map(r => [r!.id.toString(), r!.vehicleType]));
+    
+    for (const trip of allTrips) {
+      const vehicleType = routeMap.get(trip.routeId.toString());
+      if (vehicleType === VehicleType.LIVIANO) {
+        segmented.LIVIANO.push(trip);
+      } else if (vehicleType === VehicleType.PESADO) {
+        segmented.PESADO.push(trip);
+      } else if (vehicleType === VehicleType.CUALQUIERA) {
+        segmented.CUALQUIERA.push(trip);
+      }
+    }
+
+    return segmented;
+  }
+
+  async listTripsByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]> {
+
+    Logger.log('startTime', startTime);
+    Logger.log('endTime', endTime);
+
+    return await this.tripRepo.findAllByTimeRange(startTime, endTime);
+  }
+
   async updateTrip(id: bigint, input: {
     driverId?: bigint;
     vehicleId?: bigint;

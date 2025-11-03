@@ -1,11 +1,20 @@
 import { Observable } from 'rxjs';
+import { Metadata } from '@grpc/grpc-js';
 
 // TripsService
 export interface TripsServiceClient {
     ListTrips(
         data: ListTripsRequest,
-        metadata?: any,
+        metadata?: Metadata,
     ): Observable<ListTripsResponse>;
+    ListTripsByTimeRange(
+        data: ListTripsByTimeRangeRequest,
+        metadata?: Metadata,
+    ): Observable<ListTripsByTimeRangeResponse>;
+    ListTripsByVehicleType(
+        data: ListTripsByVehicleTypeRequest,
+        metadata?: Metadata,
+    ): Observable<ListTripsByVehicleTypeResponse>;
 }
 
 export interface ListTripsRequest {
@@ -20,10 +29,10 @@ export interface ListTripsResponse {
 }
 
 export interface SegmentedTrips {
-    creado?: Trip[];
-    enRuta?: Trip[];
-    enRevision?: Trip[];
-    terminado?: Trip[];
+    CREADO?: Trip[];
+    EN_RUTA?: Trip[];
+    EN_REVISION?: Trip[];
+    TERMINADO?: Trip[];
 }
 
 export interface Trip {
@@ -55,4 +64,36 @@ export enum TripStatus {
     EN_RUTA = 2,
     EN_REVISION = 3,
     TERMINADO = 4,
+}
+
+export interface ListTripsByTimeRangeRequest {
+    startTime: string; // formato YYYY-MM-DD
+    endTime: string;
+}
+
+export interface ListTripsByTimeRangeResponse {
+    trips: Trip[];
+    totalTrips: number;
+}
+
+export interface ListTripsByVehicleTypeRequest {
+    vehicleTypeFilter?: VehicleType;
+}
+
+export interface ListTripsByVehicleTypeResponse {
+    trips: SegmentedTripsByVehicleType;
+    totalTrips: number;
+}
+
+export interface SegmentedTripsByVehicleType {
+    LIVIANO?: Trip[];
+    PESADO?: Trip[];
+    CUALQUIERA?: Trip[];
+}
+
+export enum VehicleType {
+    VEHICLE_TYPE_UNSPECIFIED = 0,
+    LIVIANO = 1,
+    PESADO = 2,
+    CUALQUIERA = 3,
 }

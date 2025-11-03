@@ -2,8 +2,29 @@
 // DTOs for reports
 // ===========================================
 
-export interface GenerateGeneralReportRequest {
+import { IsDateString, IsNotEmpty, Validate } from 'class-validator';
+import { IsStartDateBeforeEndDateConstraint } from './validators';
+
+export class GenerateGeneralReportRequest {
+    @IsNotEmpty({ message: 'La fecha de inicio es obligatoria' })
+    @IsDateString(
+        {},
+        {
+            message:
+                'La fecha de inicio debe tener un formato de fecha válido (YYYY-MM-DD)',
+        },
+    )
     startDate: string;
+
+    @IsNotEmpty({ message: 'La fecha de fin es obligatoria' })
+    @IsDateString(
+        {},
+        {
+            message:
+                'La fecha de fin debe tener un formato de fecha válido (YYYY-MM-DD)',
+        },
+    )
+    @Validate(IsStartDateBeforeEndDateConstraint)
     endDate: string;
 }
 
@@ -18,15 +39,19 @@ export interface VehicleSummaryGeneralReport {
     actual: number;
 }
 
-export interface FuelSummaryAccumulator {
-    estimated: number;
-    actual: number;
+export interface GenerateVehicleDetailReportRequest {
+    vehicleType: VehicleType;
 }
 
-export interface GenerateVehicleDetailReportRequest {
-    startDate: string;
-    endDate: string;
-    machineType: 'LIGHT' | 'HEAVY';
+export enum VehicleType {
+    VEHICLE_TYPE_UNSPECIFIED = 0,
+    LIVIANO = 1,
+    PESADO = 2,
+    CUALQUIERA = 3,
+}
+
+export interface GenerateVehicleDetailReportResponse {
+    vehicles: VehicleDetailSummary[];
 }
 
 export interface VehicleDetailSummary {
@@ -36,8 +61,4 @@ export interface VehicleDetailSummary {
     actual: number;
     difference: number;
     efficiency: number;
-}
-
-export interface GenerateVehicleDetailReportResponse {
-    vehicles: VehicleDetailSummary[];
 }

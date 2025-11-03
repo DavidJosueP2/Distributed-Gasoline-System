@@ -8,7 +8,10 @@ import {
 import { from, switchMap } from 'rxjs';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import { GrpcTimeout } from '../../grpc/grpc-timeout.interceptor';
-import { FuelServiceClient } from '../../grpc/clients/fuel-svc/fuel.client';
+import {
+  FuelServiceClient,
+  VehicleType,
+} from '../../grpc/clients/fuel-svc/fuel.client';
 
 @Controller('fuel')
 export class FuelHttpController {
@@ -27,10 +30,6 @@ export class FuelHttpController {
     @Query('endDate') endDate: string,
     @Req() req: any,
   ) {
-    if (!startDate || !endDate) {
-      throw new BadRequestException('startDate and endDate are required');
-    }
-
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
         svc.GenerateGeneralReport({ startDate, endDate }, req._grpcMetadata),
@@ -41,27 +40,12 @@ export class FuelHttpController {
   @Get('reports/vehicle-detail')
   @GrpcTimeout(10000)
   generateVehicleDetailReport(
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
-    @Query('machineType') machineType: string,
+    @Query('vehicleType') vehicleType: VehicleType,
     @Req() req: any,
   ) {
-    if (!startDate || !endDate || !machineType) {
-      throw new BadRequestException(
-        'startDate, endDate and machineType are required',
-      );
-    }
-
-    if (machineType !== 'LIGHT' && machineType !== 'HEAVY') {
-      throw new BadRequestException('machineType must be LIGHT or HEAVY');
-    }
-
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
-        svc.GenerateVehicleDetailReport(
-          { startDate, endDate, machineType },
-          req._grpcMetadata,
-        ),
+        svc.GenerateVehicleDetailReport({ vehicleType }, req._grpcMetadata),
       ),
     );
   }

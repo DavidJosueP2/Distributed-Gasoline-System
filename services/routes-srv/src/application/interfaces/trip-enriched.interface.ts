@@ -7,4 +7,11 @@ export interface TripEnriched extends Trip {
   vehicleInfo: VehicleInfo;
   driverInfo: DriverInfo;
   supervisorInfo: UserInfo;
+  routeName?: string;
+  originName?: string;
+  destinationName?: string;
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
 }

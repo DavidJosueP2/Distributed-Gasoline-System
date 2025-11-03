@@ -1,6 +1,7 @@
-import { IsNotEmpty, IsNumber, IsString, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsEnum, IsOptional } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { TripStatus } from '../../../../domain/value-objects/trip-status.vo';
+import { VehicleType } from '../../../../domain/value-objects/vehicle-type.vo';
 
 export class GetRoutesByVehicleAndStatusDto {
   @IsNotEmpty({ message: 'El ID del vehículo es obligatorio' })
@@ -28,5 +29,33 @@ export class GetRoutesByVehicleAndStatusDto {
   })
   @IsEnum(TripStatus, { message: 'El estado debe ser CREADO, EN_RUTA, EN_REVISION o TERMINADO' })
   status!: TripStatus;
+
+  @IsOptional()
+  @Transform(({ value, obj }) => {
+    // Aceptar tanto vehicle_type (snake_case) como vehicleType (camelCase)
+    const vehicleTypeValue = value ?? obj?.vehicle_type ?? obj?.vehicleType;
+    if (!vehicleTypeValue) return undefined;
+    
+    // Convertir a string y normalizar a mayúsculas
+    if (typeof vehicleTypeValue === 'string') {
+      const upper = vehicleTypeValue.toUpperCase();
+      if (upper === 'LIVIANO' || upper === 'PESADO' || upper === 'CUALQUIERA') {
+        return upper as VehicleType;
+      }
+    }
+    // Si viene como número (del proto enum), convertir a string
+    if (typeof vehicleTypeValue === 'number') {
+      const enumMap: Record<number, VehicleType> = {
+        0: undefined as any, // UNSPECIFIED
+        1: VehicleType.LIVIANO,
+        2: VehicleType.PESADO,
+        3: VehicleType.CUALQUIERA,
+      };
+      return enumMap[vehicleTypeValue] || undefined;
+    }
+    return undefined;
+  })
+  @IsEnum(VehicleType, { message: 'El tipo de vehículo debe ser LIVIANO, PESADO o CUALQUIERA' })
+  vehicleType?: VehicleType;
 }
 

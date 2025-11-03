@@ -117,6 +117,7 @@ message DeleteRouteResponse {}
 message GetRoutesByVehicleAndStatusRequest {
   int64 vehicle_id = 1;
   string status = 2; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+  VehicleType vehicle_type = 3; // opcional - LIVIANO, PESADO, CUALQUIERA
 }
 
 message RouteWithTrips {

@@ -202,8 +202,8 @@ export class RouteService {
     await this.routeRepo.delete(id);
   }
 
-  async getRoutesByVehicleAndStatus(vehicleId: bigint, status: TripStatus): Promise<Array<{ route: Route; trips: TripEnriched[] }>> {
-    this.logger.log(`getRoutesByVehicleAndStatus called with vehicleId: ${vehicleId}, status: ${status}`);
+  async getRoutesByVehicleAndStatus(vehicleId: bigint, status: TripStatus, vehicleType?: VehicleType): Promise<Array<{ route: Route; trips: TripEnriched[] }>> {
+    this.logger.log(`getRoutesByVehicleAndStatus called with vehicleId: ${vehicleId}, status: ${status}, vehicleType: ${vehicleType}`);
     
     // Obtener todos los viajes con ese vehículo y estado
     const trips = await this.tripRepo.findAllByVehicleIdAndStatus(vehicleId, status);
@@ -270,8 +270,16 @@ export class RouteService {
       })
     );
     
-    // Filtrar los nulls y ordenar por fecha de creación de la ruta (más reciente primero)
-    const validRoutes = routesWithTrips.filter(r => r !== null) as Array<{ route: Route; trips: TripEnriched[] }>;
+    // Filtrar los nulls
+    let validRoutes = routesWithTrips.filter(r => r !== null) as Array<{ route: Route; trips: TripEnriched[] }>;
+    
+    // Filtrar por vehicleType si se proporciona (CUALQUIERA no aplica filtro)
+    if (vehicleType && vehicleType !== VehicleType.CUALQUIERA) {
+      validRoutes = validRoutes.filter(r => r.route.vehicleType === vehicleType);
+      this.logger.log(`Filtered to ${validRoutes.length} routes with vehicleType ${vehicleType}`);
+    }
+    
+    // Ordenar por fecha de creación de la ruta (más reciente primero)
     validRoutes.sort((a, b) => b.route.createdAt.getTime() - a.route.createdAt.getTime());
     
     this.logger.log(`Returning ${validRoutes.length} routes with enriched trips`);

@@ -10,8 +10,10 @@ import {
   UpdateRouteDto, 
   GetRouteDto, 
   ListRoutesDto, 
+  GetRoutesByVehicleAndStatusDto,
   DeleteRouteDto 
 } from '../../application/dto/routes';
+import { TripGrpcMapper } from '../../infra/grpc/mappers/trip-grpc.mapper';
 
 @Controller()
 export class RoutesController {
@@ -154,6 +156,51 @@ export class RoutesController {
       return { success: true, message: 'Ruta eliminada exitosamente' };
     } catch (error) {
       this.logger.error(`Error in DeleteRoute:`, error);
+      this.logger.error(`Error stack:`, error.stack);
+      
+      if (error instanceof RpcException) {
+        this.logger.error(`RpcException thrown:`, error.getError());
+        throw error;
+      }
+      
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: `Error interno del servidor: ${error.message || 'Error desconocido'}`,
+      });
+    }
+  }
+
+  @GrpcMethod('RoutesService', 'GetRoutesByVehicleAndStatus')
+  async getRoutesByVehicleAndStatus(request: GetRoutesByVehicleAndStatusDto): Promise<any> {
+    this.logger.log(`GetRoutesByVehicleAndStatus called with request: ${JSON.stringify(request)}`);
+    
+    try {
+      const routesWithTrips = await this.routeService.getRoutesByVehicleAndStatus(
+        BigInt(request.vehicleId),
+        request.status
+      );
+      
+      this.logger.log(`Found ${routesWithTrips.length} routes with trips`);
+      
+      // Calcular totales
+      const totalTrips = routesWithTrips.reduce((sum, item) => sum + item.trips.length, 0);
+      
+      // Mapear a la estructura del proto usando el mapper enriquecido
+      const response = {
+        routes: routesWithTrips.map(({ route, trips }) => {
+          const hasTrips = trips.length > 0;
+          return {
+            route: RouteGrpcMapper.toProto(route, hasTrips),
+            trips: trips.map(trip => TripGrpcMapper.toProtoEnriched(trip))
+          };
+        }),
+        totalRoutes: routesWithTrips.length,
+        totalTrips: totalTrips
+      };
+      
+      return response;
+    } catch (error) {
+      this.logger.error(`Error in GetRoutesByVehicleAndStatus:`, error);
       this.logger.error(`Error stack:`, error.stack);
       
       if (error instanceof RpcException) {

@@ -336,6 +336,7 @@ message AssignableDriver {
   string first_name = 3;
   string last_name = 4;
   bool is_assignable = 5;
+  repeated string license_type_codes = 6; // Códigos de licencia del conductor (ej: ["B", "C"])
 }
 
 message AssignableVehicle {
@@ -358,7 +359,10 @@ message GetAssignableDriversResponse {
   repeated AssignableDriver drivers = 1;
 }
 
-message GetAssignableVehiclesRequest {}
+message GetAssignableVehiclesRequest {
+  repeated string driver_license_type_codes = 1; // opcional - códigos de licencia del conductor (ej: ["B", "C"])
+  VehicleType route_vehicle_type = 2; // opcional - tipo de vehículo requerido por la ruta (LIVIANO, PESADO, CUALQUIERA)
+}
 
 message GetAssignableVehiclesResponse {
   repeated AssignableVehicle vehicles = 1;

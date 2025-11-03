@@ -15,6 +15,8 @@ export interface TripRepository {
   countActiveTripsBySupervisor(supervisorId: bigint): Promise<number>;
   countActiveTripsByDriver(driverId: bigint): Promise<number>;
   countEnRutaTripsByDriver(driverId: bigint): Promise<number>;
+  countActiveTripsByVehicle(vehicleId: bigint): Promise<number>;
+  countCreatedTripsByVehicle(vehicleId: bigint): Promise<number>;
   findAllByVehicleType(vehicleTypeFilter?: VehicleType): Promise<Trip[]>;
   findAllByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]>;
   findAllByVehicleIdAndStatus(vehicleId: bigint, status: TripStatus): Promise<Trip[]>;

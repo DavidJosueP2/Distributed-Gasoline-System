@@ -118,4 +118,29 @@ export class FuelHttpController {
       ),
     );
   }
+
+  @Get('reports/routes-summary')
+  @GrpcTimeout(10000)
+  generateRoutesSummaryReport(@Req() req: any) {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GenerateRoutesSummaryReport({}, req._grpcMetadata),
+      ),
+    );
+  }
+
+  @Get('routes/:routeId/trips')
+  @GrpcTimeout(10000)
+  getRouteTripsDetail(@Param('routeId') routeId: string, @Req() req: any) {
+    const routeIdNum = Number.parseInt(routeId, 10);
+    if (Number.isNaN(routeIdNum)) {
+      throw new BadRequestException('routeId must be a valid number');
+    }
+
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GetRouteTripsDetail({ routeId: routeIdNum }, req._grpcMetadata),
+      ),
+    );
+  }
 }

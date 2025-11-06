@@ -150,3 +150,50 @@ export interface DriverTripDetail {
     destinationLat: number;
     destinationLng: number;
 }
+
+export interface GenerateRoutesSummaryReportRequest {
+    // Por el momento sin filtros, puede extenderse en el futuro
+}
+
+export interface GenerateRoutesSummaryReportResponse {
+    routes: RouteSummary[];
+}
+
+export interface RouteSummary {
+    routeId: number;
+    routeName: string; // formato: "Origen → Destino"
+    totalTrips: number;
+    estimated: number; // consumo estimado en litros
+    actual: number; // consumo real en litros
+    difference: number; // diferencia en litros
+    efficiency: number; // eficiencia en porcentaje
+}
+
+export interface GetRouteTripsDetailRequest {
+    routeId: number;
+}
+
+export interface GetRouteTripsDetailResponse {
+    trips: RouteTripDetail[];
+}
+
+export interface RouteTripDetail {
+    tripId: number;
+    driverFirstName: string;
+    driverLastName: string;
+    vehicle: string; // placa del vehículo
+    status: string; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+    startTime: string; // formato: DD/MM HH:mm
+    endTime: string; // formato: DD/MM HH:mm (vacío si no ha terminado)
+    estimated: number; // consumo estimado en litros
+    actual: number; // consumo real en litros
+    difference: number; // diferencia en litros (actual - estimado)
+    efficiency: number; // eficiencia en porcentaje
+    // Coordenadas de la ruta
+    originName: string;
+    destinationName: string;
+    originLat: number;
+    originLng: number;
+    destinationLat: number;
+    destinationLng: number;
+}

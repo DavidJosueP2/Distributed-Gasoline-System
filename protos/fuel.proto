@@ -14,6 +14,10 @@ service FuelService {
   rpc GenerateDriverRankingReport(GenerateDriverRankingReportRequest)
       returns (GenerateDriverRankingReportResponse);
   rpc GetDriverTrips(GetDriverTripsRequest) returns (GetDriverTripsResponse);
+  rpc GenerateRoutesSummaryReport(GenerateRoutesSummaryReportRequest)
+      returns (GenerateRoutesSummaryReportResponse);
+  rpc GetRouteTripsDetail(GetRouteTripsDetailRequest)
+      returns (GetRouteTripsDetailResponse);
 }
 
 message GetFuelRequest { string id = 1; }
@@ -140,4 +144,47 @@ message DriverTripDetail {
   double origin_lng = 11;
   double destination_lat = 12;
   double destination_lng = 13;
+}
+
+message GenerateRoutesSummaryReportRequest {
+  // Por el momento sin parámetros
+}
+
+message GenerateRoutesSummaryReportResponse {
+  repeated RouteSummary routes = 1;
+}
+
+message RouteSummary {
+  int64 route_id = 1;
+  string route_name = 2; // formato: "Origen → Destino"
+  int64 total_trips = 3;
+  double estimated = 4;  // consumo estimado en litros
+  double actual = 5;     // consumo real en litros
+  double difference = 6; // diferencia en litros
+  double efficiency = 7; // eficiencia en porcentaje
+}
+
+message GetRouteTripsDetailRequest { int64 route_id = 1; }
+
+message GetRouteTripsDetailResponse { repeated RouteTripDetail trips = 1; }
+
+message RouteTripDetail {
+  int64 trip_id = 1;
+  string driver_first_name = 2;
+  string driver_last_name = 3;
+  string vehicle = 4;     // placa del vehículo
+  string status = 5;      // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+  string start_time = 6;  // formato: DD/MM HH:mm
+  string end_time = 7;    // formato: DD/MM HH:mm (vacío si no ha terminado)
+  double estimated = 8;   // consumo estimado en litros
+  double actual = 9;      // consumo real en litros
+  double difference = 10; // diferencia en litros (actual - estimado)
+  double efficiency = 11; // eficiencia en porcentaje
+  // Coordenadas de la ruta
+  string origin_name = 12;
+  string destination_name = 13;
+  double origin_lat = 14;
+  double origin_lng = 15;
+  double destination_lat = 16;
+  double destination_lng = 17;
 }

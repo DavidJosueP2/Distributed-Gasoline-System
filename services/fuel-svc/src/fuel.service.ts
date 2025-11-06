@@ -16,6 +16,12 @@ import {
     type GetDriverTripsRequest,
     type GetDriverTripsResponse,
     type DriverTripDetail,
+    type GenerateRoutesSummaryReportRequest,
+    type GenerateRoutesSummaryReportResponse,
+    type RouteSummary,
+    type GetRouteTripsDetailRequest,
+    type GetRouteTripsDetailResponse,
+    type RouteTripDetail,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
@@ -24,6 +30,7 @@ import { Metadata } from '@grpc/grpc-js';
 import type {
     RoutesServiceClient,
     GetRoutesByVehicleAndStatusRequest,
+    ListRoutesRequest,
 } from './types/routes-client';
 import type { DriversServiceClient } from './types/driver-client';
 import {
@@ -582,6 +589,244 @@ export class FuelService {
                 endTime: endTimeFormatted,
                 fuelEstimated: fuelEstimated,
                 fuelActual: fuelActual,
+                originName: originName,
+                destinationName: destinationName,
+                originLat: originLat,
+                originLng: originLng,
+                destinationLat: destinationLat,
+                destinationLng: destinationLng,
+            };
+        });
+
+        // Ordenar por fecha de inicio descendente (más recientes primero)
+        tripDetails.sort((a, b) => {
+            return b.startTime.localeCompare(a.startTime);
+        });
+
+        return { trips: tripDetails };
+    }
+
+    public async generateRoutesSummaryReport(
+        data: GenerateRoutesSummaryReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateRoutesSummaryReportResponse> {
+        const routesClient = await this.routesClient();
+        const tripsClient = await this.tripsClient();
+
+        // Obtener todas las rutas
+        const routesRequest: ListRoutesRequest = {};
+        const { routes } = await safeGrpcCall(
+            routesClient.ListRoutes(routesRequest, metadata),
+            'FuelService.ListRoutes',
+        );
+
+        // Obtener todos los viajes (sin filtros)
+        const tripsRequest: ListTripsRequest = {};
+        const tripsResponse = await safeGrpcCall(
+            tripsClient.ListTrips(tripsRequest, metadata),
+            'FuelService.ListTrips',
+        );
+
+        // Consolidar todos los viajes en un solo array
+        const allTrips: any[] = [];
+        if (tripsResponse.trips.CREADO) {
+            allTrips.push(...tripsResponse.trips.CREADO);
+        }
+        if (tripsResponse.trips.EN_RUTA) {
+            allTrips.push(...tripsResponse.trips.EN_RUTA);
+        }
+        if (tripsResponse.trips.EN_REVISION) {
+            allTrips.push(...tripsResponse.trips.EN_REVISION);
+        }
+        if (tripsResponse.trips.TERMINADO) {
+            allTrips.push(...tripsResponse.trips.TERMINADO);
+        }
+
+        // Agrupar viajes por routeId
+        const tripsByRouteId = new Map<number, any[]>();
+        for (const trip of allTrips) {
+            const routeId = Number(trip.routeId ?? trip.route_id ?? 0);
+            if (routeId > 0) {
+                if (!tripsByRouteId.has(routeId)) {
+                    tripsByRouteId.set(routeId, []);
+                }
+                tripsByRouteId.get(routeId)!.push(trip);
+            }
+        }
+
+        // Calcular métricas para cada ruta
+        const routeSummaries: RouteSummary[] = routes.map((route: any) => {
+            const routeId = Number(route.id ?? route.route_id ?? 0);
+            const trips = tripsByRouteId.get(routeId) || [];
+
+            // Calcular totales
+            let totalEstimated = 0;
+            let totalActual = 0;
+
+            for (const trip of trips) {
+                const estimated =
+                    trip.fuelEstimated ?? trip.fuel_estimated ?? 0;
+                const actual = trip.fuelActual ?? trip.fuel_actual ?? 0;
+
+                totalEstimated += estimated;
+                totalActual += actual;
+            }
+
+            // Calcular diferencia y eficiencia
+            const difference = totalActual - totalEstimated;
+            const efficiency =
+                totalActual > 0
+                    ? (totalEstimated / totalActual) * 100
+                    : totalEstimated > 0
+                      ? 100
+                      : 0;
+
+            // Formatear nombre de ruta: "Origen → Destino"
+            const originName =
+                route.originName ?? route.origin_name ?? 'Origen';
+            const destinationName =
+                route.destinationName ?? route.destination_name ?? 'Destino';
+            const routeName = `${originName} → ${destinationName}`;
+
+            return {
+                routeId: routeId,
+                routeName: routeName,
+                totalTrips: trips.length,
+                estimated: Number(totalEstimated.toFixed(2)),
+                actual: Number(totalActual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(2)),
+            };
+        });
+
+        // Filtrar solo rutas que tienen viajes
+        const routesWithTrips = routeSummaries.filter(
+            (summary) => summary.totalTrips > 0,
+        );
+
+        // Ordenar por total de viajes descendente
+        routesWithTrips.sort((a, b) => b.totalTrips - a.totalTrips);
+
+        return { routes: routesWithTrips };
+    }
+
+    public async getRouteTripsDetail(
+        data: GetRouteTripsDetailRequest,
+        metadata?: Metadata,
+    ): Promise<GetRouteTripsDetailResponse> {
+        const tripsClient = await this.tripsClient();
+        const routesClient = await this.routesClient();
+
+        // Obtener la información de la ruta
+        const routeResponse = await safeGrpcCall(
+            routesClient.GetRoute({ id: Number(data.routeId) }, metadata),
+            'FuelService.GetRoute',
+        );
+
+        const route = routeResponse.route;
+        if (!route) {
+            return { trips: [] };
+        }
+
+        // Extraer información de origen y destino de la ruta
+        const originName = route.originName ?? '';
+        const destinationName = route.destinationName ?? '';
+        const originLat = route.originLat ?? 0;
+        const originLng = route.originLng ?? 0;
+        const destinationLat = route.destinationLat ?? 0;
+        const destinationLng = route.destinationLng ?? 0;
+
+        // Obtener todos los viajes (sin filtros)
+        const tripsRequest: ListTripsRequest = {};
+        const tripsResponse = await safeGrpcCall(
+            tripsClient.ListTrips(tripsRequest, metadata),
+            'FuelService.ListTrips',
+        );
+
+        // Consolidar todos los viajes en un solo array
+        const allTrips: any[] = [];
+        if (tripsResponse.trips.CREADO) {
+            allTrips.push(...tripsResponse.trips.CREADO);
+        }
+        if (tripsResponse.trips.EN_RUTA) {
+            allTrips.push(...tripsResponse.trips.EN_RUTA);
+        }
+        if (tripsResponse.trips.EN_REVISION) {
+            allTrips.push(...tripsResponse.trips.EN_REVISION);
+        }
+        if (tripsResponse.trips.TERMINADO) {
+            allTrips.push(...tripsResponse.trips.TERMINADO);
+        }
+
+        // Filtrar viajes por routeId
+        const routeTrips = allTrips.filter((trip) => {
+            const tripRouteId = Number(trip.routeId ?? trip.route_id ?? 0);
+            return tripRouteId === Number(data.routeId);
+        });
+
+        if (routeTrips.length === 0) {
+            return { trips: [] };
+        }
+
+        // Mapear a RouteTripDetail
+        const tripDetails: RouteTripDetail[] = routeTrips.map((trip: any) => {
+            // Manejar tanto camelCase como snake_case
+            const startTime = trip.startTime ?? trip.start_time ?? '';
+            const endTime = trip.endTime ?? trip.end_time ?? '';
+            const vehiclePlate = trip.vehiclePlate ?? trip.vehicle_plate ?? '';
+            const driverFirstName =
+                trip.driverFirstName ?? trip.driver_first_name ?? '';
+            const driverLastName =
+                trip.driverLastName ?? trip.driver_last_name ?? '';
+            const fuelEstimated =
+                trip.fuelEstimated ?? trip.fuel_estimated ?? 0;
+            const fuelActual = trip.fuelActual ?? trip.fuel_actual ?? 0;
+            const status = trip.status;
+
+            // Formatear fecha de inicio
+            const startTimeFormatted =
+                this.formatTimestampToDDMMHHMM(startTime);
+
+            // Formatear fecha de fin (vacío si no existe)
+            const endTimeFormatted = endTime
+                ? this.formatTimestampToDDMMHHMM(endTime)
+                : '';
+
+            // Estado como string
+            let statusString = '';
+            if (status === TripStatus.CREADO || status === 1) {
+                statusString = 'CREADO';
+            } else if (status === TripStatus.EN_RUTA || status === 2) {
+                statusString = 'EN_RUTA';
+            } else if (status === TripStatus.EN_REVISION || status === 3) {
+                statusString = 'EN_REVISION';
+            } else if (status === TripStatus.TERMINADO || status === 4) {
+                statusString = 'TERMINADO';
+            }
+
+            // Calcular diferencia
+            const difference = fuelActual - fuelEstimated;
+
+            // Calcular eficiencia: (estimado / real) * 100
+            const efficiency =
+                fuelActual > 0
+                    ? (fuelEstimated / fuelActual) * 100
+                    : fuelEstimated > 0
+                      ? 100
+                      : 0;
+
+            return {
+                tripId: trip.id || Number(trip.id),
+                driverFirstName: driverFirstName,
+                driverLastName: driverLastName,
+                vehicle: vehiclePlate,
+                status: statusString,
+                startTime: startTimeFormatted,
+                endTime: endTimeFormatted,
+                estimated: Number(fuelEstimated.toFixed(2)),
+                actual: Number(fuelActual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(1)),
                 originName: originName,
                 destinationName: destinationName,
                 originLat: originLat,

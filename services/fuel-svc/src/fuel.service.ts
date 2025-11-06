@@ -204,6 +204,7 @@ export class FuelService {
             if (!vehicleMap.has(Number(vehicleId))) {
                 vehicleMap.set(Number(vehicleId), {
                     vehicleId,
+                    vehiclePlate: trip.vehiclePlate || '',
                     trips: 0,
                     estimated: 0,
                     actual: 0,

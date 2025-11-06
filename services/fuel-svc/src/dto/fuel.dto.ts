@@ -56,6 +56,7 @@ export interface GenerateVehicleDetailReportResponse {
 
 export interface VehicleDetailSummary {
     vehicleId: number;
+    vehiclePlate: string;
     trips: number;
     estimated: number;
     actual: number;

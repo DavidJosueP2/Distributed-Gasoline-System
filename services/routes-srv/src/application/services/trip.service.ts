@@ -15,6 +15,7 @@ import { VehiclesClient } from '../../infra/clients/vehicles.client';
 import { DriversClient } from '../../infra/clients/drivers.client';
 import { UsersClient } from '../../infra/clients/users.client';
 import { TripEnriched } from '../interfaces/trip-enriched.interface';
+import { TripDriverDetail } from '../interfaces/trip-driver-detail.interface';
 import { GrpcClientFactory } from '../../infra/grpc/grpc-client.factory';
 import {
   NotFoundException,
@@ -1265,7 +1266,7 @@ export class TripService {
   async listTripsEnrichedByDriver(
     driverId: bigint,
     statusFilters?: TripStatus[],
-  ): Promise<TripEnriched[]> {
+  ): Promise<TripDriverDetail[]> {
     // Si no se proporcionan filtros, usar EN_RUTA y TERMINADO por defecto
     const defaultStatuses: TripStatus[] = [
       TripStatus.EN_RUTA,
@@ -1288,41 +1289,44 @@ export class TripService {
       statusesToFilter.includes(trip.status),
     );
 
-    // Obtener todos los clientes una vez
-    const [vehiclesClient, driversClient, usersClient] = await Promise.all([
-      this.vehiclesClient(),
-      this.driversClient(),
-      this.usersClient(),
-    ]);
+    // Obtener solo el cliente de vehículos (no necesitamos drivers ni users)
+    const vehiclesClient = await this.vehiclesClient();
 
     // Obtener información enriquecida para todos los viajes filtrados
-    const enrichedTrips = await Promise.all(
+    // Solo obtenemos route y vehicleInfo ya que no necesitamos driverInfo ni supervisorInfo
+    const driverTripDetails: TripDriverDetail[] = await Promise.all(
       filteredTrips.map(async (trip) => {
-        const [route, vehicleInfo, driverInfo, supervisorInfo] =
-          await Promise.all([
-            this.routeRepo.findById(trip.routeId),
-            vehiclesClient.getVehicleInfo(trip.vehicleId),
-            driversClient.getDriverInfo(trip.driverId, usersClient),
-            usersClient.getUserInfo(trip.supervisorId),
-          ]);
+        console.log('trip ', trip);
 
-        // Construir el nombre de la ruta en formato "Origen → Destino"
-        const routeName = route
-          ? `${route.originName} → ${route.destinationName}`
-          : undefined;
+        const [route, vehicleInfo] = await Promise.all([
+          this.routeRepo.findById(trip.routeId),
+          vehiclesClient.getVehicleInfo(trip.vehicleId),
+        ]);
 
+        console.log('route ', route);
+
+        // Construir TripDriverDetail con solo los campos esenciales
         return {
-          ...trip,
-          vehicleInfo,
-          driverInfo,
-          supervisorInfo,
-          routeName,
-          originName: route?.originName,
-          destinationName: route?.destinationName,
+          // Información esencial del viaje
+          id: trip.id,
+          startTime: trip.startTime,
+          endTime: trip.endTime,
+          status: trip.status,
+          fuelEstimated: trip.fuelEstimated,
+          fuelActual: trip.fuelActual,
+          // Información del vehículo (solo placa)
+          vehiclePlate: vehicleInfo.plate || '',
+          // Información de la ruta
+          originName: route?.originName || '',
+          destinationName: route?.destinationName || '',
+          originLat: route?.originLat || 0,
+          originLng: route?.originLng || 0,
+          destinationLat: route?.destinationLat || 0,
+          destinationLng: route?.destinationLng || 0,
         };
       }),
     );
 
-    return enrichedTrips;
+    return driverTripDetails;
   }
 }

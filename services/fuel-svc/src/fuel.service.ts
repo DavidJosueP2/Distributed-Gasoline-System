@@ -534,38 +534,59 @@ export class FuelService {
         }
 
         // Construir la respuesta con todos los detalles
-        // Los viajes ya vienen con routeName, vehiclePlate, driverFirstName, etc.
-        const tripDetails: DriverTripDetail[] = trips.map((trip) => {
+        // El mapper de routes-srv usa snake_case (origin_name, destination_name)
+        const tripDetails: DriverTripDetail[] = trips.map((trip: any) => {
+            // Manejar tanto camelCase como snake_case
+            // El mapper de routes-srv devuelve origin_name y destination_name (snake_case)
+            const startTime = trip.startTime ?? trip.start_time ?? '';
+            const endTime = trip.endTime ?? trip.end_time ?? '';
+            const vehiclePlate = trip.vehiclePlate ?? trip.vehicle_plate ?? '';
+            const fuelEstimated =
+                trip.fuelEstimated ?? trip.fuel_estimated ?? 0;
+            const fuelActual = trip.fuelActual ?? trip.fuel_actual ?? 0;
+            // El mapper usa origin_name y destination_name (snake_case)
+            const originName = trip.originName ?? trip.origin_name ?? '';
+            const destinationName =
+                trip.destinationName ?? trip.destination_name ?? '';
+            const originLat = trip.originLat ?? trip.origin_lat ?? 0;
+            const originLng = trip.originLng ?? trip.origin_lng ?? 0;
+            const destinationLat =
+                trip.destinationLat ?? trip.destination_lat ?? 0;
+            const destinationLng =
+                trip.destinationLng ?? trip.destination_lng ?? 0;
+            const status = trip.status;
+
             // Formatear fecha de inicio
-            const startTimeFormatted = this.formatTimestampToDDMMHHMM(
-                trip.startTime,
-            );
+            const startTimeFormatted =
+                this.formatTimestampToDDMMHHMM(startTime);
 
             // Formatear fecha de fin (vacío si no existe)
-            const endTimeFormatted = trip.endTime
-                ? this.formatTimestampToDDMMHHMM(trip.endTime)
+            const endTimeFormatted = endTime
+                ? this.formatTimestampToDDMMHHMM(endTime)
                 : '';
 
             // Estado como string
             let statusString = '';
-            if (trip.status === TripStatus.EN_RUTA) {
+            if (status === TripStatus.EN_RUTA || status === 2) {
                 statusString = 'EN_RUTA';
-            } else if (trip.status === TripStatus.TERMINADO) {
+            } else if (status === TripStatus.TERMINADO || status === 4) {
                 statusString = 'TERMINADO';
             }
 
-            // El routeName ya viene enriquecido del servicio, si no está disponible usar formato alternativo
-            const routeName = trip.routeName || `Ruta ${trip.routeId}`;
-
             return {
-                tripId: trip.id,
-                vehicle: trip.vehiclePlate || '',
-                route: routeName,
+                tripId: trip.id || Number(trip.id),
+                vehicle: vehiclePlate,
                 status: statusString,
                 startTime: startTimeFormatted,
                 endTime: endTimeFormatted,
-                fuelEstimated: trip.fuelEstimated || 0,
-                fuelActual: trip.fuelActual || 0,
+                fuelEstimated: fuelEstimated,
+                fuelActual: fuelActual,
+                originName: originName,
+                destinationName: destinationName,
+                originLat: originLat,
+                originLng: originLng,
+                destinationLat: destinationLat,
+                destinationLng: destinationLng,
             };
         });
 

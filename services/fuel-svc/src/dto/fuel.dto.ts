@@ -136,10 +136,16 @@ export interface GetDriverTripsResponse {
 export interface DriverTripDetail {
     tripId: number;
     vehicle: string; // placa del vehículo
-    route: string; // nombre de la ruta (ej: "Tena → Archidona")
     status: string; // EN_RUTA o TERMINADO
     startTime: string; // formato: DD/MM HH:mm
     endTime: string; // formato: DD/MM HH:mm (vacío si no ha terminado)
     fuelEstimated: number; // litros estimados
     fuelActual: number; // litros reales (0 si no está disponible)
+    // Coordenadas de la ruta
+    originName: string;
+    destinationName: string;
+    originLat: number;
+    originLng: number;
+    destinationLat: number;
+    destinationLng: number;
 }

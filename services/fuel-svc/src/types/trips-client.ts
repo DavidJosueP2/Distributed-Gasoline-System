@@ -113,7 +113,23 @@ export interface ListTripsByDriverRequest {
     statusFilter?: TripStatus[]; // opcional, si no se proporciona, devuelve EN_RUTA y TERMINADO
 }
 
+export interface DriverTripDetail {
+    id: number;
+    startTime?: string | { seconds: number; nanos: number };
+    endTime?: string | { seconds: number; nanos: number };
+    status: TripStatus;
+    fuelEstimated: number;
+    fuelActual?: number;
+    vehiclePlate?: string;
+    originName?: string;
+    destinationName?: string;
+    originLat?: number;
+    originLng?: number;
+    destinationLat?: number;
+    destinationLng?: number;
+}
+
 export interface ListTripsByDriverResponse {
-    trips: Trip[];
+    trips: DriverTripDetail[];
     totalTrips: number;
 }

@@ -685,8 +685,10 @@ export class TripsController {
 
       this.logger.log(`Found ${trips.length} trips for driver ${driverId}`);
 
+      console.log('trips finales', trips);
+
       return {
-        trips: trips.map((t) => TripGrpcMapper.toProtoEnriched(t)),
+        trips: trips.map((t) => TripGrpcMapper.toProtoDriverDetail(t)),
         totalTrips: trips.length,
       };
     } catch (error) {

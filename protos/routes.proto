@@ -417,9 +417,25 @@ message ListTripsByDriverRequest {
       2; // opcional, si está vacío devuelve EN_RUTA y TERMINADO
 }
 
+message DriverTripDetail {
+  int64 id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  TripStatus status = 4;
+  double fuel_estimated = 5;
+  double fuel_actual = 6;
+  // Información del vehículo (solo placa)
+  string vehicle_plate = 7;
+  // Información de la ruta
+  string origin_name = 8;
+  string destination_name = 9;
+  double origin_lat = 10;
+  double origin_lng = 11;
+  double destination_lat = 12;
+  double destination_lng = 13;
+}
+
 message ListTripsByDriverResponse {
-  repeated Trip trips =
-      1; // Viajes con información enriquecida (driver_first_name,
-         // driver_last_name, vehicle_plate, route_name)
+  repeated DriverTripDetail trips = 1;
   int64 total_trips = 2;
 }

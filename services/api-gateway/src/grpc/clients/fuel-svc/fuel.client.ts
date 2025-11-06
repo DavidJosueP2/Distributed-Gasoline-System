@@ -127,6 +127,24 @@ export interface GetDriverTripsResponse {
   trips: DriverTripDetail[];
 }
 
+export interface GenerateRoutesSummaryReportRequest {
+  // Por el momento sin parámetros
+}
+
+export interface RouteSummary {
+  routeId: number;
+  routeName: string; // formato: "Origen → Destino"
+  totalTrips: number;
+  estimated: number; // consumo estimado en litros
+  actual: number; // consumo real en litros
+  difference: number; // diferencia en litros
+  efficiency: number; // eficiencia en porcentaje
+}
+
+export interface GenerateRoutesSummaryReportResponse {
+  routes: RouteSummary[];
+}
+
 export interface FuelServiceClient {
   GenerateGeneralReport(
     data: GenerateGeneralReportRequest,
@@ -157,4 +175,9 @@ export interface FuelServiceClient {
     data: GetDriverTripsRequest,
     metadata?: any,
   ): Observable<GetDriverTripsResponse>;
+
+  GenerateRoutesSummaryReport(
+    data: GenerateRoutesSummaryReportRequest,
+    metadata?: any,
+  ): Observable<GenerateRoutesSummaryReportResponse>;
 }

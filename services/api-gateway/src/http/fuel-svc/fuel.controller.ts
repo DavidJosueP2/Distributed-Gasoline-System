@@ -118,4 +118,14 @@ export class FuelHttpController {
       ),
     );
   }
+
+  @Get('reports/routes-summary')
+  @GrpcTimeout(10000)
+  generateRoutesSummaryReport(@Req() req: any) {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GenerateRoutesSummaryReport({}, req._grpcMetadata),
+      ),
+    );
+  }
 }

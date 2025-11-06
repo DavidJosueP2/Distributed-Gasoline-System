@@ -14,6 +14,8 @@ service FuelService {
   rpc GenerateDriverRankingReport(GenerateDriverRankingReportRequest)
       returns (GenerateDriverRankingReportResponse);
   rpc GetDriverTrips(GetDriverTripsRequest) returns (GetDriverTripsResponse);
+  rpc GenerateRoutesSummaryReport(GenerateRoutesSummaryReportRequest)
+      returns (GenerateRoutesSummaryReportResponse);
 }
 
 message GetFuelRequest { string id = 1; }
@@ -140,4 +142,22 @@ message DriverTripDetail {
   double origin_lng = 11;
   double destination_lat = 12;
   double destination_lng = 13;
+}
+
+message GenerateRoutesSummaryReportRequest {
+  // Por el momento sin parámetros
+}
+
+message GenerateRoutesSummaryReportResponse {
+  repeated RouteSummary routes = 1;
+}
+
+message RouteSummary {
+  int64 route_id = 1;
+  string route_name = 2;     // formato: "Origen → Destino"
+  int64 total_trips = 3;
+  double estimated = 4;      // consumo estimado en litros
+  double actual = 5;         // consumo real en litros
+  double difference = 6;      // diferencia en litros
+  double efficiency = 7;      // eficiencia en porcentaje
 }

@@ -150,3 +150,21 @@ export interface DriverTripDetail {
     destinationLat: number;
     destinationLng: number;
 }
+
+export interface GenerateRoutesSummaryReportRequest {
+    // Por el momento sin filtros, puede extenderse en el futuro
+}
+
+export interface GenerateRoutesSummaryReportResponse {
+    routes: RouteSummary[];
+}
+
+export interface RouteSummary {
+    routeId: number;
+    routeName: string; // formato: "Origen → Destino"
+    totalTrips: number;
+    estimated: number; // consumo estimado en litros
+    actual: number; // consumo real en litros
+    difference: number; // diferencia en litros
+    efficiency: number; // eficiencia en porcentaje
+}

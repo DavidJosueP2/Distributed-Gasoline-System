@@ -16,6 +16,9 @@ import {
     type GetDriverTripsRequest,
     type GetDriverTripsResponse,
     type DriverTripDetail,
+    type GenerateRoutesSummaryReportRequest,
+    type GenerateRoutesSummaryReportResponse,
+    type RouteSummary,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
@@ -24,6 +27,7 @@ import { Metadata } from '@grpc/grpc-js';
 import type {
     RoutesServiceClient,
     GetRoutesByVehicleAndStatusRequest,
+    ListRoutesRequest,
 } from './types/routes-client';
 import type { DriversServiceClient } from './types/driver-client';
 import {
@@ -597,6 +601,110 @@ export class FuelService {
         });
 
         return { trips: tripDetails };
+    }
+
+    public async generateRoutesSummaryReport(
+        data: GenerateRoutesSummaryReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateRoutesSummaryReportResponse> {
+        const routesClient = await this.routesClient();
+        const tripsClient = await this.tripsClient();
+
+        // Obtener todas las rutas
+        const routesRequest: ListRoutesRequest = {};
+        const { routes } = await safeGrpcCall(
+            routesClient.ListRoutes(routesRequest, metadata),
+            'FuelService.ListRoutes',
+        );
+
+        // Obtener todos los viajes (sin filtros)
+        const tripsRequest: ListTripsRequest = {};
+        const tripsResponse = await safeGrpcCall(
+            tripsClient.ListTrips(tripsRequest, metadata),
+            'FuelService.ListTrips',
+        );
+
+        // Consolidar todos los viajes en un solo array
+        const allTrips: any[] = [];
+        if (tripsResponse.trips.CREADO) {
+            allTrips.push(...tripsResponse.trips.CREADO);
+        }
+        if (tripsResponse.trips.EN_RUTA) {
+            allTrips.push(...tripsResponse.trips.EN_RUTA);
+        }
+        if (tripsResponse.trips.EN_REVISION) {
+            allTrips.push(...tripsResponse.trips.EN_REVISION);
+        }
+        if (tripsResponse.trips.TERMINADO) {
+            allTrips.push(...tripsResponse.trips.TERMINADO);
+        }
+
+        // Agrupar viajes por routeId
+        const tripsByRouteId = new Map<number, any[]>();
+        for (const trip of allTrips) {
+            const routeId = Number(trip.routeId ?? trip.route_id ?? 0);
+            if (routeId > 0) {
+                if (!tripsByRouteId.has(routeId)) {
+                    tripsByRouteId.set(routeId, []);
+                }
+                tripsByRouteId.get(routeId)!.push(trip);
+            }
+        }
+
+        // Calcular métricas para cada ruta
+        const routeSummaries: RouteSummary[] = routes.map((route: any) => {
+            const routeId = Number(route.id ?? route.route_id ?? 0);
+            const trips = tripsByRouteId.get(routeId) || [];
+
+            // Calcular totales
+            let totalEstimated = 0;
+            let totalActual = 0;
+
+            for (const trip of trips) {
+                const estimated =
+                    trip.fuelEstimated ?? trip.fuel_estimated ?? 0;
+                const actual = trip.fuelActual ?? trip.fuel_actual ?? 0;
+
+                totalEstimated += estimated;
+                totalActual += actual;
+            }
+
+            // Calcular diferencia y eficiencia
+            const difference = totalActual - totalEstimated;
+            const efficiency =
+                totalActual > 0
+                    ? (totalEstimated / totalActual) * 100
+                    : totalEstimated > 0
+                      ? 100
+                      : 0;
+
+            // Formatear nombre de ruta: "Origen → Destino"
+            const originName =
+                route.originName ?? route.origin_name ?? 'Origen';
+            const destinationName =
+                route.destinationName ?? route.destination_name ?? 'Destino';
+            const routeName = `${originName} → ${destinationName}`;
+
+            return {
+                routeId: routeId,
+                routeName: routeName,
+                totalTrips: trips.length,
+                estimated: Number(totalEstimated.toFixed(2)),
+                actual: Number(totalActual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(2)),
+            };
+        });
+
+        // Filtrar solo rutas que tienen viajes
+        const routesWithTrips = routeSummaries.filter(
+            (summary) => summary.totalTrips > 0,
+        );
+
+        // Ordenar por total de viajes descendente
+        routesWithTrips.sort((a, b) => b.totalTrips - a.totalTrips);
+
+        return { routes: routesWithTrips };
     }
 
     /**

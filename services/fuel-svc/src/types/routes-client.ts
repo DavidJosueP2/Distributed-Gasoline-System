@@ -6,6 +6,10 @@ export interface RoutesServiceClient {
         data: GetRouteRequest,
         metadata?: any,
     ): Observable<GetRouteResponse>;
+    ListRoutes(
+        data: ListRoutesRequest,
+        metadata?: any,
+    ): Observable<ListRoutesResponse>;
     GetRoutesByVehicleAndStatus(
         data: GetRoutesByVehicleAndStatusRequest,
         metadata?: any,
@@ -18,6 +22,28 @@ export interface GetRouteRequest {
 
 export interface GetRouteResponse {
     route: Route;
+}
+
+export interface ListRoutesRequest {
+    // Por el momento sin parámetros
+}
+
+export interface ListRoutesResponse {
+    routes: RouteListItem[];
+}
+
+export interface RouteListItem {
+    id: number;
+    name: string;
+    originName: string;
+    originLat: number;
+    originLng: number;
+    destinationName: string;
+    destinationLat: number;
+    destinationLng: number;
+    distanceKm: number;
+    vehicleType: VehicleType;
+    hasTrips: boolean;
 }
 
 export interface Route {

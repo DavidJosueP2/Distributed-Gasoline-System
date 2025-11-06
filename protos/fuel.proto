@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 package fuel;
-import "google/protobuf/timestamp.proto";
 
 service FuelService {
   rpc GetFuel(GetFuelRequest) returns (GetFuelResponse);
@@ -11,6 +10,10 @@ service FuelService {
       returns (GenerateVehicleDetailReportResponse);
   rpc GenerateVehicleRoutesReport(GenerateVehicleRoutesReportRequest)
       returns (GenerateVehicleRoutesReportResponse);
+  rpc GenerateKPIs(GenerateKPIsRequest) returns (GenerateKPIsResponse);
+  rpc GenerateDriverRankingReport(GenerateDriverRankingReportRequest)
+      returns (GenerateDriverRankingReportResponse);
+  rpc GetDriverTrips(GetDriverTripsRequest) returns (GetDriverTripsResponse);
 }
 
 message GetFuelRequest { string id = 1; }
@@ -86,4 +89,48 @@ message TripDetail {
   string end_time = 6;
   string driver_first_name = 7;
   string driver_last_name = 8;
+}
+
+message GenerateKPIsRequest {
+  string status_filter = 1; // opcional: CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+message GenerateKPIsResponse {
+  int64 total_trips = 1;
+  double average_efficiency = 2; // eficiencia promedio
+}
+
+message GenerateDriverRankingReportRequest {
+  // Opcional: filtrar por estado de viaje
+  string status_filter = 1; // opcional: CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+message GenerateDriverRankingReportResponse {
+  repeated DriverRankingSummary drivers = 1;
+}
+
+message DriverRankingSummary {
+  int64 driver_id = 1;
+  string driver_first_name = 2;
+  string driver_last_name = 3;
+  int64 total_trips = 4;
+  int64 trips_creados = 5;
+  int64 trips_en_ruta = 6;
+  int64 trips_en_revision = 7;
+  int64 trips_terminados = 8;
+}
+
+message GetDriverTripsRequest { int64 driver_id = 1; }
+
+message GetDriverTripsResponse { repeated DriverTripDetail trips = 1; }
+
+message DriverTripDetail {
+  int64 trip_id = 1;
+  string vehicle = 2;        // placa del vehículo
+  string route = 3;          // nombre de la ruta (ej: "Tena → Archidona")
+  string status = 4;         // EN_RUTA o TERMINADO
+  string start_time = 5;     // formato: DD/MM HH:mm
+  string end_time = 6;       // formato: DD/MM HH:mm (vacío si no ha terminado)
+  double fuel_estimated = 7; // litros estimados
+  double fuel_actual = 8;    // litros reales (0 si no está disponible)
 }

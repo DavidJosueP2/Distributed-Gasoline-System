@@ -442,11 +442,13 @@ export class TripsController {
   async getAssignableDrivers(): Promise<any> {
     try {
       const drivers = await this.tripService.getAssignableDrivers();
-      this.logger.log(`GetAssignableDrivers - Received ${drivers.length} drivers from service`);
-      
+      this.logger.log(
+        `GetAssignableDrivers - Received ${drivers.length} drivers from service`,
+      );
+
       // Mapear en camelCase (como users-srv) - NestJS transformará a snake_case según el proto
       // El proto espera int64 para id y user_id, pero NestJS transforma automáticamente
-      const mapped = drivers.map(d => {
+      const mapped = drivers.map((d) => {
         // Convertir id - puede venir como string o number
         let idValue: number = 0;
         if (typeof d.id === 'string') {
@@ -456,19 +458,23 @@ export class TripsController {
         } else if (d.id) {
           idValue = Number(d.id);
         }
-        
+
         // Convertir userId - puede venir como string, number o Long de gRPC
         let userIdValue: number = 0;
         if (typeof d.userId === 'string') {
           userIdValue = parseInt(d.userId, 10);
         } else if (typeof d.userId === 'number') {
           userIdValue = d.userId;
-        } else if (d.userId && typeof d.userId === 'object' && 'low' in (d.userId as any)) {
+        } else if (
+          d.userId &&
+          typeof d.userId === 'object' &&
+          'low' in (d.userId as any)
+        ) {
           userIdValue = (d.userId as any).low || 0;
         } else if (d.userId) {
           userIdValue = Number(d.userId);
         }
-        
+
         // Devolver en camelCase - NestJS transformará automáticamente a snake_case según el proto
         const mappedDriver = {
           id: isNaN(idValue) || idValue <= 0 ? 0 : idValue,
@@ -476,18 +482,26 @@ export class TripsController {
           firstName: String(d.firstName || ''),
           lastName: String(d.lastName || ''),
           isAssignable: Boolean(d.isAssignable),
-          licenseTypeCodes: Array.isArray(d.licenseTypeCodes) ? d.licenseTypeCodes : []
+          licenseTypeCodes: Array.isArray(d.licenseTypeCodes)
+            ? d.licenseTypeCodes
+            : [],
         };
-        
-        this.logger.debug(`Mapping driver - Original: id=${d.id} (${typeof d.id}), userId=${d.userId} (${typeof d.userId}), firstName="${d.firstName}", lastName="${d.lastName}", licenses=${JSON.stringify(d.licenseTypeCodes)}`);
-        this.logger.debug(`Mapping driver - Mapped (camelCase): id=${mappedDriver.id}, userId=${mappedDriver.userId}, firstName="${mappedDriver.firstName}", lastName="${mappedDriver.lastName}", licenses=${JSON.stringify(mappedDriver.licenseTypeCodes)}`);
-        
+
+        this.logger.debug(
+          `Mapping driver - Original: id=${d.id} (${typeof d.id}), userId=${d.userId} (${typeof d.userId}), firstName="${d.firstName}", lastName="${d.lastName}", licenses=${JSON.stringify(d.licenseTypeCodes)}`,
+        );
+        this.logger.debug(
+          `Mapping driver - Mapped (camelCase): id=${mappedDriver.id}, userId=${mappedDriver.userId}, firstName="${mappedDriver.firstName}", lastName="${mappedDriver.lastName}", licenses=${JSON.stringify(mappedDriver.licenseTypeCodes)}`,
+        );
+
         return mappedDriver;
       });
-      
+
       const response = { drivers: mapped };
-      this.logger.log(`GetAssignableDrivers response (camelCase): ${JSON.stringify(response, null, 2)}`);
-      
+      this.logger.log(
+        `GetAssignableDrivers response (camelCase): ${JSON.stringify(response, null, 2)}`,
+      );
+
       return response;
     } catch (error) {
       this.logger.error(
@@ -507,14 +521,20 @@ export class TripsController {
     try {
       // Extraer parámetros opcionales del request
       // Priorizar camelCase (comunicación entre servicios NestJS) y luego snake_case (Postman directo)
-      const driverLicenseTypeCodes = request?.driverLicenseTypeCodes || request?.driver_license_type_codes;
-      const routeVehicleType = request?.routeVehicleType || request?.route_vehicle_type;
-      
+      const driverLicenseTypeCodes =
+        request?.driverLicenseTypeCodes || request?.driver_license_type_codes;
+      const routeVehicleType =
+        request?.routeVehicleType || request?.route_vehicle_type;
+
       const vehicles = await this.tripService.getAssignableVehicles(
-        driverLicenseTypeCodes ? (Array.isArray(driverLicenseTypeCodes) ? driverLicenseTypeCodes : [driverLicenseTypeCodes]) : undefined,
-        routeVehicleType as VehicleType
+        driverLicenseTypeCodes
+          ? Array.isArray(driverLicenseTypeCodes)
+            ? driverLicenseTypeCodes
+            : [driverLicenseTypeCodes]
+          : undefined,
+        routeVehicleType as VehicleType,
       );
-      
+
       return { vehicles };
     } catch (error) {
       this.logger.error(
@@ -589,6 +609,95 @@ export class TripsController {
       throw new RpcException({
         code: GrpcStatus.INTERNAL,
         message: 'Error interno del servidor',
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'ListTripsByDriver')
+  async listTripsByDriver(request: any): Promise<any> {
+    try {
+      this.logger.log(
+        `ListTripsByDriver called with driverId: ${request.driverId}, statusFilter: ${JSON.stringify(request.statusFilter)}`,
+      );
+
+      // Convertir driverId a bigint
+      const driverId = BigInt(request.driverId || request.driver_id);
+
+      // Convertir statusFilter de números o strings a TripStatus si existe
+      // Manejar tanto camelCase como snake_case
+      const statusFilterArray =
+        request.statusFilter || request.status_filter || [];
+      let statusFilters: TripStatus[] | undefined;
+      if (statusFilterArray && statusFilterArray.length > 0) {
+        statusFilters = statusFilterArray.map((status: number | string) => {
+          // Si es un número, usar directamente
+          if (typeof status === 'number') {
+            switch (status) {
+              case 1:
+                return TripStatus.CREADO;
+              case 2:
+                return TripStatus.EN_RUTA;
+              case 3:
+                return TripStatus.EN_REVISION;
+              case 4:
+                return TripStatus.TERMINADO;
+              default:
+                throw new RpcException({
+                  code: GrpcStatus.INVALID_ARGUMENT,
+                  message: `Estado de viaje inválido: ${status}`,
+                });
+            }
+          }
+          // Si es un string, convertir a TripStatus
+          if (typeof status === 'string') {
+            const statusUpper = status.toUpperCase();
+            switch (statusUpper) {
+              case 'CREADO':
+              case '1':
+                return TripStatus.CREADO;
+              case 'EN_RUTA':
+              case '2':
+                return TripStatus.EN_RUTA;
+              case 'EN_REVISION':
+              case '3':
+                return TripStatus.EN_REVISION;
+              case 'TERMINADO':
+              case '4':
+                return TripStatus.TERMINADO;
+              default:
+                throw new RpcException({
+                  code: GrpcStatus.INVALID_ARGUMENT,
+                  message: `Estado de viaje inválido: ${status}`,
+                });
+            }
+          }
+          throw new RpcException({
+            code: GrpcStatus.INVALID_ARGUMENT,
+            message: `Estado de viaje inválido: ${status}`,
+          });
+        });
+      }
+
+      const trips = await this.tripService.listTripsEnrichedByDriver(
+        driverId,
+        statusFilters,
+      );
+
+      this.logger.log(`Found ${trips.length} trips for driver ${driverId}`);
+
+      return {
+        trips: trips.map((t) => TripGrpcMapper.toProtoEnriched(t)),
+        totalTrips: trips.length,
+      };
+    } catch (error) {
+      this.logger.error(
+        `ListTripsByDriver error: ${(error as any)?.message}`,
+        (error as any)?.stack,
+      );
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: `Error interno del servidor: ${(error as any)?.message || 'Error desconocido'}`,
       });
     }
   }

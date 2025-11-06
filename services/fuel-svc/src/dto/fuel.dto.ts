@@ -96,3 +96,50 @@ export interface TripDetail {
     difference: number;
     //deviation: number;
 }
+
+export interface GenerateKPIsRequest {
+    statusFilter?: string; // opcional: CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+export interface GenerateKPIsResponse {
+    totalTrips: number;
+    averageEfficiency: number; // eficiencia promedio
+}
+
+export interface GenerateDriverRankingReportRequest {
+    statusFilter?: string; // opcional: CREADO, EN_RUTA, EN_REVISION, TERMINADO
+}
+
+export interface GenerateDriverRankingReportResponse {
+    drivers: DriverRankingSummary[];
+}
+
+export interface DriverRankingSummary {
+    driverId: number;
+    driverFirstName: string;
+    driverLastName: string;
+    totalTrips: number;
+    tripsCreados: number;
+    tripsEnRuta: number;
+    tripsEnRevision: number;
+    tripsTerminados: number;
+}
+
+export interface GetDriverTripsRequest {
+    driverId: number;
+}
+
+export interface GetDriverTripsResponse {
+    trips: DriverTripDetail[];
+}
+
+export interface DriverTripDetail {
+    tripId: number;
+    vehicle: string; // placa del vehículo
+    route: string; // nombre de la ruta (ej: "Tena → Archidona")
+    status: string; // EN_RUTA o TERMINADO
+    startTime: string; // formato: DD/MM HH:mm
+    endTime: string; // formato: DD/MM HH:mm (vacío si no ha terminado)
+    fuelEstimated: number; // litros estimados
+    fuelActual: number; // litros reales (0 si no está disponible)
+}

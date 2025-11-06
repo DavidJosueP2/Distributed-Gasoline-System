@@ -4,7 +4,10 @@ import { TOKENS } from '../tokens';
 import { TripRepository } from '../../domain/repositories/trip.repository';
 import { RouteRepository } from '../../domain/repositories/route.repository';
 import { Trip } from '../../domain/entities/trip.entity';
-import { TripStatus, canTransitionTo } from '../../domain/value-objects/trip-status.vo';
+import {
+  TripStatus,
+  canTransitionTo,
+} from '../../domain/value-objects/trip-status.vo';
 import { VehicleType } from '../../domain/value-objects/vehicle-type.vo';
 import { RouteService } from './route.service';
 import { FuelCalculatorService } from '../../domain/services/fuel-calculator.service';
@@ -13,7 +16,7 @@ import { DriversClient } from '../../infra/clients/drivers.client';
 import { UsersClient } from '../../infra/clients/users.client';
 import { TripEnriched } from '../interfaces/trip-enriched.interface';
 import { GrpcClientFactory } from '../../infra/grpc/grpc-client.factory';
-import { 
+import {
   NotFoundException,
   InvalidTripStatusTransitionException,
   TripNotInCorrectStatusException,
@@ -25,7 +28,7 @@ import {
   DriverNotAtLocationException,
   DriverNotAtDestinationException,
   UnauthorizedSupervisorException,
-  DriverLicenseMismatchException
+  DriverLicenseMismatchException,
 } from '../exceptions';
 import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
@@ -95,7 +98,7 @@ export class TripService {
     // Si no se proporciona routeId pero se permite crear ruta automáticamente
     if (!routeId && input.createRouteIfNotExists && input.routeData) {
       this.logger.log('Creando ruta automáticamente...');
-      
+
       // Crear la ruta usando el servicio de rutas
       const createdRoute = await this.routeService.createRoute({
         name: input.routeData.name,
@@ -108,10 +111,12 @@ export class TripService {
         distanceKm: input.routeData.distanceKm,
         vehicleType: input.routeData.vehicleType,
       });
-      
+
       routeId = createdRoute.id;
       route = createdRoute;
-      this.logger.log(`Ruta creada automáticamente: ${createdRoute.name} (ID: ${createdRoute.id})`);
+      this.logger.log(
+        `Ruta creada automáticamente: ${createdRoute.name} (ID: ${createdRoute.id})`,
+      );
     } else if (routeId) {
       // Validar que la ruta existe
       route = await this.routeRepo.findById(routeId);
@@ -119,7 +124,9 @@ export class TripService {
         throw new NotFoundException('Ruta no encontrada');
       }
     } else {
-      throw new NotFoundException('Se requiere routeId o createRouteIfNotExists con routeData');
+      throw new NotFoundException(
+        'Se requiere routeId o createRouteIfNotExists con routeData',
+      );
     }
 
     // Validar que todos los IDs existen
@@ -142,13 +149,13 @@ export class TripService {
       const vehiclesClient = await this.vehiclesClient();
       const [odometerStart, consumptionProfile] = await Promise.all([
         vehiclesClient.getVehicleOdometer(input.vehicleId),
-        vehiclesClient.getConsumptionProfile(input.vehicleId)
+        vehiclesClient.getConsumptionProfile(input.vehicleId),
       ]);
 
       // Calcular consumo estimado
       const fuelEstimated = FuelCalculatorService.calculateEstimatedFuel(
         consumptionProfile.effectiveLPer100km,
-        route.distanceKm
+        route.distanceKm,
       );
 
       const trip: Omit<Trip, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -170,11 +177,11 @@ export class TripService {
 
       const id = await this.tripRepo.create(trip);
       this.logger.log(`Trip created: ${id} for route ${routeId}`);
-      
-      return { 
-        id, 
+
+      return {
+        id,
         fuelEstimated,
-        routeId: input.createRouteIfNotExists ? routeId : undefined
+        routeId: input.createRouteIfNotExists ? routeId : undefined,
       };
     } catch (error) {
       throw new VehicleServiceUnavailableException(input.vehicleId);
@@ -191,7 +198,7 @@ export class TripService {
     const [vehiclesClient, driversClient, usersClient] = await Promise.all([
       this.vehiclesClient(),
       this.driversClient(),
-      this.usersClient()
+      this.usersClient(),
     ]);
 
     // Obtener información enriquecida de todos los servicios
@@ -199,7 +206,7 @@ export class TripService {
       this.routeRepo.findById(trip.routeId),
       vehiclesClient.getVehicleInfo(trip.vehicleId),
       driversClient.getDriverInfo(trip.driverId, usersClient),
-      usersClient.getUserInfo(trip.supervisorId)
+      usersClient.getUserInfo(trip.supervisorId),
     ]);
 
     return {
@@ -213,29 +220,38 @@ export class TripService {
       originLat: route?.originLat,
       originLng: route?.originLng,
       destinationLat: route?.destinationLat,
-      destinationLng: route?.destinationLng
+      destinationLng: route?.destinationLng,
     };
   }
 
-  async listTripsEnriched(statusFilter?: TripStatus, driverIdFilter?: bigint, supervisorIdFilter?: bigint): Promise<TripEnriched[]> {
-    const trips = await this.tripRepo.findAll(statusFilter, driverIdFilter, supervisorIdFilter);
-    
+  async listTripsEnriched(
+    statusFilter?: TripStatus,
+    driverIdFilter?: bigint,
+    supervisorIdFilter?: bigint,
+  ): Promise<TripEnriched[]> {
+    const trips = await this.tripRepo.findAll(
+      statusFilter,
+      driverIdFilter,
+      supervisorIdFilter,
+    );
+
     // Obtener todos los clientes una vez
     const [vehiclesClient, driversClient, usersClient] = await Promise.all([
       this.vehiclesClient(),
       this.driversClient(),
-      this.usersClient()
+      this.usersClient(),
     ]);
 
     // Obtener información enriquecida para todos los viajes
     const enrichedTrips = await Promise.all(
       trips.map(async (trip) => {
-        const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
-          this.routeRepo.findById(trip.routeId),
-          vehiclesClient.getVehicleInfo(trip.vehicleId),
-          driversClient.getDriverInfo(trip.driverId, usersClient),
-          usersClient.getUserInfo(trip.supervisorId)
-        ]);
+        const [route, vehicleInfo, driverInfo, supervisorInfo] =
+          await Promise.all([
+            this.routeRepo.findById(trip.routeId),
+            vehiclesClient.getVehicleInfo(trip.vehicleId),
+            driversClient.getDriverInfo(trip.driverId, usersClient),
+            usersClient.getUserInfo(trip.supervisorId),
+          ]);
 
         return {
           ...trip,
@@ -244,16 +260,24 @@ export class TripService {
           supervisorInfo,
           routeName: route?.name,
           originName: route?.originName,
-          destinationName: route?.destinationName
+          destinationName: route?.destinationName,
         };
-      })
+      }),
     );
 
     return enrichedTrips;
   }
 
-  async listTrips(statusFilter?: TripStatus, driverIdFilter?: bigint, supervisorIdFilter?: bigint): Promise<Trip[]> {
-    return await this.tripRepo.findAll(statusFilter, driverIdFilter, supervisorIdFilter);
+  async listTrips(
+    statusFilter?: TripStatus,
+    driverIdFilter?: bigint,
+    supervisorIdFilter?: bigint,
+  ): Promise<Trip[]> {
+    return await this.tripRepo.findAll(
+      statusFilter,
+      driverIdFilter,
+      supervisorIdFilter,
+    );
   }
 
   async listTripsByVehicleType(vehicleTypeFilter?: VehicleType): Promise<{
@@ -262,13 +286,14 @@ export class TripService {
     CUALQUIERA: Trip[];
     total: number;
   }> {
-    const allTrips = await this.tripRepo.findAllByVehicleType(vehicleTypeFilter);
-    
+    const allTrips =
+      await this.tripRepo.findAllByVehicleType(vehicleTypeFilter);
+
     const segmented = {
       LIVIANO: [] as Trip[],
       PESADO: [] as Trip[],
       CUALQUIERA: [] as Trip[],
-      total: allTrips.length
+      total: allTrips.length,
     };
 
     // Si hay filtro, todos los viajes son del tipo filtrado
@@ -285,10 +310,16 @@ export class TripService {
     }
 
     // Sin filtro: necesitamos obtener las rutas para segmentar por tipo de vehículo
-    const routeIds = [...new Set(allTrips.map(t => t.routeId))];
-    const routes = await Promise.all(routeIds.map(id => this.routeRepo.findById(id)));
-    const routeMap = new Map(routes.filter(r => r !== null).map(r => [r!.id.toString(), r!.vehicleType]));
-    
+    const routeIds = [...new Set(allTrips.map((t) => t.routeId))];
+    const routes = await Promise.all(
+      routeIds.map((id) => this.routeRepo.findById(id)),
+    );
+    const routeMap = new Map(
+      routes
+        .filter((r) => r !== null)
+        .map((r) => [r!.id.toString(), r!.vehicleType]),
+    );
+
     for (const trip of allTrips) {
       const vehicleType = routeMap.get(trip.routeId.toString());
       if (vehicleType === VehicleType.LIVIANO) {
@@ -303,31 +334,34 @@ export class TripService {
     return segmented;
   }
 
-  async listTripsEnrichedByVehicleType(vehicleTypeFilter?: VehicleType): Promise<{
+  async listTripsEnrichedByVehicleType(
+    vehicleTypeFilter?: VehicleType,
+  ): Promise<{
     LIVIANO: TripEnriched[];
     PESADO: TripEnriched[];
     CUALQUIERA: TripEnriched[];
     total: number;
   }> {
     const segmented = await this.listTripsByVehicleType(vehicleTypeFilter);
-    
+
     // Obtener todos los clientes una vez
     const [vehiclesClient, driversClient, usersClient] = await Promise.all([
       this.vehiclesClient(),
       this.driversClient(),
-      this.usersClient()
+      this.usersClient(),
     ]);
 
     // Función para enriquecer un array de trips
     const enrichTrips = async (trips: Trip[]): Promise<TripEnriched[]> => {
       return await Promise.all(
         trips.map(async (trip) => {
-          const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
-            this.routeRepo.findById(trip.routeId),
-            vehiclesClient.getVehicleInfo(trip.vehicleId),
-            driversClient.getDriverInfo(trip.driverId, usersClient),
-            usersClient.getUserInfo(trip.supervisorId)
-          ]);
+          const [route, vehicleInfo, driverInfo, supervisorInfo] =
+            await Promise.all([
+              this.routeRepo.findById(trip.routeId),
+              vehiclesClient.getVehicleInfo(trip.vehicleId),
+              driversClient.getDriverInfo(trip.driverId, usersClient),
+              usersClient.getUserInfo(trip.supervisorId),
+            ]);
 
           return {
             ...trip,
@@ -336,54 +370,58 @@ export class TripService {
             supervisorInfo,
             routeName: route?.name,
             originName: route?.originName,
-            destinationName: route?.destinationName
+            destinationName: route?.destinationName,
           };
-        })
+        }),
       );
     };
 
     // Enriquecer cada segmento
-    const [enrichedLIVIANO, enrichedPESADO, enrichedCUALQUIERA] = await Promise.all([
-      enrichTrips(segmented.LIVIANO),
-      enrichTrips(segmented.PESADO),
-      enrichTrips(segmented.CUALQUIERA)
-    ]);
+    const [enrichedLIVIANO, enrichedPESADO, enrichedCUALQUIERA] =
+      await Promise.all([
+        enrichTrips(segmented.LIVIANO),
+        enrichTrips(segmented.PESADO),
+        enrichTrips(segmented.CUALQUIERA),
+      ]);
 
     return {
       LIVIANO: enrichedLIVIANO,
       PESADO: enrichedPESADO,
       CUALQUIERA: enrichedCUALQUIERA,
-      total: segmented.total
+      total: segmented.total,
     };
   }
 
   async listTripsByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]> {
-
     Logger.log('startTime', startTime);
     Logger.log('endTime', endTime);
 
     return await this.tripRepo.findAllByTimeRange(startTime, endTime);
   }
 
-  async listTripsEnrichedByTimeRange(startTime: Date, endTime: Date): Promise<TripEnriched[]> {
+  async listTripsEnrichedByTimeRange(
+    startTime: Date,
+    endTime: Date,
+  ): Promise<TripEnriched[]> {
     const trips = await this.tripRepo.findAllByTimeRange(startTime, endTime);
-    
+
     // Obtener todos los clientes una vez
     const [vehiclesClient, driversClient, usersClient] = await Promise.all([
       this.vehiclesClient(),
       this.driversClient(),
-      this.usersClient()
+      this.usersClient(),
     ]);
 
     // Obtener información enriquecida para todos los viajes
     const enrichedTrips = await Promise.all(
       trips.map(async (trip) => {
-        const [route, vehicleInfo, driverInfo, supervisorInfo] = await Promise.all([
-          this.routeRepo.findById(trip.routeId),
-          vehiclesClient.getVehicleInfo(trip.vehicleId),
-          driversClient.getDriverInfo(trip.driverId, usersClient),
-          usersClient.getUserInfo(trip.supervisorId)
-        ]);
+        const [route, vehicleInfo, driverInfo, supervisorInfo] =
+          await Promise.all([
+            this.routeRepo.findById(trip.routeId),
+            vehiclesClient.getVehicleInfo(trip.vehicleId),
+            driversClient.getDriverInfo(trip.driverId, usersClient),
+            usersClient.getUserInfo(trip.supervisorId),
+          ]);
 
         return {
           ...trip,
@@ -392,18 +430,22 @@ export class TripService {
           supervisorInfo,
           routeName: route?.name,
           originName: route?.originName,
-          destinationName: route?.destinationName
+          destinationName: route?.destinationName,
         };
-      })
+      }),
     );
 
     return enrichedTrips;
   }
 
-  async updateTrip(id: bigint, input: {
-    driverId?: bigint;
-    vehicleId?: bigint;
-  }, userRole?: string): Promise<Trip> {
+  async updateTrip(
+    id: bigint,
+    input: {
+      driverId?: bigint;
+      vehicleId?: bigint;
+    },
+    userRole?: string,
+  ): Promise<Trip> {
     const existingTrip = await this.tripRepo.findById(id);
     if (!existingTrip) {
       throw new NotFoundException('Viaje no encontrado');
@@ -413,7 +455,8 @@ export class TripService {
     if (userRole === 'ADMIN') {
       throw new RpcException({
         code: GrpcStatus.PERMISSION_DENIED,
-        message: 'Los administradores no pueden modificar viajes después de crearlos. Solo pueden crear y consultar viajes.',
+        message:
+          'Los administradores no pueden modificar viajes después de crearlos. Solo pueden crear y consultar viajes.',
       });
     }
 
@@ -422,14 +465,20 @@ export class TripService {
       throw new TripNotInCorrectStatusException('CREADO', existingTrip.status);
     }
 
-    const updateData: Partial<Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>> = {};
+    const updateData: Partial<Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>> =
+      {};
     if (input.driverId !== undefined) updateData.driverId = input.driverId;
     if (input.vehicleId !== undefined) updateData.vehicleId = input.vehicleId;
 
     return await this.tripRepo.update(id, updateData);
   }
 
-  async startTrip(id: bigint, callerDriverId?: bigint, currentLat?: number, currentLng?: number): Promise<Date> {
+  async startTrip(
+    id: bigint,
+    callerDriverId?: bigint,
+    currentLat?: number,
+    currentLng?: number,
+  ): Promise<Date> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
@@ -444,11 +493,16 @@ export class TripService {
     }
 
     if (!canTransitionTo(trip.status, TripStatus.EN_RUTA)) {
-      throw new InvalidTripStatusTransitionException(trip.status, TripStatus.EN_RUTA);
+      throw new InvalidTripStatusTransitionException(
+        trip.status,
+        TripStatus.EN_RUTA,
+      );
     }
 
     // Validar que el conductor no tenga otro viaje EN_RUTA
-    const activeTrip = await this.tripRepo.findActiveTripByDriver(trip.driverId);
+    const activeTrip = await this.tripRepo.findActiveTripByDriver(
+      trip.driverId,
+    );
     if (activeTrip && activeTrip.id !== id) {
       throw new DriverBusyException(trip.driverId, activeTrip.id);
     }
@@ -470,22 +524,29 @@ export class TripService {
     try {
       const [driversClient, vehiclesClient] = await Promise.all([
         this.driversClient(),
-        this.vehiclesClient()
+        this.vehiclesClient(),
       ]);
-      
+
       await Promise.all([
         driversClient.updateDriverToOnRoute(trip.driverId),
-        vehiclesClient.updateVehicleToOnRoute(trip.vehicleId)
+        vehiclesClient.updateVehicleToOnRoute(trip.vehicleId),
       ]);
     } catch (error) {
       // Log error pero no fallar el viaje
-      this.logger.error(`Error updating driver/vehicle status: ${error.message}`);
+      this.logger.error(
+        `Error updating driver/vehicle status: ${error.message}`,
+      );
     }
 
     return startTime;
   }
 
-  async finishTrip(id: bigint, currentLat?: number, currentLng?: number, callerDriverId?: bigint): Promise<{ endTime: Date }> {
+  async finishTrip(
+    id: bigint,
+    currentLat?: number,
+    currentLng?: number,
+    callerDriverId?: bigint,
+  ): Promise<{ endTime: Date }> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
@@ -505,7 +566,11 @@ export class TripService {
 
     // Validar que el conductor esté en el destino si se proporcionan coordenadas
     if (currentLat !== undefined && currentLng !== undefined) {
-      await this.validateDriverAtDestination(trip.routeId, currentLat, currentLng);
+      await this.validateDriverAtDestination(
+        trip.routeId,
+        currentLat,
+        currentLng,
+      );
     }
 
     const endTime = new Date();
@@ -518,7 +583,12 @@ export class TripService {
     return { endTime };
   }
 
-  async reviewTrip(id: bigint, odometerEnd: number, reviewComment?: string, supervisorId?: bigint): Promise<{ reviewedAt: Date; distanceKmReal: number; fuelActual: number }> {
+  async reviewTrip(
+    id: bigint,
+    odometerEnd: number,
+    reviewComment?: string,
+    supervisorId?: bigint,
+  ): Promise<{ reviewedAt: Date; distanceKmReal: number; fuelActual: number }> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
@@ -535,35 +605,47 @@ export class TripService {
 
     // Validar lectura de odómetro
     if (odometerEnd <= trip.odometerStart) {
-      throw new InvalidOdometerReadingException(trip.odometerStart, odometerEnd);
+      throw new InvalidOdometerReadingException(
+        trip.odometerStart,
+        odometerEnd,
+      );
     }
 
     // Calcular distancia real
     const distanceKmReal = FuelCalculatorService.calculateRealDistance(
       trip.odometerStart,
-      odometerEnd
+      odometerEnd,
     );
 
     // Obtener consumo efectivo y calcular consumo real
     let fuelActual: number;
     try {
       const vehiclesClient = await this.vehiclesClient();
-      const consumptionProfile = await vehiclesClient.getConsumptionProfile(trip.vehicleId);
+      const consumptionProfile = await vehiclesClient.getConsumptionProfile(
+        trip.vehicleId,
+      );
       fuelActual = FuelCalculatorService.calculateActualFuel(
         consumptionProfile.effectiveLPer100km,
-        distanceKmReal
+        distanceKmReal,
       );
     } catch (error) {
-      this.logger.error(`Error getting consumption profile for vehicle ${trip.vehicleId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error getting consumption profile for vehicle ${trip.vehicleId}: ${error.message}`,
+        error.stack,
+      );
       throw new VehicleServiceUnavailableException(trip.vehicleId);
     }
 
     // Calcular desviación para requerir comentario si excede umbral
-    const deviationPercentage = FuelCalculatorService.calculateDeviationPercentage(
-      trip.distanceKmPlanned,
-      distanceKmReal
-    );
-    if (FuelCalculatorService.requiresReviewComment(deviationPercentage) && !reviewComment?.trim()) {
+    const deviationPercentage =
+      FuelCalculatorService.calculateDeviationPercentage(
+        trip.distanceKmPlanned,
+        distanceKmReal,
+      );
+    if (
+      FuelCalculatorService.requiresReviewComment(deviationPercentage) &&
+      !reviewComment?.trim()
+    ) {
       throw new ReviewCommentRequiredException(deviationPercentage);
     }
 
@@ -580,42 +662,57 @@ export class TripService {
     try {
       const driversClient = await this.driversClient();
       const vehiclesClient = await this.vehiclesClient();
-      
+
       this.logger.log(`Liberando driver ${trip.driverId} a AVAILABLE...`);
-      const driverResult = await driversClient.updateDriverToAvailable(trip.driverId);
+      const driverResult = await driversClient.updateDriverToAvailable(
+        trip.driverId,
+      );
       this.logger.log(`Driver ${trip.driverId} liberado exitosamente`);
-      
+
       this.logger.log(`Liberando vehicle ${trip.vehicleId} a ACTIVE...`);
-      const vehicleResult = await vehiclesClient.updateVehicleToActive(trip.vehicleId);
+      const vehicleResult = await vehiclesClient.updateVehicleToActive(
+        trip.vehicleId,
+      );
       this.logger.log(`Vehicle ${trip.vehicleId} liberado exitosamente`);
     } catch (error) {
-      this.logger.error(`Error updating driver/vehicle status: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error updating driver/vehicle status: ${error.message}`,
+        error.stack,
+      );
     }
 
     return { reviewedAt, distanceKmReal, fuelActual };
   }
 
-  async calculateTripMetrics(id: bigint, odometerEnd: number): Promise<{ distanceKmReal: number; fuelActual: number }> {
+  async calculateTripMetrics(
+    id: bigint,
+    odometerEnd: number,
+  ): Promise<{ distanceKmReal: number; fuelActual: number }> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
     }
 
     if (odometerEnd <= trip.odometerStart) {
-      throw new InvalidOdometerReadingException(trip.odometerStart, odometerEnd);
+      throw new InvalidOdometerReadingException(
+        trip.odometerStart,
+        odometerEnd,
+      );
     }
 
     const distanceKmReal = FuelCalculatorService.calculateRealDistance(
       trip.odometerStart,
-      odometerEnd
+      odometerEnd,
     );
 
     try {
       const vehiclesClient = await this.vehiclesClient();
-      const consumptionProfile = await vehiclesClient.getConsumptionProfile(trip.vehicleId);
+      const consumptionProfile = await vehiclesClient.getConsumptionProfile(
+        trip.vehicleId,
+      );
       const fuelActual = FuelCalculatorService.calculateActualFuel(
         consumptionProfile.effectiveLPer100km,
-        distanceKmReal
+        distanceKmReal,
       );
       return { distanceKmReal, fuelActual };
     } catch (error) {
@@ -636,45 +733,70 @@ export class TripService {
       const [driversClient, vehiclesClient, usersClient] = await Promise.all([
         this.driversClient(),
         this.vehiclesClient(),
-        this.usersClient()
+        this.usersClient(),
       ]);
 
       const [driverInfo, vehicleInfo, supervisorInfo] = await Promise.all([
         driversClient.getDriverInfo(input.driverId),
         vehiclesClient.getVehicleInfo(input.vehicleId),
-        usersClient.getUserInfo(input.supervisorId)
+        usersClient.getUserInfo(input.supervisorId),
       ]);
 
       // Verificar que todos los datos existen
       if (!driverInfo) {
-        throw new NotFoundException(`Conductor con ID ${input.driverId} no encontrado`);
+        throw new NotFoundException(
+          `Conductor con ID ${input.driverId} no encontrado`,
+        );
       }
       if (!vehicleInfo) {
-        throw new NotFoundException(`Vehículo con ID ${input.vehicleId} no encontrado`);
+        throw new NotFoundException(
+          `Vehículo con ID ${input.vehicleId} no encontrado`,
+        );
       }
       if (!supervisorInfo) {
-        throw new NotFoundException(`Supervisor con ID ${input.supervisorId} no encontrado`);
+        throw new NotFoundException(
+          `Supervisor con ID ${input.supervisorId} no encontrado`,
+        );
       }
 
       // Si llegamos aquí, todos los IDs existen
-      this.logger.log(`Validación exitosa: Driver ${input.driverId}, Vehicle ${input.vehicleId}, Supervisor ${input.supervisorId}`);
-      
+      this.logger.log(
+        `Validación exitosa: Driver ${input.driverId}, Vehicle ${input.vehicleId}, Supervisor ${input.supervisorId}`,
+      );
     } catch (error) {
       this.logger.error(`Error validando dependencias del viaje:`, error);
-      
+
       // Determinar qué ID específico no existe basado en el error
-      if (error.message?.includes('Driver') || error.message?.includes('driver')) {
-        throw new NotFoundException(`Conductor con ID ${input.driverId} no encontrado`);
+      if (
+        error.message?.includes('Driver') ||
+        error.message?.includes('driver')
+      ) {
+        throw new NotFoundException(
+          `Conductor con ID ${input.driverId} no encontrado`,
+        );
       }
-      if (error.message?.includes('Vehicle') || error.message?.includes('vehicle')) {
-        throw new NotFoundException(`Vehículo con ID ${input.vehicleId} no encontrado`);
+      if (
+        error.message?.includes('Vehicle') ||
+        error.message?.includes('vehicle')
+      ) {
+        throw new NotFoundException(
+          `Vehículo con ID ${input.vehicleId} no encontrado`,
+        );
       }
-      if (error.message?.includes('User') || error.message?.includes('user') || error.message?.includes('supervisor')) {
-        throw new NotFoundException(`Supervisor con ID ${input.supervisorId} no encontrado`);
+      if (
+        error.message?.includes('User') ||
+        error.message?.includes('user') ||
+        error.message?.includes('supervisor')
+      ) {
+        throw new NotFoundException(
+          `Supervisor con ID ${input.supervisorId} no encontrado`,
+        );
       }
-      
+
       // Error genérico si no podemos determinar el tipo
-      throw new NotFoundException('Uno o más de los IDs proporcionados no existen');
+      throw new NotFoundException(
+        'Uno o más de los IDs proporcionados no existen',
+      );
     }
   }
 
@@ -682,16 +804,17 @@ export class TripService {
    * Valida que el conductor no tenga más de 3 viajes activos ni 1 en ruta
    */
   private async validateDriverAvailability(driverId: bigint): Promise<void> {
-    const activeTripsCount = await this.tripRepo.countActiveTripsByDriver(driverId);
+    const activeTripsCount =
+      await this.tripRepo.countActiveTripsByDriver(driverId);
     const enRutaCount = await this.tripRepo.countEnRutaTripsByDriver(driverId);
-    
+
     if (activeTripsCount >= 3) {
       throw new RpcException({
         code: GrpcStatus.RESOURCE_EXHAUSTED,
         message: `El conductor ${driverId} ya tiene ${activeTripsCount} viajes activos (máximo 3)`,
       });
     }
-    
+
     if (enRutaCount >= 1) {
       throw new RpcException({
         code: GrpcStatus.RESOURCE_EXHAUSTED,
@@ -699,27 +822,35 @@ export class TripService {
       });
     }
 
-    this.logger.log(`Validación de disponibilidad del conductor exitosa: Driver ${driverId}`);
+    this.logger.log(
+      `Validación de disponibilidad del conductor exitosa: Driver ${driverId}`,
+    );
   }
 
   /**
    * Valida que el vehículo no esté ocupado
    */
   private async validateVehicleAvailability(vehicleId: bigint): Promise<void> {
-    const activeVehicleTrip = await this.tripRepo.findActiveTripByVehicle(vehicleId);
+    const activeVehicleTrip =
+      await this.tripRepo.findActiveTripByVehicle(vehicleId);
     if (activeVehicleTrip) {
       throw new VehicleBusyException(vehicleId, activeVehicleTrip.id);
     }
 
-    this.logger.log(`Validación de disponibilidad del vehículo exitosa: Vehicle ${vehicleId}`);
+    this.logger.log(
+      `Validación de disponibilidad del vehículo exitosa: Vehicle ${vehicleId}`,
+    );
   }
 
   /**
    * Valida que el supervisor no tenga más de 3 viajes activos
    */
-  private async validateSupervisorAvailability(supervisorId: bigint): Promise<void> {
-    const activeTripsCount = await this.tripRepo.countActiveTripsBySupervisor(supervisorId);
-    
+  private async validateSupervisorAvailability(
+    supervisorId: bigint,
+  ): Promise<void> {
+    const activeTripsCount =
+      await this.tripRepo.countActiveTripsBySupervisor(supervisorId);
+
     if (activeTripsCount >= 3) {
       throw new RpcException({
         code: GrpcStatus.RESOURCE_EXHAUSTED,
@@ -727,13 +858,21 @@ export class TripService {
       });
     }
 
-    this.logger.log(`Validación de disponibilidad del supervisor exitosa: Supervisor ${supervisorId}`);
+    this.logger.log(
+      `Validación de disponibilidad del supervisor exitosa: Supervisor ${supervisorId}`,
+    );
   }
 
   /**
    * Actualiza la ubicación del conductor durante el viaje
    */
-  async updateTripLocation(id: bigint, currentLat: number, currentLng: number, currentDistance?: number, callerDriverId?: bigint): Promise<void> {
+  async updateTripLocation(
+    id: bigint,
+    currentLat: number,
+    currentLng: number,
+    currentDistance?: number,
+    callerDriverId?: bigint,
+  ): Promise<void> {
     const trip = await this.tripRepo.findById(id);
     if (!trip) {
       throw new NotFoundException('Viaje no encontrado');
@@ -757,22 +896,27 @@ export class TripService {
       currentDistance: currentDistance === undefined ? null : currentDistance,
     });
 
-    this.logger.log(`Ubicación actualizada para viaje ${id}: (${currentLat}, ${currentLng}), distancia: ${currentDistance?.toFixed(2) || 'N/A'} km`);
+    this.logger.log(
+      `Ubicación actualizada para viaje ${id}: (${currentLat}, ${currentLng}), distancia: ${currentDistance?.toFixed(2) || 'N/A'} km`,
+    );
   }
 
   /**
    * Valida que el conductor tenga las licencias necesarias para manejar el vehículo
    */
-  private async validateDriverLicenses(driverId: bigint, vehicleId: bigint): Promise<void> {
+  private async validateDriverLicenses(
+    driverId: bigint,
+    vehicleId: bigint,
+  ): Promise<void> {
     try {
       const [driversClient, vehiclesClient] = await Promise.all([
         this.driversClient(),
-        this.vehiclesClient()
+        this.vehiclesClient(),
       ]);
 
       const [driverInfo, vehicleInfo] = await Promise.all([
         driversClient.getDriverInfo(driverId),
-        vehiclesClient.getVehicleInfo(vehicleId)
+        vehiclesClient.getVehicleInfo(vehicleId),
       ]);
 
       // Verificar si el conductor puede manejar el vehículo
@@ -782,24 +926,32 @@ export class TripService {
           driverId,
           vehicleId,
           driverInfo.licenses ?? [],
-          (vehicleInfo as any).requiredLicenses ?? []
+          (vehicleInfo as any).requiredLicenses ?? [],
         );
       }
 
-      this.logger.log(`Validación de licencias exitosa: Driver ${driverId} puede manejar Vehicle ${vehicleId}`);
+      this.logger.log(
+        `Validación de licencias exitosa: Driver ${driverId} puede manejar Vehicle ${vehicleId}`,
+      );
     } catch (error) {
       if (error instanceof DriverLicenseMismatchException) {
         throw error;
       }
       this.logger.error(`Error validando licencias: ${error.message}`);
-      throw new NotFoundException('Error validando licencias del conductor o vehículo');
+      throw new NotFoundException(
+        'Error validando licencias del conductor o vehículo',
+      );
     }
   }
 
   /**
    * Valida que el conductor esté en el destino correcto para finalizar el viaje
    */
-  private async validateDriverAtDestination(routeId: bigint, currentLat: number, currentLng: number): Promise<void> {
+  private async validateDriverAtDestination(
+    routeId: bigint,
+    currentLat: number,
+    currentLng: number,
+  ): Promise<void> {
     const route = await this.routeRepo.findById(routeId);
     if (!route) {
       throw new NotFoundException('Ruta no encontrada');
@@ -807,27 +959,37 @@ export class TripService {
 
     // Calcular distancia entre ubicación actual y destino de la ruta
     const distance = this.calculateDistance(
-      currentLat, currentLng,
-      route.destinationLat, route.destinationLng
+      currentLat,
+      currentLng,
+      route.destinationLat,
+      route.destinationLng,
     );
 
     // Margen del 3% de la distancia total de la ruta
     const marginKm = route.distanceKm * 0.03;
     if (distance > marginKm) {
       throw new DriverNotAtDestinationException(
-        route.destinationLat, route.destinationLng,
-        currentLat, currentLng,
-        3 // 3% de margen
+        route.destinationLat,
+        route.destinationLng,
+        currentLat,
+        currentLng,
+        3, // 3% de margen
       );
     }
 
-    this.logger.log(`Validación de destino exitosa: Driver en destino (${currentLat}, ${currentLng})`);
+    this.logger.log(
+      `Validación de destino exitosa: Driver en destino (${currentLat}, ${currentLng})`,
+    );
   }
 
   /**
    * Valida que el conductor esté en la ubicación correcta para iniciar el viaje
    */
-  private async validateDriverLocation(routeId: bigint, currentLat: number, currentLng: number): Promise<void> {
+  private async validateDriverLocation(
+    routeId: bigint,
+    currentLat: number,
+    currentLng: number,
+  ): Promise<void> {
     const route = await this.routeRepo.findById(routeId);
     if (!route) {
       throw new NotFoundException('Ruta no encontrada');
@@ -835,33 +997,47 @@ export class TripService {
 
     // Calcular distancia entre ubicación actual y origen de la ruta
     const distance = this.calculateDistance(
-      currentLat, currentLng,
-      route.originLat, route.originLng
+      currentLat,
+      currentLng,
+      route.originLat,
+      route.originLng,
     );
 
     // Margen del 3% de la distancia total de la ruta
     const marginKm = route.distanceKm * 0.03;
     if (distance > marginKm) {
       throw new DriverNotAtLocationException(
-        route.originLat, route.originLng,
-        currentLat, currentLng,
-        3 // 3% de margen
+        route.originLat,
+        route.originLng,
+        currentLat,
+        currentLng,
+        3, // 3% de margen
       );
     }
 
-    this.logger.log(`Validación de ubicación exitosa: Driver en origen (${currentLat}, ${currentLng})`);
+    this.logger.log(
+      `Validación de ubicación exitosa: Driver en origen (${currentLat}, ${currentLng})`,
+    );
   }
 
   /**
    * Calcula la distancia entre dos puntos geográficos usando la fórmula de Haversine
    */
-  private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  private calculateDistance(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number {
     const R = 6371; // Radio de la Tierra en kilómetros
     const dLat = this.toRadians(lat2 - lat1);
     const dLng = this.toRadians(lng2 - lng1);
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRadians(lat1)) *
+        Math.cos(this.toRadians(lat2)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -876,35 +1052,41 @@ export class TripService {
   /**
    * Obtiene lista de conductores asignables con información básica y bandera de disponibilidad
    */
-  async getAssignableDrivers(): Promise<Array<{
-    id: string | number;
-    userId: string | number;
-    firstName: string;
-    lastName: string;
-    isAssignable: boolean;
-    licenseTypeCodes: string[];
-  }>> {
+  async getAssignableDrivers(): Promise<
+    Array<{
+      id: string | number;
+      userId: string | number;
+      firstName: string;
+      lastName: string;
+      isAssignable: boolean;
+      licenseTypeCodes: string[];
+    }>
+  > {
     try {
       const [driversClient, usersClient] = await Promise.all([
         this.driversClient(),
-        this.usersClient()
+        this.usersClient(),
       ]);
       const drivers = await driversClient.getAllDrivers();
-      
+
       const result = await Promise.all(
         drivers.map(async (driver) => {
           // Manejar driverId (puede venir como driverId, id, driver_id)
           const driverId = BigInt(
-            driver.driverId || driver.id || driver.driver_id || 0
+            driver.driverId || driver.id || driver.driver_id || 0,
           );
-          
+
           // Manejar userId (puede venir como userId, user_id, y puede ser Long de gRPC)
           let userIdValue: any = driver.userId || driver.user_id;
-          if (userIdValue && typeof userIdValue === 'object' && 'low' in userIdValue) {
+          if (
+            userIdValue &&
+            typeof userIdValue === 'object' &&
+            'low' in userIdValue
+          ) {
             userIdValue = userIdValue.low || 0;
           }
           const userId = BigInt(Number(userIdValue) || 0);
-          
+
           // Obtener información del usuario desde el servicio users
           let firstName = '';
           let lastName = '';
@@ -914,44 +1096,54 @@ export class TripService {
               firstName = userInfo.firstName || '';
               lastName = userInfo.lastName || '';
             } catch (error) {
-              this.logger.error(`Error getting user info for userId ${userId}:`, error);
+              this.logger.error(
+                `Error getting user info for userId ${userId}:`,
+                error,
+              );
             }
           }
-          
+
           // Obtener licencias del conductor desde el campo summary
           // Ahora driver.summary está tipado como DriverSummary
           const summary = driver.summary || {};
           // Priorizar camelCase porque según el log viene así desde drivers-svc
-          const licenseTypeCodes = summary.licenseTypes 
-            || summary.license_types 
-            || [];
-          
-          this.logger.debug(`Driver ${driverId} - userId: ${userId}, Summary: ${JSON.stringify(summary)}, LicenseCodes: ${JSON.stringify(licenseTypeCodes)}, firstName: ${firstName}, lastName: ${lastName}`);
-          
+          const licenseTypeCodes =
+            summary.licenseTypes || summary.license_types || [];
+
+          this.logger.debug(
+            `Driver ${driverId} - userId: ${userId}, Summary: ${JSON.stringify(summary)}, LicenseCodes: ${JSON.stringify(licenseTypeCodes)}, firstName: ${firstName}, lastName: ${lastName}`,
+          );
+
           // Contar TODOS los viajes activos (CREADO, EN_RUTA, EN_REVISION) - máximo 3
-          const activeTripsCount = await this.tripRepo.countActiveTripsByDriver(driverId);
-          
+          const activeTripsCount =
+            await this.tripRepo.countActiveTripsByDriver(driverId);
+
           // Contar viajes EN_RUTA (máximo 1)
-          const enRutaCount = await this.tripRepo.countEnRutaTripsByDriver(driverId);
-          
+          const enRutaCount =
+            await this.tripRepo.countEnRutaTripsByDriver(driverId);
+
           // Puede tener máximo 3 viajes activos (de cualquier estado) y 0 en ruta
           const isAssignable = activeTripsCount < 3 && enRutaCount === 0;
-          
+
           const result = {
             id: String(driverId),
             userId: String(userId),
             firstName,
             lastName,
             isAssignable,
-            licenseTypeCodes: Array.isArray(licenseTypeCodes) ? licenseTypeCodes : []
+            licenseTypeCodes: Array.isArray(licenseTypeCodes)
+              ? licenseTypeCodes
+              : [],
           };
-          
-          this.logger.debug(`Returning driver result: ${JSON.stringify(result)}`);
-          
+
+          this.logger.debug(
+            `Returning driver result: ${JSON.stringify(result)}`,
+          );
+
           return result;
-        })
+        }),
       );
-      
+
       return result;
     } catch (error) {
       this.logger.error('Error getting assignable drivers:', error);
@@ -964,14 +1156,19 @@ export class TripService {
    * @param driverLicenseTypeCodes - Array de códigos de licencia del conductor (ej: ["B", "C"])
    * @param routeVehicleType - Tipo de vehículo requerido por la ruta (LIVIANO, PESADO, CUALQUIERA)
    */
-  async getAssignableVehicles(driverLicenseTypeCodes?: string[], routeVehicleType?: VehicleType): Promise<Array<{
-    id: number;
-    plate: string;
-    isAssignable: boolean;
-  }>> {
+  async getAssignableVehicles(
+    driverLicenseTypeCodes?: string[],
+    routeVehicleType?: VehicleType,
+  ): Promise<
+    Array<{
+      id: number;
+      plate: string;
+      isAssignable: boolean;
+    }>
+  > {
     try {
       const vehiclesClient = await this.vehiclesClient();
-      
+
       // Determinar el filtro de tipo de máquina según el tipo de vehículo de la ruta
       let machineTypeFilter: number | undefined;
       if (routeVehicleType === VehicleType.LIVIANO) {
@@ -980,38 +1177,42 @@ export class TripService {
         machineTypeFilter = 2; // HEAVY
       }
       // Si es CUALQUIERA, no pasamos filtro (machineTypeFilter será undefined)
-      
+
       // Obtener vehículos con filtros de licencia y tipo
       const vehicles = await vehiclesClient.getAllVehiclesWithDetails({
         licenseTypeCodes: driverLicenseTypeCodes,
         machineTypeFilter,
       });
-      
+
       const result = await Promise.all(
         vehicles.map(async (vehicleWithDetails: any) => {
-          const vehicleId = BigInt(vehicleWithDetails.unit.vehicleId || vehicleWithDetails.unit.id);
-          
+          const vehicleId = BigInt(
+            vehicleWithDetails.unit.vehicleId || vehicleWithDetails.unit.id,
+          );
+
           // Verificar viajes EN_RUTA
-          const activeVehicleTrip = await this.tripRepo.findActiveTripByVehicle(vehicleId);
-          
+          const activeVehicleTrip =
+            await this.tripRepo.findActiveTripByVehicle(vehicleId);
+
           // Contar TODOS los viajes activos (CREADO, EN_RUTA, EN_REVISION) - máximo 3
-          const activeTripsCount = await this.tripRepo.countActiveTripsByVehicle(vehicleId);
-          
+          const activeTripsCount =
+            await this.tripRepo.countActiveTripsByVehicle(vehicleId);
+
           // Está disponible si:
           // 1. No tiene viajes EN_RUTA
           // 2. Tiene menos de 3 viajes activos (de cualquier estado)
           const isAssignable = !activeVehicleTrip && activeTripsCount < 3;
-          
+
           const plate = vehicleWithDetails.unit.plate || '';
-          
+
           return {
             id: vehicleId.toString() as any,
             plate,
-            isAssignable
+            isAssignable,
           };
-        })
+        }),
       );
-      
+
       return result;
     } catch (error) {
       this.logger.error('Error getting assignable vehicles:', error);
@@ -1022,39 +1223,106 @@ export class TripService {
   /**
    * Obtiene lista de supervisores asignables con información básica y bandera de disponibilidad
    */
-  async getAssignableSupervisors(): Promise<Array<{
-    id: number;
-    firstName: string;
-    lastName: string;
-    isAssignable: boolean;
-    activeTripsCount: number;
-  }>> {
+  async getAssignableSupervisors(): Promise<
+    Array<{
+      id: number;
+      firstName: string;
+      lastName: string;
+      isAssignable: boolean;
+      activeTripsCount: number;
+    }>
+  > {
     try {
       const usersClient = await this.usersClient();
       const supervisors = await usersClient.getAllSupervisors();
-      
+
       const result = await Promise.all(
         supervisors.map(async (supervisor: any) => {
           const supervisorId = BigInt(supervisor.id);
-          const activeTripsCount = await this.tripRepo.countActiveTripsBySupervisor(supervisorId);
-          
+          const activeTripsCount =
+            await this.tripRepo.countActiveTripsBySupervisor(supervisorId);
+
           // Puede gestionar máximo 3 viajes activos
           const isAssignable = activeTripsCount < 3;
-          
+
           return {
             id: supervisorId.toString() as any,
             firstName: supervisor.firstName || '',
             lastName: supervisor.lastName || '',
             isAssignable,
-            activeTripsCount
+            activeTripsCount,
           };
-        })
+        }),
       );
-      
+
       return result;
     } catch (error) {
       this.logger.error('Error getting assignable supervisors:', error);
       return [];
     }
+  }
+
+  async listTripsEnrichedByDriver(
+    driverId: bigint,
+    statusFilters?: TripStatus[],
+  ): Promise<TripEnriched[]> {
+    // Si no se proporcionan filtros, usar EN_RUTA y TERMINADO por defecto
+    const defaultStatuses: TripStatus[] = [
+      TripStatus.EN_RUTA,
+      TripStatus.TERMINADO,
+    ];
+    const statusesToFilter =
+      statusFilters && statusFilters.length > 0
+        ? statusFilters
+        : defaultStatuses;
+
+    // Obtener todos los viajes del conductor (sin filtro de estado primero)
+    const allDriverTrips = await this.tripRepo.findAll(
+      undefined,
+      driverId,
+      undefined,
+    );
+
+    // Filtrar por los estados solicitados
+    const filteredTrips = allDriverTrips.filter((trip) =>
+      statusesToFilter.includes(trip.status),
+    );
+
+    // Obtener todos los clientes una vez
+    const [vehiclesClient, driversClient, usersClient] = await Promise.all([
+      this.vehiclesClient(),
+      this.driversClient(),
+      this.usersClient(),
+    ]);
+
+    // Obtener información enriquecida para todos los viajes filtrados
+    const enrichedTrips = await Promise.all(
+      filteredTrips.map(async (trip) => {
+        const [route, vehicleInfo, driverInfo, supervisorInfo] =
+          await Promise.all([
+            this.routeRepo.findById(trip.routeId),
+            vehiclesClient.getVehicleInfo(trip.vehicleId),
+            driversClient.getDriverInfo(trip.driverId, usersClient),
+            usersClient.getUserInfo(trip.supervisorId),
+          ]);
+
+        // Construir el nombre de la ruta en formato "Origen → Destino"
+        const routeName = route
+          ? `${route.originName} → ${route.destinationName}`
+          : undefined;
+
+        return {
+          ...trip,
+          vehicleInfo,
+          driverInfo,
+          supervisorInfo,
+          routeName,
+          originName: route?.originName,
+          destinationName: route?.destinationName,
+        };
+      }),
+    );
+
+    return enrichedTrips;
   }
 }

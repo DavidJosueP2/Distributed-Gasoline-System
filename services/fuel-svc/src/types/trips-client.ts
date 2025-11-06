@@ -15,6 +15,10 @@ export interface TripsServiceClient {
         data: ListTripsByVehicleTypeRequest,
         metadata?: Metadata,
     ): Observable<ListTripsByVehicleTypeResponse>;
+    ListTripsByDriver(
+        data: ListTripsByDriverRequest,
+        metadata?: Metadata,
+    ): Observable<ListTripsByDriverResponse>;
 }
 
 export interface ListTripsRequest {
@@ -56,6 +60,12 @@ export interface Trip {
     currentLat?: number;
     currentLng?: number;
     currentDistance?: number;
+    driverFirstName?: string;
+    driverLastName?: string;
+    supervisorFirstName?: string;
+    supervisorLastName?: string;
+    vehiclePlate?: string;
+    routeName?: string; // nombre de la ruta enriquecido
 }
 
 export enum TripStatus {
@@ -96,4 +106,14 @@ export enum VehicleType {
     LIVIANO = 1,
     PESADO = 2,
     CUALQUIERA = 3,
+}
+
+export interface ListTripsByDriverRequest {
+    driverId: number;
+    statusFilter?: TripStatus[]; // opcional, si no se proporciona, devuelve EN_RUTA y TERMINADO
+}
+
+export interface ListTripsByDriverResponse {
+    trips: Trip[];
+    totalTrips: number;
 }

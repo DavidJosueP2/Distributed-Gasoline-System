@@ -3,6 +3,7 @@ import {
   Get,
   Req,
   Query,
+  Param,
   BadRequestException,
 } from '@nestjs/common';
 import { from, switchMap } from 'rxjs';
@@ -73,6 +74,47 @@ export class FuelHttpController {
           { vehicleId: vehicleIdNum, status, vehicleType },
           req._grpcMetadata,
         ),
+      ),
+    );
+  }
+
+  @Get('kpis')
+  @GrpcTimeout(10000)
+  generateKPIs(@Req() req: any, @Query('status') status?: string) {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GenerateKPIs({ statusFilter: status }, req._grpcMetadata),
+      ),
+    );
+  }
+
+  @Get('reports/driver-ranking')
+  @GrpcTimeout(10000)
+  generateDriverRankingReport(
+    @Req() req: any,
+    @Query('status') status?: string,
+  ) {
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GenerateDriverRankingReport(
+          { statusFilter: status },
+          req._grpcMetadata,
+        ),
+      ),
+    );
+  }
+
+  @Get('drivers/:driverId/trips')
+  @GrpcTimeout(10000)
+  getDriverTrips(@Param('driverId') driverId: string, @Req() req: any) {
+    const driverIdNum = Number.parseInt(driverId, 10);
+    if (Number.isNaN(driverIdNum)) {
+      throw new BadRequestException('driverId must be a valid number');
+    }
+
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GetDriverTrips({ driverId: driverIdNum }, req._grpcMetadata),
       ),
     );
   }

@@ -106,7 +106,7 @@ message DeleteRouteResponse {}
 
 message GetRoutesByVehicleAndStatusRequest {
   int64 vehicle_id = 1;
-  string status = 2; // CREADO, EN_RUTA, EN_REVISION, TERMINADO
+  string status = 2;            // CREADO, EN_RUTA, EN_REVISION, TERMINADO
   VehicleType vehicle_type = 3; // opcional - LIVIANO, PESADO, CUALQUIERA
 }
 
@@ -297,6 +297,8 @@ service TripsService {
       returns (ListTripsByVehicleTypeResponse);
   rpc ListTripsByTimeRange(ListTripsByTimeRangeRequest)
       returns (ListTripsByTimeRangeResponse);
+  rpc ListTripsByDriver(ListTripsByDriverRequest)
+      returns (ListTripsByDriverResponse);
 }
 
 message UpdateTripLocationRequest {
@@ -328,7 +330,8 @@ message AssignableDriver {
   string first_name = 3;
   string last_name = 4;
   bool is_assignable = 5;
-  repeated string license_type_codes = 6; // Códigos de licencia del conductor (ej: ["B", "C"])
+  repeated string license_type_codes =
+      6; // Códigos de licencia del conductor (ej: ["B", "C"])
 }
 
 message AssignableVehicle {
@@ -350,8 +353,11 @@ message GetAssignableDriversRequest {}
 message GetAssignableDriversResponse { repeated AssignableDriver drivers = 1; }
 
 message GetAssignableVehiclesRequest {
-  repeated string driver_license_type_codes = 1; // opcional - códigos de licencia del conductor (ej: ["B", "C"])
-  VehicleType route_vehicle_type = 2; // opcional - tipo de vehículo requerido por la ruta (LIVIANO, PESADO, CUALQUIERA)
+  repeated string driver_license_type_codes =
+      1; // opcional - códigos de licencia del conductor (ej: ["B", "C"])
+  VehicleType route_vehicle_type =
+      2; // opcional - tipo de vehículo requerido por la ruta (LIVIANO, PESADO,
+         // CUALQUIERA)
 }
 
 message GetAssignableVehiclesResponse {
@@ -397,5 +403,23 @@ message ListTripsByTimeRangeRequest {
 
 message ListTripsByTimeRangeResponse {
   repeated Trip trips = 1;
+  int64 total_trips = 2;
+}
+
+// =====================================================
+// List Trips By Driver Messages
+// =====================================================
+
+message ListTripsByDriverRequest {
+  int64 driver_id = 1;
+  // Solo devuelve viajes con estos estados (por defecto EN_RUTA y TERMINADO)
+  repeated TripStatus status_filter =
+      2; // opcional, si está vacío devuelve EN_RUTA y TERMINADO
+}
+
+message ListTripsByDriverResponse {
+  repeated Trip trips =
+      1; // Viajes con información enriquecida (driver_first_name,
+         // driver_last_name, vehicle_plate, route_name)
   int64 total_trips = 2;
 }

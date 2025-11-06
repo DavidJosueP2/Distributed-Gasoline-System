@@ -5,9 +5,16 @@ import { VehicleType } from '../value-objects/vehicle-type.vo';
 
 export interface TripRepository {
   findById(id: bigint): Promise<Trip | null>;
-  findAll(statusFilter?: TripStatus, driverIdFilter?: bigint, supervisorIdFilter?: bigint): Promise<Trip[]>;
+  findAll(
+    statusFilter?: TripStatus,
+    driverIdFilter?: bigint,
+    supervisorIdFilter?: bigint,
+  ): Promise<Trip[]>;
   create(trip: Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>): Promise<bigint>;
-  update(id: bigint, trip: Partial<Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Trip>;
+  update(
+    id: bigint,
+    trip: Partial<Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<Trip>;
   delete(id: bigint): Promise<void>;
   existsByRouteId(routeId: bigint): Promise<boolean>;
   findActiveTripByDriver(driverId: bigint): Promise<Trip | null>;
@@ -19,5 +26,8 @@ export interface TripRepository {
   countCreatedTripsByVehicle(vehicleId: bigint): Promise<number>;
   findAllByVehicleType(vehicleTypeFilter?: VehicleType): Promise<Trip[]>;
   findAllByTimeRange(startTime: Date, endTime: Date): Promise<Trip[]>;
-  findAllByVehicleIdAndStatus(vehicleId: bigint, status: TripStatus): Promise<Trip[]>;
+  findAllByVehicleIdAndStatus(
+    vehicleId: bigint,
+    status: TripStatus,
+  ): Promise<Trip[]>;
 }

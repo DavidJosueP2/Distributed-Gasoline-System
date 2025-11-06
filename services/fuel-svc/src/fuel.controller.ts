@@ -8,6 +8,12 @@ import {
     type GenerateVehicleDetailReportResponse,
     type GenerateVehicleRoutesReportRequest,
     type GenerateVehicleRoutesReportResponse,
+    type GenerateKPIsRequest,
+    type GenerateKPIsResponse,
+    type GenerateDriverRankingReportRequest,
+    type GenerateDriverRankingReportResponse,
+    type GetDriverTripsRequest,
+    type GetDriverTripsResponse,
 } from './dto/fuel.dto';
 import { Metadata } from '@grpc/grpc-js';
 import { Roles } from './common/auth/decorators/roles.decorator';
@@ -41,5 +47,32 @@ export class FuelController {
         metadata?: Metadata,
     ): Promise<GenerateVehicleRoutesReportResponse> {
         return this.fuelService.generateVehicleRoutesReport(data, metadata);
+    }
+
+    @Roles('ADMIN', 'SUPERVISOR')
+    @GrpcMethod('FuelService', 'GenerateKPIs')
+    public async generateKPIs(
+        data: GenerateKPIsRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateKPIsResponse> {
+        return this.fuelService.generateKPIs(data, metadata);
+    }
+
+    @Roles('ADMIN', 'SUPERVISOR')
+    @GrpcMethod('FuelService', 'GenerateDriverRankingReport')
+    public async generateDriverRankingReport(
+        data: GenerateDriverRankingReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateDriverRankingReportResponse> {
+        return this.fuelService.generateDriverRankingReport(data, metadata);
+    }
+
+    @Roles('ADMIN', 'SUPERVISOR')
+    @GrpcMethod('FuelService', 'GetDriverTrips')
+    public async getDriverTrips(
+        data: GetDriverTripsRequest,
+        metadata?: Metadata,
+    ): Promise<GetDriverTripsResponse> {
+        return this.fuelService.getDriverTrips(data, metadata);
     }
 }

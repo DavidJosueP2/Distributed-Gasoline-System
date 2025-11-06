@@ -19,6 +19,9 @@ import {
     type GenerateRoutesSummaryReportRequest,
     type GenerateRoutesSummaryReportResponse,
     type RouteSummary,
+    type GetRouteTripsDetailRequest,
+    type GetRouteTripsDetailResponse,
+    type RouteTripDetail,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
@@ -705,6 +708,140 @@ export class FuelService {
         routesWithTrips.sort((a, b) => b.totalTrips - a.totalTrips);
 
         return { routes: routesWithTrips };
+    }
+
+    public async getRouteTripsDetail(
+        data: GetRouteTripsDetailRequest,
+        metadata?: Metadata,
+    ): Promise<GetRouteTripsDetailResponse> {
+        const tripsClient = await this.tripsClient();
+        const routesClient = await this.routesClient();
+
+        // Obtener la información de la ruta
+        const routeResponse = await safeGrpcCall(
+            routesClient.GetRoute({ id: Number(data.routeId) }, metadata),
+            'FuelService.GetRoute',
+        );
+
+        const route = routeResponse.route;
+        if (!route) {
+            return { trips: [] };
+        }
+
+        // Extraer información de origen y destino de la ruta
+        const originName = route.originName ?? '';
+        const destinationName = route.destinationName ?? '';
+        const originLat = route.originLat ?? 0;
+        const originLng = route.originLng ?? 0;
+        const destinationLat = route.destinationLat ?? 0;
+        const destinationLng = route.destinationLng ?? 0;
+
+        // Obtener todos los viajes (sin filtros)
+        const tripsRequest: ListTripsRequest = {};
+        const tripsResponse = await safeGrpcCall(
+            tripsClient.ListTrips(tripsRequest, metadata),
+            'FuelService.ListTrips',
+        );
+
+        // Consolidar todos los viajes en un solo array
+        const allTrips: any[] = [];
+        if (tripsResponse.trips.CREADO) {
+            allTrips.push(...tripsResponse.trips.CREADO);
+        }
+        if (tripsResponse.trips.EN_RUTA) {
+            allTrips.push(...tripsResponse.trips.EN_RUTA);
+        }
+        if (tripsResponse.trips.EN_REVISION) {
+            allTrips.push(...tripsResponse.trips.EN_REVISION);
+        }
+        if (tripsResponse.trips.TERMINADO) {
+            allTrips.push(...tripsResponse.trips.TERMINADO);
+        }
+
+        // Filtrar viajes por routeId
+        const routeTrips = allTrips.filter((trip) => {
+            const tripRouteId = Number(trip.routeId ?? trip.route_id ?? 0);
+            return tripRouteId === Number(data.routeId);
+        });
+
+        if (routeTrips.length === 0) {
+            return { trips: [] };
+        }
+
+        // Mapear a RouteTripDetail
+        const tripDetails: RouteTripDetail[] = routeTrips.map((trip: any) => {
+            // Manejar tanto camelCase como snake_case
+            const startTime = trip.startTime ?? trip.start_time ?? '';
+            const endTime = trip.endTime ?? trip.end_time ?? '';
+            const vehiclePlate = trip.vehiclePlate ?? trip.vehicle_plate ?? '';
+            const driverFirstName =
+                trip.driverFirstName ?? trip.driver_first_name ?? '';
+            const driverLastName =
+                trip.driverLastName ?? trip.driver_last_name ?? '';
+            const fuelEstimated =
+                trip.fuelEstimated ?? trip.fuel_estimated ?? 0;
+            const fuelActual = trip.fuelActual ?? trip.fuel_actual ?? 0;
+            const status = trip.status;
+
+            // Formatear fecha de inicio
+            const startTimeFormatted =
+                this.formatTimestampToDDMMHHMM(startTime);
+
+            // Formatear fecha de fin (vacío si no existe)
+            const endTimeFormatted = endTime
+                ? this.formatTimestampToDDMMHHMM(endTime)
+                : '';
+
+            // Estado como string
+            let statusString = '';
+            if (status === TripStatus.CREADO || status === 1) {
+                statusString = 'CREADO';
+            } else if (status === TripStatus.EN_RUTA || status === 2) {
+                statusString = 'EN_RUTA';
+            } else if (status === TripStatus.EN_REVISION || status === 3) {
+                statusString = 'EN_REVISION';
+            } else if (status === TripStatus.TERMINADO || status === 4) {
+                statusString = 'TERMINADO';
+            }
+
+            // Calcular diferencia
+            const difference = fuelActual - fuelEstimated;
+
+            // Calcular eficiencia: (estimado / real) * 100
+            const efficiency =
+                fuelActual > 0
+                    ? (fuelEstimated / fuelActual) * 100
+                    : fuelEstimated > 0
+                      ? 100
+                      : 0;
+
+            return {
+                tripId: trip.id || Number(trip.id),
+                driverFirstName: driverFirstName,
+                driverLastName: driverLastName,
+                vehicle: vehiclePlate,
+                status: statusString,
+                startTime: startTimeFormatted,
+                endTime: endTimeFormatted,
+                estimated: Number(fuelEstimated.toFixed(2)),
+                actual: Number(fuelActual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(1)),
+                originName: originName,
+                destinationName: destinationName,
+                originLat: originLat,
+                originLng: originLng,
+                destinationLat: destinationLat,
+                destinationLng: destinationLng,
+            };
+        });
+
+        // Ordenar por fecha de inicio descendente (más recientes primero)
+        tripDetails.sort((a, b) => {
+            return b.startTime.localeCompare(a.startTime);
+        });
+
+        return { trips: tripDetails };
     }
 
     /**

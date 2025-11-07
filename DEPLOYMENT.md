@@ -1,150 +1,171 @@
-# 🚀 Guía de Despliegue - Fuel System
+az group delete --name fuel-system-rg --yes --no-wait
+```
 
-Esta guía te ayudará a desplegar el sistema distribuido de gestión de combustible en diferentes entornos.
+---
 
-## 📋 Tabla de Contenidos
+## 📝 Checklist de Configuración
 
-1. [Requisitos Previos](#requisitos-previos)
-2. [Configuración Inicial](#configuración-inicial)
-3. [Despliegue Local con Docker Compose](#despliegue-local-con-docker-compose)
-4. [Despliegue en Azure Kubernetes Service (AKS)](#despliegue-en-azure-aks)
-5. [Configuración de CI/CD con GitHub Actions](#configuración-de-cicd)
-6. [Monitoreo y Troubleshooting](#monitoreo-y-troubleshooting)
+### GitHub Secrets
+- [ ] `GHCR_PAT` - Personal Access Token
+- [ ] `AZURE_CREDENTIALS` - Service Principal
+- [ ] `AKS_CLUSTER_NAME` - Nombre del cluster
+- [ ] `AKS_RESOURCE_GROUP` - Resource group
+- [ ] `POSTGRES_HOST` - FQDN de Azure PostgreSQL
+- [ ] `POSTGRES_USERNAME` - Usuario de PostgreSQL
+- [ ] `POSTGRES_PASSWORD` - Contraseña de PostgreSQL
+- [ ] `RABBITMQ_PASSWORD` - Contraseña RabbitMQ
+- [ ] `JWT_SECRET` - Secret para JWT
+- [ ] `SMTP_USER` - Email
+- [ ] `SMTP_PASSWORD` - App Password de Gmail
+
+### Azure Resources
+- [ ] Resource Group creado
+- [ ] **PostgreSQL Flexible Server creado** (servicio externo)
+- [ ] 5 bases de datos creadas en PostgreSQL
+- [ ] Firewall de PostgreSQL configurado
+- [ ] AKS Cluster creado
+- [ ] kubectl conectado al cluster
+
+### Verificación
+- [ ] Imágenes en GHCR: https://github.com/davidjosuep2?tab=packages
+- [ ] Pods corriendo: `kubectl get pods -n fuel-system`
+- [ ] Servicios activos: `kubectl get services -n fuel-system`
+- [ ] PostgreSQL conectado desde pods
+
+---
+
+## 💰 Estimación de Costos (East US)
+
+| Componente | Especificación | Costo Mensual |
+|------------|----------------|---------------|
+| **AKS** | 3 nodos D2s_v3 | ~$220 |
+| **PostgreSQL Flexible** | B2s | ~$30-50 |
+| **Storage (Premium SSD)** | 100 GB | ~$15 |
+| **Load Balancer** | Standard | ~$20 |
+| **Total Estimado** | | **~$285-305/mes** |
+
+**Para producción:** PostgreSQL D4s_v3 con HA = ~$350/mes adicionales
+2. [Requisitos Previos](#requisitos-previos)
+3. [Configuración de Secrets en GitHub](#configuración-de-secrets-en-github)
+4. [Configuración de Azure](#configuración-de-azure)
+5. [Despliegue Automático con GitHub Actions](#despliegue-automático-con-github-actions)
+6. [Despliegue Manual con Helm](#despliegue-manual-con-helm)
+- **Arquitectura completa**: [deploy/ARCHITECTURE.md](./deploy/ARCHITECTURE.md)
+- **Migraciones de BD**: [deploy/MIGRATIONS_GUIDE.md](./deploy/MIGRATIONS_GUIDE.md)
+- **Estrategia de Seeding**: [deploy/SEEDING_STRATEGY.md](./deploy/SEEDING_STRATEGY.md)
+- **Documentación de Azure AKS**: https://docs.microsoft.com/en-us/azure/aks/
+- **Azure PostgreSQL Flexible**: https://docs.microsoft.com/en-us/azure/postgresql/flexible-server/
+## 🏗️ Arquitectura del Sistema
+
+**⚠️ IMPORTANTE:** Este proyecto usa una arquitectura híbrida donde:
+## 🎯 Resumen Rápido
+
+```bash
+# 1. Configurar secrets en GitHub (ver arriba)
+- **En AKS**: API Gateway, Microservicios, RabbitMQ, Elasticsearch, Eureka
+# 2. Crear recursos en Azure
+az group create --name fuel-system-rg --location eastus
+az postgres flexible-server create --name fuel-system-postgres ...
+# ... crear bases de datos
+az aks create --name fuel-system-aks-cluster ...
+
+# 3. Push a main
+git push origin main
+│  │ API Gateway │  │Microserviços│  │  RabbitMQ   │        │
+# 4. GitHub Actions despliega automáticamente
+
+# 5. Verificar
+kubectl get pods -n fuel-system
+```
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+**⚠️ RECUERDA:** PostgreSQL está FUERA de AKS como servicio administrado de Azure.
+└────────────────────────────┬────────────────────────────────┘
+¡Listo! 🎉
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────┐
+│      AZURE DATABASE FOR POSTGRESQL FLEXIBLE SERVER          │
+│              (Servicio Administrado - Fuera de AKS)         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │auth_db   │  │driver_db │  │users_db  │  │vehicles_db│  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│                                                             │
+│  ✅ Backups automáticos      ✅ Alta disponibilidad        │
+│  ✅ Point-in-time restore    ✅ SSL/TLS obligatorio        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**📚 Documentación completa:** Ver [deploy/ARCHITECTURE.md](./deploy/ARCHITECTURE.md)
 
 ---
 
 ## 🔧 Requisitos Previos
 
-### Para Desarrollo Local
-- Docker Desktop 20.10+
-- Docker Compose 2.0+
-- Node.js 20+
-- Git
+### Herramientas Necesarias
+- ✅ Azure CLI 2.50+
+- ✅ kubectl 1.28+
+- ✅ Helm 3.13+
+- ✅ Cuenta de Azure con suscripción activa
+- ✅ Cuenta de GitHub con acceso al repositorio
 
-### Para Despliegue en Azure
-- Azure CLI 2.50+
-- kubectl 1.28+
-- Helm 3.13+
-- Cuenta de Azure con suscripción activa
-- Permisos para crear recursos en Azure
-
----
-
-## ⚙️ Configuración Inicial
-
-### 1. Clonar el Repositorio
-
-```bash
-git clone https://github.com/tu-organizacion/fuel-system-distributed.git
-cd fuel-system-distributed
-```
-
-### 2. Configurar Variables de Entorno
-
-Copia el archivo de ejemplo y configura tus variables:
-
-```bash
-cp env.example .env
-```
-
-Edita el archivo `.env` con tus configuraciones:
-
-```bash
-# Bases de datos
-POSTGRES_PASSWORD=tu-password-seguro
-
-# JWT
-JWT_SECRET=tu-jwt-secret-super-seguro
-
-# Email (Gmail)
-SMTP_USER=tu-email@gmail.com
-SMTP_PASSWORD=tu-app-password
-
-# Azure (para producción)
-ACR_LOGIN_SERVER=tu-registro.azurecr.io
-ACR_USERNAME=tu-username
-ACR_PASSWORD=tu-password
-```
+### Permisos Necesarios
+- Crear recursos en Azure (Resource Groups, AKS, PostgreSQL)
+- Configurar secrets en GitHub
+- Push a la rama `main` del repositorio
 
 ---
 
-## 🐳 Despliegue Local con Docker Compose
+## 🔑 Configuración de Secrets en GitHub
 
-### 1. Construir las Imágenes
+Ve a tu repositorio → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
+### 1. GHCR (GitHub Container Registry)
+
+| Secret | Descripción | Cómo obtener |
+|--------|-------------|--------------|
+| `GHCR_PAT` | Personal Access Token | GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)<br/>Permisos: `write:packages`, `read:packages` |
+
+### 2. Azure Credentials
+
+| Secret | Descripción | Valor |
+|--------|-------------|-------|
+| `AZURE_CREDENTIALS` | Service Principal para GitHub Actions | Ver comando abajo |
+| `AKS_CLUSTER_NAME` | Nombre del cluster AKS | Ejemplo: `fuel-system-aks-cluster` |
+| `AKS_RESOURCE_GROUP` | Resource Group de Azure | Ejemplo: `fuel-system-rg` |
+
+**Crear Service Principal:**
 ```bash
-# Construir todos los servicios
-docker-compose build
-
-# O construir un servicio específico
-docker-compose build api-gateway
+az ad sp create-for-rbac \
+  --name "fuel-system-github-actions" \
+  --role contributor \
+  --scopes /subscriptions/{SUBSCRIPTION_ID}/resourceGroups/fuel-system-rg \
+  --sdk-auth
 ```
+El JSON resultante va en `AZURE_CREDENTIALS`.
 
-### 2. Iniciar los Servicios
+### 3. PostgreSQL (Azure Database - Servicio Externo)
 
-```bash
-# Iniciar todos los servicios
-docker-compose up -d
+| Secret | Descripción | Ejemplo |
+|--------|-------------|---------|
+| `POSTGRES_HOST` | FQDN del servidor PostgreSQL | `fuel-system-postgres.postgres.database.azure.com` |
+| `POSTGRES_USERNAME` | Usuario admin | `pgadmin` |
+| `POSTGRES_PASSWORD` | Contraseña segura | Min 8 caracteres, mayúsculas, minúsculas, números |
 
-# Ver los logs
-docker-compose logs -f
+### 4. Servicios
 
-# Ver logs de un servicio específico
-docker-compose logs -f api-gateway
-```
-
-### 3. Verificar el Estado
-
-```bash
-# Ver servicios en ejecución
-docker-compose ps
-
-# Verificar salud de los servicios
-docker-compose ps --services --filter "status=running"
-```
-
-### 4. Acceder a los Servicios
-
-- **API Gateway**: http://localhost:8080
-- **Eureka Dashboard**: http://localhost:8761
-- **RabbitMQ Management**: http://localhost:15672 (admin/admin123)
-- **Kibana (Logs)**: http://localhost:5601
-
-### 5. Ejecutar Migraciones de Base de Datos
-
-```bash
-# Para servicios con Prisma (users-srv, vehicles-svc)
-docker-compose exec users-srv npx prisma migrate deploy
-docker-compose exec vehicles-svc npx prisma migrate deploy
-
-# Para servicios con TypeORM (driver-ms)
-docker-compose exec driver-ms npm run typeorm:migrate
-```
-
-### 6. Detener los Servicios
-
-```bash
-# Detener servicios
-docker-compose down
-
-# Detener y eliminar volúmenes
-docker-compose down -v
-```
+| Secret | Descripción | Ejemplo |
+|--------|-------------|---------|
+| `RABBITMQ_PASSWORD` | Contraseña RabbitMQ | Cualquier contraseña segura |
+| `JWT_SECRET` | Secret para JWT | `openssl rand -base64 32` |
+| `SMTP_USER` | Email de Gmail | `tu-email@gmail.com` |
+| `SMTP_PASSWORD` | App Password de Gmail | Contraseña de aplicación (no la normal) |
+| `DOMAIN_NAME` | Dominio (opcional) | `fuel-system.tudominio.com` |
 
 ---
 
-## ☁️ Despliegue en Azure Kubernetes Service (AKS)
+## ☁️ Configuración de Azure
 
-### Paso 1: Crear Recursos de Azure
-
-#### 1.1 Login en Azure
-
-```bash
-az login
-az account set --subscription "tu-subscription-id"
-```
-
-#### 1.2 Crear Resource Group
+### Paso 1: Crear Resource Group
 
 ```bash
 az group create \
@@ -152,332 +173,402 @@ az group create \
   --location eastus
 ```
 
-#### 1.3 Crear Azure Container Registry (ACR)
+### Paso 2: Crear Azure PostgreSQL Flexible Server
+
+**⚠️ Este es un SERVICIO ADMINISTRADO, NO un contenedor en Kubernetes**
 
 ```bash
-az acr create \
+az postgres flexible-server create \
+  --name fuel-system-postgres \
   --resource-group fuel-system-rg \
-  --name fuelsystemacr \
-  --sku Standard \
-  --location eastus
-
-# Login en ACR
-az acr login --name fuelsystemacr
+  --location eastus \
+  --admin-user pgadmin \
+  --admin-password "TuPasswordSeguro123!" \
+  --sku-name Standard_B2s \
+  --tier Burstable \
+  --version 14 \
+  --storage-size 32 \
+  --public-access 0.0.0.0-255.255.255.255 \
+  --backup-retention 7 \
+  --high-availability Disabled
 ```
 
-#### 1.4 Crear Azure Kubernetes Service (AKS)
+**Para producción:** Cambiar `--sku-name Standard_D4s_v3` y `--high-availability ZoneRedundant`
+
+### Paso 3: Crear Bases de Datos
+
+```bash
+# Crear las 5 bases de datos necesarias
+for db in auth_db driver_db users_db vehicles_db vehicles_shadow_db; do
+  echo "Creando base de datos: $db"
+  az postgres flexible-server db create \
+    --resource-group fuel-system-rg \
+    --server-name fuel-system-postgres \
+    --database-name $db
+done
+```
+
+### Paso 4: Configurar Firewall de PostgreSQL
+
+```bash
+# Permitir servicios de Azure
+az postgres flexible-server firewall-rule create \
+  --resource-group fuel-system-rg \
+  --name fuel-system-postgres \
+  --rule-name allow-azure-services \
+  --start-ip-address 0.0.0.0 \
+  --end-ip-address 0.0.0.0
+```
+
+### Paso 5: Crear AKS Cluster
 
 ```bash
 az aks create \
   --resource-group fuel-system-rg \
-  --name fuel-system-aks \
+  --name fuel-system-aks-cluster \
   --node-count 3 \
   --node-vm-size Standard_D2s_v3 \
   --enable-managed-identity \
+  --enable-cluster-autoscaler \
+  --min-count 2 \
+  --max-count 5 \
   --network-plugin azure \
-  --attach-acr fuelsystemacr \
   --enable-addons monitoring \
-  --location eastus
+  --generate-ssh-keys \
+  --zones 1 2 3
+```
 
-# Obtener credenciales de AKS
+### Paso 6: Conectar kubectl
+
+```bash
 az aks get-credentials \
   --resource-group fuel-system-rg \
-  --name fuel-system-aks
+  --name fuel-system-aks-cluster \
+  --overwrite-existing
 ```
 
-#### 1.5 Crear Azure Database for PostgreSQL
-
+**Verificar:**
 ```bash
-az postgres flexible-server create \
-  --resource-group fuel-system-rg \
-  --name fuel-system-postgres \
-  --location eastus \
-  --admin-user pgadmin \
-  --admin-password "TuPasswordSeguro123!" \
-  --sku-name Standard_D2s_v3 \
-  --tier GeneralPurpose \
-  --public-access 0.0.0.0 \
-  --storage-size 128 \
-  --version 16
-
-# Crear bases de datos
-az postgres flexible-server db create \
-  --resource-group fuel-system-rg \
-  --server-name fuel-system-postgres \
-  --database-name auth_db
-
-az postgres flexible-server db create \
-  --resource-group fuel-system-rg \
-  --server-name fuel-system-postgres \
-  --database-name driver_db
-
-az postgres flexible-server db create \
-  --resource-group fuel-system-rg \
-  --server-name fuel-system-postgres \
-  --database-name users_db
-
-az postgres flexible-server db create \
-  --resource-group fuel-system-rg \
-  --server-name fuel-system-postgres \
-  --database-name vehicles_db
+kubectl cluster-info
+kubectl get nodes
 ```
 
-### Paso 2: Construir y Subir Imágenes Docker
+---
+
+## 🚀 Despliegue Automático con GitHub Actions
+
+### Flujo Automático
+
+1. **Push a main**: Se activa el workflow `build-and-push.yml`
+   - Construye todas las imágenes Docker
+   - Las sube a GHCR: `ghcr.io/davidjosuep2/fuel-system-distributed/fuel-system/`
+   - Tags: `latest`, `main`, SHA corto, timestamp
+
+2. **Build exitoso**: Se ejecuta automáticamente `deploy-to-azure.yml`
+   - Conecta a AKS
+   - Crea namespace `fuel-system`
+   - Despliega con Helm
+   - Ejecuta migraciones de Prisma/TypeORM
+
+### Trigger Manual
+
+1. Ve a GitHub → **Actions**
+2. Selecciona **"Build and Push Docker Images"**
+3. Click **"Run workflow"** → Selecciona `main`
+4. Espera a que termine (construye las 9 imágenes)
+5. El deploy se ejecuta automáticamente después
+
+### Monitorear el Deployment
+
+1. GitHub → **Actions** → Ver workflow en ejecución
+2. Verás logs de:
+   - Build de cada servicio
+   - Push a GHCR
+   - Conexión a AKS
+   - Helm install
+   - Migraciones de BD
+
+---
+
+## 🛠️ Despliegue Manual con Helm
+
+Si prefieres desplegar manualmente desde tu máquina local:
+
+### 1. Conectar a AKS
 
 ```bash
-# Login en ACR
-az acr login --name fuelsystemacr
-
-# Construir y subir cada servicio
-export ACR_LOGIN_SERVER=$(az acr show --name fuelsystemacr --query loginServer -o tsv)
-
-# API Gateway
-docker build -t $ACR_LOGIN_SERVER/fuel-system/api-gateway:latest ./services/api-gateway
-docker push $ACR_LOGIN_SERVER/fuel-system/api-gateway:latest
-
-# Auth Service
-docker build -t $ACR_LOGIN_SERVER/fuel-system/auth-svc:latest ./services/auth-svc
-docker push $ACR_LOGIN_SERVER/fuel-system/auth-svc:latest
-
-# Driver Microservice
-docker build -t $ACR_LOGIN_SERVER/fuel-system/driver-ms:latest ./services/driver-ms
-docker push $ACR_LOGIN_SERVER/fuel-system/driver-ms:latest
-
-# Users Service
-docker build -t $ACR_LOGIN_SERVER/fuel-system/users-srv:latest ./services/users-srv
-docker push $ACR_LOGIN_SERVER/fuel-system/users-srv:latest
-
-# Vehicles Service
-docker build -t $ACR_LOGIN_SERVER/fuel-system/vehicles-svc:latest ./services/vehicles-svc
-docker push $ACR_LOGIN_SERVER/fuel-system/vehicles-svc:latest
-
-# Email Service
-docker build -t $ACR_LOGIN_SERVER/fuel-system/email-svc:latest ./services/email-svc
-docker push $ACR_LOGIN_SERVER/fuel-system/email-svc:latest
-
-# Hello Service
-docker build -t $ACR_LOGIN_SERVER/fuel-system/hello-svc:latest ./services/hello-svc
-docker push $ACR_LOGIN_SERVER/fuel-system/hello-svc:latest
-
-# Logger Service
-docker build -t $ACR_LOGIN_SERVER/fuel-system/logger-svc:latest ./services/logger-svc
-docker push $ACR_LOGIN_SERVER/fuel-system/logger-svc:latest
-
-# Publisher Service
-docker build -t $ACR_LOGIN_SERVER/fuel-system/publisher-rabbit-srv:latest ./services/publisher-rabbit-srv
-docker push $ACR_LOGIN_SERVER/fuel-system/publisher-rabbit-srv:latest
+az aks get-credentials \
+  --resource-group fuel-system-rg \
+  --name fuel-system-aks-cluster
 ```
 
-### Paso 3: Configurar Secrets de Kubernetes
+### 2. Crear Namespace
 
 ```bash
-# Crear namespace
 kubectl create namespace fuel-system
+```
 
-# Crear secret para ACR
-kubectl create secret docker-registry acr-secret \
-  --docker-server=$ACR_LOGIN_SERVER \
-  --docker-username=$(az acr credential show --name fuelsystemacr --query username -o tsv) \
-  --docker-password=$(az acr credential show --name fuelsystemacr --query passwords[0].value -o tsv) \
+### 3. Crear Secret para GHCR
+
+```bash
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=davidjosuep2 \
+  --docker-password=$GITHUB_PAT \
   --namespace=fuel-system
 ```
 
-### Paso 4: Desplegar con Helm
+### 4. Deploy con Helm
 
 ```bash
-# Agregar repositorio de Bitnami
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update
-
-# Desplegar
 helm upgrade --install fuel-system ./deploy/helm/fuel-system \
   --namespace fuel-system \
-  --create-namespace \
-  --set imageRegistry.url=$ACR_LOGIN_SERVER \
-  --set global.imagePullSecrets[0]=acr-secret \
+  --set imageRegistry.url=ghcr.io/davidjosuep2/fuel-system-distributed/fuel-system \
+  --set global.imagePullSecrets[0]=ghcr-secret \
+  --set global.imageTag=latest \
+  --set postgresql.external.enabled=true \
+  --set postgresql.external.host=fuel-system-postgres.postgres.database.azure.com \
+  --set postgresql.external.port=5432 \
+  --set postgresql.external.sslMode=require \
+  --set postgresql.external.username=pgadmin \
+  --set postgresql.external.password="TuPasswordSeguro123!" \
+  --set secrets.postgresql.username=pgadmin \
   --set secrets.postgresql.password="TuPasswordSeguro123!" \
-  --set secrets.rabbitmq.password="RabbitMQPassword123!" \
-  --set secrets.jwt.secret="tu-jwt-secret-super-seguro" \
+  --set secrets.rabbitmq.password="RabbitMQ_Pass123!" \
+  --set secrets.jwt.secret="super-secret-jwt-key" \
   --set secrets.smtp.user="tu-email@gmail.com" \
-  --set secrets.smtp.password="tu-app-password" \
+  --set secrets.smtp.password="abcd efgh ijkl mnop" \
   --timeout 10m \
   --wait
-
-# Verificar despliegue
-kubectl get pods -n fuel-system
-kubectl get services -n fuel-system
 ```
 
-### Paso 5: Ejecutar Migraciones
+### 5. Ejecutar Migraciones
 
 ```bash
 # Esperar a que los pods estén listos
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=users-service -n fuel-system --timeout=300s
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=vehicles-service -n fuel-system --timeout=300s
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=driver-service -n fuel-system --timeout=300s
 
-# Ejecutar migraciones
+# Ejecutar migraciones Prisma
 kubectl exec -n fuel-system deployment/fuel-system-users-service -- npx prisma migrate deploy
 kubectl exec -n fuel-system deployment/fuel-system-vehicles-service -- npx prisma migrate deploy
+
+# Ejecutar migraciones TypeORM
 kubectl exec -n fuel-system deployment/fuel-system-driver-service -- npm run typeorm:migrate
 ```
 
-### Paso 6: Configurar Ingress (Opcional)
-
-```bash
-# Instalar NGINX Ingress Controller
-helm upgrade --install ingress-nginx ingress-nginx \
-  --repo https://kubernetes.github.io/ingress-nginx \
-  --namespace ingress-nginx --create-namespace
-
-# Esperar a que el LoadBalancer obtenga una IP
-kubectl get service ingress-nginx-controller -n ingress-nginx -w
-```
-
 ---
 
-## 🔄 Configuración de CI/CD
+## 🔍 Verificación y Monitoreo
 
-### Configurar Secrets en GitHub
-
-Ve a tu repositorio en GitHub → Settings → Secrets and variables → Actions
-
-Agrega los siguientes secrets:
-
-```
-ACR_LOGIN_SERVER=fuelsystemacr.azurecr.io
-ACR_USERNAME=tu-username
-ACR_PASSWORD=tu-password
-AKS_CLUSTER_NAME=fuel-system-aks
-AKS_RESOURCE_GROUP=fuel-system-rg
-POSTGRES_PASSWORD=tu-password-seguro
-RABBITMQ_PASSWORD=tu-password-seguro
-JWT_SECRET=tu-jwt-secret
-SMTP_USER=tu-email@gmail.com
-SMTP_PASSWORD=tu-app-password
-DOMAIN_NAME=fuel-system.tudominio.com
-```
-
-### Configurar Azure Service Principal
+### Ver Pods (NO verás PostgreSQL porque es externo)
 
 ```bash
-# Crear service principal
-az ad sp create-for-rbac \
-  --name "fuel-system-github-actions" \
-  --role contributor \
-  --scopes /subscriptions/{subscription-id}/resourceGroups/fuel-system-rg \
-  --sdk-auth
+kubectl get pods -n fuel-system
 
-# El output JSON debe agregarse como secret AZURE_CREDENTIALS en GitHub
+# Deberías ver:
+# fuel-system-api-gateway-xxx               1/1     Running
+# fuel-system-auth-service-xxx              1/1     Running
+# fuel-system-driver-service-xxx            1/1     Running
+# fuel-system-users-service-xxx             1/1     Running
+# fuel-system-vehicles-service-xxx          1/1     Running
+# fuel-system-rabbitmq-0                    1/1     Running
+# fuel-system-elasticsearch-master-0        1/1     Running
+# (NO HAY postgresql porque es un servicio externo de Azure)
 ```
 
-### Flujo de CI/CD
+### Ver Servicios
 
-1. **Push a main/develop**: Se ejecuta el build y push de imágenes
-2. **Build exitoso**: Se despliega automáticamente a AKS
-3. **Pull Request**: Solo se ejecutan tests
+```bash
+kubectl get services -n fuel-system
 
----
-
-## 📊 Monitoreo y Troubleshooting
+# Busca la IP externa del API Gateway
+kubectl get service fuel-system-api-gateway -n fuel-system
+```
 
 ### Ver Logs
 
 ```bash
-# Logs de un pod específico
+# Logs de un servicio
 kubectl logs -f deployment/fuel-system-api-gateway -n fuel-system
 
 # Logs de todos los pods de un servicio
 kubectl logs -f -l app.kubernetes.io/component=api-gateway -n fuel-system
-
-# Logs con Docker Compose
-docker-compose logs -f api-gateway
 ```
 
-### Ver Estado de los Pods
+### Verificar Conexión a PostgreSQL
 
 ```bash
-# Estado general
-kubectl get pods -n fuel-system
+# Ver variables de entorno
+kubectl exec -it -n fuel-system deployment/fuel-system-users-service -- env | grep DB
 
-# Detalles de un pod
-kubectl describe pod <pod-name> -n fuel-system
-
-# Eventos del cluster
-kubectl get events -n fuel-system --sort-by='.lastTimestamp'
+# Deberías ver:
+# DB_HOST=fuel-system-postgres.postgres.database.azure.com
+# DB_PORT=5432
+# DB_SSL_MODE=require
 ```
 
-### Escalar Servicios
+### Probar Conexión a PostgreSQL
 
 ```bash
-# Escalar manualmente
-kubectl scale deployment fuel-system-api-gateway --replicas=5 -n fuel-system
-
-# Ver HPA (Horizontal Pod Autoscaler)
-kubectl get hpa -n fuel-system
-```
-
-### Acceder a un Pod
-
-```bash
-kubectl exec -it deployment/fuel-system-api-gateway -n fuel-system -- sh
-```
-
-### Problemas Comunes
-
-#### 1. Pods en CrashLoopBackOff
-
-```bash
-# Ver logs del pod
-kubectl logs <pod-name> -n fuel-system --previous
-
-# Verificar configuración
-kubectl describe pod <pod-name> -n fuel-system
-```
-
-#### 2. ImagePullBackOff
-
-```bash
-# Verificar secret de ACR
-kubectl get secret acr-secret -n fuel-system -o yaml
-
-# Recrear secret si es necesario
-kubectl delete secret acr-secret -n fuel-system
-kubectl create secret docker-registry acr-secret \
-  --docker-server=$ACR_LOGIN_SERVER \
-  --docker-username=... \
-  --docker-password=... \
-  --namespace=fuel-system
-```
-
-#### 3. Base de Datos no Conecta
-
-```bash
-# Verificar secrets
-kubectl get secrets -n fuel-system
-kubectl describe secret fuel-system-postgresql -n fuel-system
-
-# Verificar conectividad desde un pod
-kubectl run -it --rm debug --image=postgres:16-alpine --restart=Never -n fuel-system -- psql -h <db-host> -U postgres
+kubectl run postgres-test --rm -it --restart=Never \
+  --namespace=fuel-system \
+  --image=postgres:14 \
+  -- psql -h fuel-system-postgres.postgres.database.azure.com \
+         -U pgadmin \
+         -d users_db \
+         -c "SELECT version();"
 ```
 
 ---
 
-## 🔐 Seguridad
+## 🆘 Troubleshooting
 
-### Mejores Prácticas
+### 1. Error: ImagePullBackOff
 
-1. **No commitear secrets** en el repositorio
-2. **Usar Azure Key Vault** para secrets en producción
-3. **Habilitar Network Policies** en AKS
-4. **Configurar SSL/TLS** para todos los servicios públicos
-5. **Implementar RBAC** en Kubernetes
-6. **Mantener imágenes actualizadas** y escanear vulnerabilidades
+**Causa:** No puede descargar la imagen de GHCR.
 
-### Rotar Secrets
+**Solución:**
+```bash
+# Verificar secret
+kubectl get secret ghcr-secret -n fuel-system
+
+# Recrear secret
+kubectl delete secret ghcr-secret -n fuel-system
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=davidjosuep2 \
+  --docker-password=$GITHUB_PAT \
+  --namespace=fuel-system
+```
+
+### 2. Error: "connection refused" a PostgreSQL
+
+**Causa:** Firewall de Azure PostgreSQL no permite conexiones.
+
+**Solución:**
+```bash
+az postgres flexible-server firewall-rule create \
+  --resource-group fuel-system-rg \
+  --name fuel-system-postgres \
+  --rule-name allow-azure-services \
+  --start-ip-address 0.0.0.0 \
+  --end-ip-address 0.0.0.0
+```
+
+### 3. Pods en CrashLoopBackOff
+
+**Solución:**
+```bash
+# Ver logs del pod que falla
+kubectl logs <pod-name> -n fuel-system --previous
+
+# Ver detalles del pod
+kubectl describe pod <pod-name> -n fuel-system
+
+# Ver eventos
+kubectl get events -n fuel-system --sort-by='.lastTimestamp'
+```
+
+### 4. Error: "database does not exist"
+
+**Causa:** Olvidaste crear las bases de datos en PostgreSQL.
+
+**Solución:**
+```bash
+for db in auth_db driver_db users_db vehicles_db vehicles_shadow_db; do
+  az postgres flexible-server db create \
+    --resource-group fuel-system-rg \
+    --server-name fuel-system-postgres \
+    --database-name $db
+done
+```
+
+### 5. Error en build de logger-svc (buildcache not found)
+
+**Causa:** Es normal en el primer build porque el buildcache no existe aún.
+
+**Solución:** Ejecutar el script para subirlo manualmente una vez:
+```powershell
+.\scripts\build-and-push-logger.ps1
+```
+
+Después el workflow funcionará correctamente.
+
+---
+
+## 📊 Monitoreo
+
+### Ver Estado General
 
 ```bash
-# Actualizar secrets en Kubernetes
-kubectl create secret generic fuel-system-postgresql \
+kubectl get all -n fuel-system
+```
+
+### Ver Horizontal Pod Autoscalers
+
+```bash
+kubectl get hpa -n fuel-system
+```
+
+### Ver Uso de Recursos
+
+```bash
+kubectl top pods -n fuel-system
+kubectl top nodes
+```
+
+### Acceder a Dashboards
+
+```bash
+# Obtener IP del API Gateway
+kubectl get service fuel-system-api-gateway -n fuel-system
+
+# Acceder vía navegador
+# http://<EXTERNAL-IP>:8080
+```
+
+---
+
+## 🔄 Actualizar el Sistema
+
+### Actualizar una Imagen Específica
+
+```bash
+# Hacer push del código
+git add .
+git commit -m "Update service X"
+git push origin main
+
+# O forzar un nuevo deploy
+kubectl rollout restart deployment/fuel-system-api-gateway -n fuel-system
+```
+
+### Actualizar Toda la Aplicación
+
+```bash
+# Con nuevo tag
+helm upgrade fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --reuse-values \
+  --set global.imageTag=nuevo-tag
+```
+
+---
+
+## 🧹 Limpieza
+
+### Eliminar Deployment Completo
+
+```bash
+helm uninstall fuel-system -n fuel-system
+kubectl delete namespace fuel-system
+```
+
+### Eliminar Recursos de Azure
+
+```bash
   --from-literal=password=nuevo-password \
   --namespace=fuel-system \
   --dry-run=client -o yaml | kubectl apply -f -

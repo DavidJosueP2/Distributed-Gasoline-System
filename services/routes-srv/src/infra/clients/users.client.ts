@@ -34,15 +34,16 @@ export class UsersClient {
   }
 
   async getUserInfo(userId: bigint): Promise<UserInfo> {
-    const response = await lastValueFrom(
+    const response: any = await lastValueFrom(
       this.usersService.GetUser({ userId: Number(userId) })
     );
     
+    // Manejar ambos casos: camelCase y snake_case (viene desde gRPC)
     return {
-      id: response.userId,
-      firstName: response.firstName,
-      lastName: response.lastName,
-      email: response.email,
+      id: response.userId || response.user_id || 0,
+      firstName: response.firstName || response.first_name || '',
+      lastName: response.lastName || response.last_name || '',
+      email: response.email || '',
     };
   }
 

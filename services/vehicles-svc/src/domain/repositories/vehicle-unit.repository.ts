@@ -23,4 +23,13 @@ export interface VehicleUnitRepository {
         opts?: { nowait?: boolean },
         tx?: Tx
     ): Promise<T>;
+
+    // Listar unidades con detalles (licencias y tipo)
+    listAllWithDetails(filters?: {
+        machineTypeFilter?: MachineType;
+        licenseTypeCodesFilter?: string[];
+        statusFilter?: string;
+        platePrefix?: string;
+        modelIdFilter?: bigint;
+    }, tx?: Tx): Promise<Array<{ unit: VehicleUnit; requiredLicenses: string[]; machineType: MachineType }>>;
 }

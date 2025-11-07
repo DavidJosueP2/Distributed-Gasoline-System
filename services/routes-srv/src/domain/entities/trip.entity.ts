@@ -23,4 +23,11 @@ export interface Trip {
   currentDistance?: number | null; // Distancia actual recorrida (km)
   createdAt: Date;
   updatedAt: Date;
+  // Campos opcionales de la ruta (se cargan cuando se hace JOIN)
+  routeOriginName?: string;
+  routeDestinationName?: string;
+  routeOriginLat?: number;
+  routeOriginLng?: number;
+  routeDestinationLat?: number;
+  routeDestinationLng?: number;
 }

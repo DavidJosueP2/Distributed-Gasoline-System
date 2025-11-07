@@ -1,0 +1,347 @@
+# ==============================================
+# VALUES PARA KUBERNETES LOCAL
+# ==============================================
+# Sobrescribe los valores de values.yaml para entorno local
+
+# Global configuration para local
+global:
+  imageRegistry: ""
+  imagePullSecrets: []  # Las imágenes son públicas, no necesitamos secret
+  storageClass: "standard"  # Local usa standard storage class
+  imageTag: "latest"
+
+# Image registry configuration
+imageRegistry:
+  url: "ghcr.io/davidjosuep2/distributed-gasoline-system/fuel-system"
+
+# PostgreSQL Configuration - DESHABILITADO (usamos Helm charts separados)
+postgresql:
+  enabled: false
+  external:
+    enabled: true
+    # Los hosts apuntan a los servicios de PostgreSQL desplegados por Helm separadamente
+    # Cada microservicio se conectará a su propia base de datos usando estos valores base
+    host: "REPLACED_PER_SERVICE"  # Se sobreescribe por servicio en runtime
+    port: 5432
+    username: "postgres"
+    password: "root"
+    sslMode: "disable"  # En local no necesitamos SSL
+    databases:
+      auth: "auth_db"
+      driver: "driver_db"
+      users: "users_db"
+      vehicles: "vehicles_db"
+      vehiclesShadow: "vehicles_shadow_db"
+    # Hosts específicos para cada base de datos
+    authHost: "auth-db-postgresql"
+    driverHost: "driver-db-postgresql"
+    usersHost: "users-db-postgresql"
+    vehiclesHost: "vehicles-db-postgresql"
+    vehiclesShadowHost: "vehicles-shadow-db-postgresql"
+
+# RabbitMQ Configuration - DESHABILITADO (usamos Helm chart separado)
+rabbitmq:
+  enabled: false
+  external:
+    enabled: true
+    host: "rabbitmq.fuel-system.svc.cluster.local"
+    port: 5672
+    username: "admin"
+    password: "admin123"
+    managementPort: 15672
+
+# Elasticsearch Configuration - DESHABILITADO (usamos Helm chart separado)
+elasticsearch:
+  enabled: false
+  external:
+    enabled: true
+    host: "elasticsearch-master.fuel-system.svc.cluster.local"
+    port: 9200
+
+# Eureka Server Configuration - DESHABILITADO (deployment manual)
+eurekaServer:
+  enabled: false
+  external:
+    enabled: true
+    host: "eureka-server"
+    port: 8761
+    url: "http://eureka-server:8761/eureka"
+
+# ==============================================
+# MICROSERVICES CONFIGURATION - LOCAL
+# ==============================================
+
+# Secrets para local
+secrets:
+  postgresql:
+    username: "postgres"
+    password: "root"
+  rabbitmq:
+    username: "admin"
+    password: "admin123"
+  jwt:
+    secret: "your-super-secret-jwt-key-change-in-production-12345"
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587
+    user: ""
+    password: ""
+
+# API Gateway
+apiGateway:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "api-gateway"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+    nodePort: 30000
+  env:
+    NODE_ENV: "development"
+    PORT: "8080"
+    GATEWAY_HTTP_PORT: "8080"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+
+# Auth Service
+authService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "auth-svc"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50052
+    targetPort: 50052
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50052"
+    AUTH_GRPC_PORT: "50052"
+    DB_NAME: "auth_db"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+
+# Driver Service
+driverService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "driver-ms"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50062
+    targetPort: 50062
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50062"
+    DRIVER_GRPC_PORT: "50062"
+    DRIVER_HTTP_PORT: "3100"
+    DB_NAME: "driver_db"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+
+# Users Service
+usersService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "users-srv"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50057
+    targetPort: 50057
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50057"
+    USERS_GRPC_PORT: "50057"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+
+# Vehicles Service
+vehiclesService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "vehicles-svc"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50055
+    targetPort: 50055
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50055"
+    VEHICLES_GRPC_PORT: "50055"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+
+# Email Service
+emailService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "email-svc"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50053
+    targetPort: 50053
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50053"
+    EMAIL_GRPC_PORT: "50053"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+  autoscaling:
+    enabled: false
+
+# Hello Service (opcional, para testing)
+helloService:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: "hello-svc"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50051
+    targetPort: 50051
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50051"
+    HELLO_GRPC_PORT: "50051"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+# Logger Service
+loggerService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "logger-svc"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50058
+    targetPort: 50058
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50058"
+    LOGGER_GRPC_PORT: "50058"
+    LOGGER_HTTP_PORT: "3200"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+
+# Publisher Service
+publisherService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "publisher-rabbit-srv"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 4100
+    targetPort: 4100
+  env:
+    NODE_ENV: "development"
+    PORT: "4100"
+    OUTBOX_PUBLISHER_PORT: "4100"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+  autoscaling:
+    enabled: false
+
+# Ingress - Configurado para acceso local sin dominio
+ingress:
+  enabled: true
+  className: nginx
+  useDefaultBackend: true  # Usar regla sin host para acceso directo por IP
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # No forzar HTTPS en local
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+  paths:
+    - path: /
+      pathType: Prefix
+      backend:
+        service:
+          name: api-gateway
+          port: 8080
+  # hosts y tls deshabilitados para local
+  hosts: []
+  tls: []

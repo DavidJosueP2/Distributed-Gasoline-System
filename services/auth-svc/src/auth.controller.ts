@@ -34,7 +34,7 @@ export class AuthController {
     return this.auth.resetPassword(data.token, data.newPassword);
   }
 
-  @Roles('ADMIN') // Cualquier usuario autenticado (si o si token)
+  @Roles('ADMIN', 'SUPERVISOR', 'DRIVER') // Cualquier usuario autenticado (si o si token)
   @GrpcMethod('AuthService', 'Me')
   public me(data: {}, metadata: Metadata): Promise<UserResponse> {
     return this.auth.me(data, metadata);

@@ -263,6 +263,30 @@ message ListUnitsResponse {
   PaginationResult page = 2;
 }
 
+// =====================================================
+// List Units With Details (licencias y tipo)
+// =====================================================
+
+message VehicleUnitWithDetails {
+  VehicleUnit unit = 1;
+  repeated LicenseRef required_licenses = 2; // Licencias requeridas del modelo + unidad
+  MachineType machine_type = 3; // Tipo de maquinaria del modelo (LIGHT/HEAVY)
+}
+
+message ListUnitsWithDetailsRequest {
+  Pagination page = 1;
+  OperationalStatus status_filter = 2; // opcional
+  string plate_prefix = 3;             // opcional (búsqueda simple)
+  int64 model_id_filter = 4;           // opcional
+  MachineType machine_type_filter = 5; // opcional - filtra por tipo de maquinaria del modelo
+  repeated string license_type_codes_filter = 6; // opcional - array de códigos de licencia (ej: ["B", "C"])
+}
+
+message ListUnitsWithDetailsResponse {
+  repeated VehicleUnitWithDetails units = 1;
+  PaginationResult page = 2;
+}
+
 message DeleteUnitRequest {
   oneof key {
     int64 vehicle_id = 1;
@@ -342,6 +366,7 @@ service VehiclesService {
 
   rpc GetUnit (GetUnitRequest) returns (GetUnitResponse);
   rpc ListUnits (ListUnitsRequest) returns (ListUnitsResponse);
+  rpc ListUnitsWithDetails (ListUnitsWithDetailsRequest) returns (ListUnitsWithDetailsResponse);
   rpc GetUnitConsumptionProfile (GetUnitConsumptionProfileRequest) returns (GetUnitConsumptionProfileResponse);
 
   // ----- Domain queries -----

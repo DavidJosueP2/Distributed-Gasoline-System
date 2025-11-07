@@ -3,6 +3,8 @@ export * from './request/create-trip.dto';
 export * from './request/update-trip.dto';
 export * from './request/get-trip.dto';
 export * from './request/list-trips.dto';
+export * from './request/list-trips-by-vehicle-type.dto';
+export * from './request/list-trips-by-time-range.dto';
 export * from './request/start-trip.dto';
 export * from './request/finish-trip.dto';
 export * from './request/review-trip.dto';

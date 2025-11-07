@@ -48,6 +48,13 @@ lerna-debug.log*
 .temp
 .tmp
 
+# Helm charts downloaded dependencies
+deploy/helm/fuel-system/charts/
+*.tgz
+
+# Kubernetes local configs
+*.kubeconfig
+
 # Runtime data
 pids
 *.pid

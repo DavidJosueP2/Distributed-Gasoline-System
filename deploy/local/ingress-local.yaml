@@ -1,0 +1,140 @@
+---
+# =========================================
+# INGRESS PARA KUBERNETES LOCAL (Kind)
+# =========================================
+# Este Ingress expone múltiples servicios en localhost sin necesidad de dominio
+# Se accede directamente vía http://localhost/<ruta>
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fuel-system-local
+  namespace: fuel-system
+  labels:
+    app.kubernetes.io/name: fuel-system
+    app.kubernetes.io/component: ingress
+  annotations:
+    # NGINX Ingress Controller annotations
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # No forzar HTTPS en local
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  ingressClassName: nginx
+  rules:
+  # =========================================
+  # REGLA PRINCIPAL - Sin host (acceso por IP/localhost)
+  # =========================================
+  - http:
+      paths:
+      # -----------------------------------------
+      # API Gateway - Ruta raíz
+      # -----------------------------------------
+      - path: /()(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: fuel-system-api-gateway
+            port:
+              number: 8080
+
+      # -----------------------------------------
+      # Eureka Server Dashboard
+      # -----------------------------------------
+      - path: /eureka(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: eureka-server
+            port:
+              number: 8761
+
+      # -----------------------------------------
+      # RabbitMQ Management UI
+      # -----------------------------------------
+      - path: /rabbitmq(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: rabbitmq
+            port:
+              number: 15672
+
+---
+# =========================================
+# INGRESS ADICIONAL: Acceso directo a servicios específicos
+# =========================================
+# Este Ingress permite acceder a servicios usando subdominios en local
+# Requiere configurar /etc/hosts (opcional)
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fuel-system-services
+  namespace: fuel-system
+  labels:
+    app.kubernetes.io/name: fuel-system
+    app.kubernetes.io/component: ingress-services
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  rules:
+  # -----------------------------------------
+  # API Gateway con subdomain (opcional)
+  # -----------------------------------------
+  - host: api.fuel-system.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fuel-system-api-gateway
+            port:
+              number: 8080
+
+  # -----------------------------------------
+  # Eureka con subdomain (opcional)
+  # -----------------------------------------
+  - host: eureka.fuel-system.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: eureka-server
+            port:
+              number: 8761
+
+  # -----------------------------------------
+  # RabbitMQ con subdomain (opcional)
+  # -----------------------------------------
+  - host: rabbitmq.fuel-system.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rabbitmq
+            port:
+              number: 15672
+
+---
+# =========================================
+# CONFIGURACIÓN OPCIONAL: /etc/hosts
+# =========================================
+# Si quieres usar subdominios en local, agrega estas líneas a tu archivo hosts:
+#
+# Windows: C:\Windows\System32\drivers\etc\hosts
+# Linux/Mac: /etc/hosts
+#
+# 127.0.0.1 api.fuel-system.local
+# 127.0.0.1 eureka.fuel-system.local
+# 127.0.0.1 rabbitmq.fuel-system.local

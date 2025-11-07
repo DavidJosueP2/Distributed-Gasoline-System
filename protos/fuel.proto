@@ -18,6 +18,12 @@ service FuelService {
       returns (GenerateRoutesSummaryReportResponse);
   rpc GetRouteTripsDetail(GetRouteTripsDetailRequest)
       returns (GetRouteTripsDetailResponse);
+  rpc GenerateMachineryTypeReport(GenerateMachineryTypeReportRequest)
+      returns (GenerateMachineryTypeReportResponse);
+  rpc GenerateDriverConsumptionReport(GenerateDriverConsumptionReportRequest)
+      returns (GenerateDriverConsumptionReportResponse);
+  rpc GenerateRoutesConsumptionReport(GenerateRoutesConsumptionReportRequest)
+      returns (GenerateRoutesConsumptionReportResponse);
 }
 
 message GetFuelRequest { string id = 1; }
@@ -187,4 +193,100 @@ message RouteTripDetail {
   double origin_lng = 15;
   double destination_lat = 16;
   double destination_lng = 17;
+}
+
+message GenerateMachineryTypeReportRequest {
+  string startDate = 1;
+  string endDate = 2;
+}
+
+message MachineryTypeSummary {
+  VehicleType type = 1;
+  int64 trips = 2;       // cantidad de viajes
+  double estimated = 3;  // consumo estimado en litros
+  double actual = 4;     // consumo real en litros
+  double difference = 5; // diferencia en litros (actual - estimado)
+  double efficiency = 6; // eficiencia en porcentaje
+}
+
+message GenerateMachineryTypeReportResponse {
+  // Información del reporte
+  string period = 1;       // formato ISO 8601: "2025-10-01 – 2025-10-31"
+  string generated_at = 2; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+  // KPIs principales
+  int64 total_trips = 3;
+  double total_estimated = 4;   // consumo estimado total en litros
+  double total_actual = 5;      // consumo real total en litros
+  double global_efficiency = 6; // eficiencia global en porcentaje
+
+  // Resumen comparativo por tipo
+  repeated MachineryTypeSummary machinery_types = 7;
+}
+
+message GenerateDriverConsumptionReportRequest {
+  string startDate = 1;
+  string endDate = 2;
+}
+
+message DriverConsumptionSummary {
+  int64 driver_id = 1;
+  string driver_first_name = 2;
+  string driver_last_name = 3;
+  int64 trips = 4;       // cantidad de viajes
+  int64 vehicles = 5;    // cantidad de vehículos únicos
+  double estimated = 6;  // consumo estimado en litros
+  double actual = 7;     // consumo real en litros
+  double difference = 8; // diferencia en litros (actual - estimado)
+  double efficiency = 9; // eficiencia en porcentaje
+}
+
+message GenerateDriverConsumptionReportResponse {
+  // Información del reporte
+  string period = 1; // formato ISO 8601: "2025-10-01 – 2025-10-31"
+  string generated_by =
+      2; // nombre del usuario que generó el reporte (opcional)
+  string generated_at = 3; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+  // KPIs globales
+  int64 total_drivers = 4;
+  int64 total_trips = 5;
+  double total_estimated = 6;   // consumo estimado total en litros
+  double total_actual = 7;      // consumo real total en litros
+  double global_efficiency = 8; // eficiencia global en porcentaje
+
+  // Resumen por chofer
+  repeated DriverConsumptionSummary drivers = 9;
+}
+
+message GenerateRoutesConsumptionReportRequest {
+  string startDate = 1;
+  string endDate = 2;
+}
+
+message RouteConsumptionSummary {
+  int64 route_id = 1;
+  string route_name = 2;        // formato: "Origen → Destino"
+  VehicleType vehicle_type = 3; // LIVIANO, PESADO, CUALQUIERA
+  int64 trips = 4;              // cantidad de viajes
+  double estimated = 5;         // consumo estimado en litros
+  double actual = 6;            // consumo real en litros
+  double difference = 7;        // diferencia en litros (actual - estimado)
+  double efficiency = 8;        // eficiencia en porcentaje
+}
+
+message GenerateRoutesConsumptionReportResponse {
+  // Información del reporte
+  string period = 1;       // formato ISO 8601: "2025-10-01 – 2025-10-31"
+  string generated_at = 2; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+  // KPIs globales
+  int64 total_routes = 3;
+  int64 total_trips = 4;
+  double total_estimated = 5;   // consumo estimado total en litros
+  double total_actual = 6;      // consumo real total en litros
+  double global_efficiency = 7; // eficiencia global en porcentaje
+
+  // Resumen por rutas
+  repeated RouteConsumptionSummary routes = 8;
 }

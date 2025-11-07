@@ -100,6 +100,8 @@ data:
   {{- end }}
   RABBITMQ_PORT: {{ .Values.rabbitmq.external.port | default "5672" | quote }}
   RABBITMQ_MANAGEMENT_PORT: {{ .Values.rabbitmq.external.managementPort | default "15672" | quote }}
+  RABBITMQ_USERNAME: {{ .Values.rabbitmq.external.username | default .Values.secrets.rabbitmq.username | quote }}
+  RABBITMQ_PASSWORD: {{ .Values.rabbitmq.external.password | default .Values.secrets.rabbitmq.password | quote }}
 
   # Outbox Pattern Configuration
   OUTBOX_EXCHANGE: "service.events"

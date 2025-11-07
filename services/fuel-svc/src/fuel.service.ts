@@ -22,6 +22,15 @@ import {
     type GetRouteTripsDetailRequest,
     type GetRouteTripsDetailResponse,
     type RouteTripDetail,
+    type GenerateMachineryTypeReportRequest,
+    type GenerateMachineryTypeReportResponse,
+    type MachineryTypeSummary,
+    type GenerateDriverConsumptionReportRequest,
+    type GenerateDriverConsumptionReportResponse,
+    type DriverConsumptionSummary,
+    type GenerateRoutesConsumptionReportRequest,
+    type GenerateRoutesConsumptionReportResponse,
+    type RouteConsumptionSummary,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
@@ -842,6 +851,513 @@ export class FuelService {
         });
 
         return { trips: tripDetails };
+    }
+
+    public async generateMachineryTypeReport(
+        data: GenerateMachineryTypeReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateMachineryTypeReportResponse> {
+        const tripsClient = await this.tripsClient();
+
+        const startTimeStr = this.formatDateToYYYYMMDD(data.startDate);
+        const endTimeStr = this.formatDateToYYYYMMDD(data.endDate);
+
+        const request: ListTripsByTimeRangeRequest = {
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+        };
+
+        // Formatear período en ISO 8601: "2025-10-01 – 2025-10-31"
+        const startDateISO = this.formatDateToYYYYMMDD(data.startDate);
+        const endDateISO = this.formatDateToYYYYMMDD(data.endDate);
+        const period = `${startDateISO} – ${endDateISO}`;
+
+        // Formatear fecha de generación en ISO 8601
+        const generatedAt = new Date().toISOString();
+
+        // Obtener todos los viajes en el rango de fechas
+        const { trips: allTripsInRange, totalTrips } = await safeGrpcCall(
+            tripsClient.ListTripsByTimeRange(request, metadata),
+            'FuelService.ListTripsByTimeRange',
+        );
+
+        if (Number(totalTrips) === 0) {
+            return {
+                period,
+                generatedAt,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                machineryTypes: [],
+            };
+        }
+
+        // Filtrar solo los viajes TERMINADOS
+        const filteredTrips = allTripsInRange.filter(
+            (trip) => trip.status === TripStatus.TERMINADO,
+        );
+
+        if (filteredTrips.length === 0) {
+            return {
+                period,
+                generatedAt,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                machineryTypes: [],
+            };
+        }
+
+        const routesClient = await this.routesClient();
+
+        // Consultar todas las rutas en paralelo
+        const routeResponses = await Promise.all(
+            filteredTrips.map((trip) =>
+                safeGrpcCall(
+                    routesClient.GetRoute({ id: trip.routeId }, metadata),
+                    'FuelService.GetRoute',
+                ),
+            ),
+        );
+
+        // Acumulador de combustible por tipo
+        const fuelTotals = {
+            [VehicleType.LIVIANO]: {
+                trips: 0,
+                estimated: 0,
+                actual: 0,
+            },
+            [VehicleType.PESADO]: {
+                trips: 0,
+                estimated: 0,
+                actual: 0,
+            },
+            [VehicleType.CUALQUIERA]: {
+                trips: 0,
+                estimated: 0,
+                actual: 0,
+            },
+        };
+
+        // Procesar viajes y agrupar por tipo
+        for (let i = 0; i < filteredTrips.length; i++) {
+            const trip = filteredTrips[i];
+            const route = routeResponses[i].route;
+            const type = route.vehicleType ?? VehicleType.CUALQUIERA;
+
+            fuelTotals[type].trips += 1;
+            fuelTotals[type].estimated += trip.fuelEstimated || 0;
+            fuelTotals[type].actual += trip.fuelActual || 0;
+        }
+
+        // Calcular totales globales
+        const totalEstimated =
+            fuelTotals[VehicleType.LIVIANO].estimated +
+            fuelTotals[VehicleType.PESADO].estimated +
+            fuelTotals[VehicleType.CUALQUIERA].estimated;
+
+        const totalActual =
+            fuelTotals[VehicleType.LIVIANO].actual +
+            fuelTotals[VehicleType.PESADO].actual +
+            fuelTotals[VehicleType.CUALQUIERA].actual;
+
+        // Calcular eficiencia global: (estimado / real) * 100
+        const globalEfficiency =
+            totalActual > 0 ? (totalEstimated / totalActual) * 100 : 0;
+
+        // Construir resumen por tipo
+        const machineryTypes: MachineryTypeSummary[] = [];
+
+        // Liviana
+        const lightDifference =
+            fuelTotals[VehicleType.LIVIANO].actual -
+            fuelTotals[VehicleType.LIVIANO].estimated;
+        const lightEfficiency =
+            fuelTotals[VehicleType.LIVIANO].actual > 0
+                ? (fuelTotals[VehicleType.LIVIANO].estimated /
+                      fuelTotals[VehicleType.LIVIANO].actual) *
+                  100
+                : 0;
+
+        machineryTypes.push({
+            type: VehicleType.LIVIANO,
+            trips: fuelTotals[VehicleType.LIVIANO].trips,
+            estimated: Number(
+                fuelTotals[VehicleType.LIVIANO].estimated.toFixed(2),
+            ),
+            actual: Number(fuelTotals[VehicleType.LIVIANO].actual.toFixed(2)),
+            difference: Number(lightDifference.toFixed(2)),
+            efficiency: Number(lightEfficiency.toFixed(1)),
+        });
+
+        // Pesada
+        const heavyDifference =
+            fuelTotals[VehicleType.PESADO].actual -
+            fuelTotals[VehicleType.PESADO].estimated;
+        const heavyEfficiency =
+            fuelTotals[VehicleType.PESADO].actual > 0
+                ? (fuelTotals[VehicleType.PESADO].estimated /
+                      fuelTotals[VehicleType.PESADO].actual) *
+                  100
+                : 0;
+
+        machineryTypes.push({
+            type: VehicleType.PESADO,
+            trips: fuelTotals[VehicleType.PESADO].trips,
+            estimated: Number(
+                fuelTotals[VehicleType.PESADO].estimated.toFixed(2),
+            ),
+            actual: Number(fuelTotals[VehicleType.PESADO].actual.toFixed(2)),
+            difference: Number(heavyDifference.toFixed(2)),
+            efficiency: Number(heavyEfficiency.toFixed(1)),
+        });
+
+        // Cualquiera
+        const anyDifference =
+            fuelTotals[VehicleType.CUALQUIERA].actual -
+            fuelTotals[VehicleType.CUALQUIERA].estimated;
+        const anyEfficiency =
+            fuelTotals[VehicleType.CUALQUIERA].actual > 0
+                ? (fuelTotals[VehicleType.CUALQUIERA].estimated /
+                      fuelTotals[VehicleType.CUALQUIERA].actual) *
+                  100
+                : 0;
+
+        machineryTypes.push({
+            type: VehicleType.CUALQUIERA,
+            trips: fuelTotals[VehicleType.CUALQUIERA].trips,
+            estimated: Number(
+                fuelTotals[VehicleType.CUALQUIERA].estimated.toFixed(2),
+            ),
+            actual: Number(
+                fuelTotals[VehicleType.CUALQUIERA].actual.toFixed(2),
+            ),
+            difference: Number(anyDifference.toFixed(2)),
+            efficiency: Number(anyEfficiency.toFixed(1)),
+        });
+
+        return {
+            period,
+            generatedAt,
+            totalTrips: filteredTrips.length,
+            totalEstimated: Number(totalEstimated.toFixed(2)),
+            totalActual: Number(totalActual.toFixed(2)),
+            globalEfficiency: Number(globalEfficiency.toFixed(1)),
+            machineryTypes,
+        };
+    }
+
+    public async generateDriverConsumptionReport(
+        data: GenerateDriverConsumptionReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateDriverConsumptionReportResponse> {
+        const tripsClient = await this.tripsClient();
+
+        const startTimeStr = this.formatDateToYYYYMMDD(data.startDate);
+        const endTimeStr = this.formatDateToYYYYMMDD(data.endDate);
+
+        const request: ListTripsByTimeRangeRequest = {
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+        };
+
+        // Formatear período en ISO 8601: "2025-10-01 – 2025-10-31"
+        const startDateISO = this.formatDateToYYYYMMDD(data.startDate);
+        const endDateISO = this.formatDateToYYYYMMDD(data.endDate);
+        const period = `${startDateISO} – ${endDateISO}`;
+
+        // Formatear fecha de generación en ISO 8601
+        const generatedAt = new Date().toISOString();
+
+        // Obtener todos los viajes en el rango de fechas
+        const { trips: allTripsInRange, totalTrips } = await safeGrpcCall(
+            tripsClient.ListTripsByTimeRange(request, metadata),
+            'FuelService.ListTripsByTimeRange',
+        );
+
+        if (Number(totalTrips) === 0) {
+            return {
+                period,
+                generatedAt,
+                totalDrivers: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                drivers: [],
+            };
+        }
+
+        // Filtrar solo los viajes TERMINADOS
+        const filteredTrips = allTripsInRange.filter(
+            (trip) => trip.status === TripStatus.TERMINADO,
+        );
+
+        if (filteredTrips.length === 0) {
+            return {
+                period,
+                generatedAt,
+                totalDrivers: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                drivers: [],
+            };
+        }
+
+        // Agrupar viajes por chofer
+        const driverMap = new Map<
+            number,
+            {
+                driverId: number;
+                driverFirstName: string;
+                driverLastName: string;
+                trips: number;
+                vehicles: Set<number>; // Set para contar vehículos únicos
+                estimated: number;
+                actual: number;
+            }
+        >();
+
+        // Procesar viajes y agrupar por chofer
+        for (const trip of filteredTrips) {
+            const driverId = Number(trip.driverId);
+
+            if (!driverMap.has(driverId)) {
+                driverMap.set(driverId, {
+                    driverId,
+                    driverFirstName: trip.driverFirstName || '',
+                    driverLastName: trip.driverLastName || '',
+                    trips: 0,
+                    vehicles: new Set<number>(),
+                    estimated: 0,
+                    actual: 0,
+                });
+            }
+
+            const summary = driverMap.get(driverId)!;
+            summary.trips += 1;
+            summary.estimated += trip.fuelEstimated || 0;
+            summary.actual += trip.fuelActual || 0;
+
+            // Agregar vehículo al set (solo si tiene vehicleId)
+            if (trip.vehicleId) {
+                summary.vehicles.add(Number(trip.vehicleId));
+            }
+        }
+
+        // Calcular totales globales
+        let totalEstimated = 0;
+        let totalActual = 0;
+
+        for (const summary of driverMap.values()) {
+            totalEstimated += summary.estimated;
+            totalActual += summary.actual;
+        }
+
+        // Calcular eficiencia global: (estimado / real) * 100
+        const globalEfficiency =
+            totalActual > 0 ? (totalEstimated / totalActual) * 100 : 0;
+
+        // Construir resumen por chofer
+        const driverSummaries: DriverConsumptionSummary[] = [];
+
+        for (const summary of driverMap.values()) {
+            const difference = summary.actual - summary.estimated;
+            const efficiency =
+                summary.actual > 0
+                    ? (summary.estimated / summary.actual) * 100
+                    : 0;
+
+            driverSummaries.push({
+                driverId: summary.driverId,
+                driverFirstName: summary.driverFirstName,
+                driverLastName: summary.driverLastName,
+                trips: summary.trips,
+                vehicles: summary.vehicles.size,
+                estimated: Number(summary.estimated.toFixed(2)),
+                actual: Number(summary.actual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(1)),
+            });
+        }
+
+        // Ordenar por cantidad de viajes descendente
+        driverSummaries.sort((a, b) => b.trips - a.trips);
+
+        return {
+            period,
+            generatedAt,
+            totalDrivers: driverMap.size,
+            totalTrips: filteredTrips.length,
+            totalEstimated: Number(totalEstimated.toFixed(2)),
+            totalActual: Number(totalActual.toFixed(2)),
+            globalEfficiency: Number(globalEfficiency.toFixed(1)),
+            drivers: driverSummaries,
+        };
+    }
+
+    public async generateRoutesConsumptionReport(
+        data: GenerateRoutesConsumptionReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateRoutesConsumptionReportResponse> {
+        const routesClient = await this.routesClient();
+        const tripsClient = await this.tripsClient();
+
+        const startTimeStr = this.formatDateToYYYYMMDD(data.startDate);
+        const endTimeStr = this.formatDateToYYYYMMDD(data.endDate);
+
+        // Formatear período en ISO 8601: "2025-10-01 – 2025-10-31"
+        const startDateISO = this.formatDateToYYYYMMDD(data.startDate);
+        const endDateISO = this.formatDateToYYYYMMDD(data.endDate);
+        const period = `${startDateISO} – ${endDateISO}`;
+
+        // Formatear fecha de generación en ISO 8601
+        const generatedAt = new Date().toISOString();
+
+        // Obtener todos los viajes en el rango de fechas
+        const tripsRequest: ListTripsByTimeRangeRequest = {
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+        };
+
+        const { trips: allTripsInRange, totalTrips } = await safeGrpcCall(
+            tripsClient.ListTripsByTimeRange(tripsRequest, metadata),
+            'FuelService.ListTripsByTimeRange',
+        );
+
+        if (Number(totalTrips) === 0) {
+            return {
+                period,
+                generatedAt,
+                totalRoutes: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                routes: [],
+            };
+        }
+
+        // Filtrar solo los viajes TERMINADOS
+        const filteredTrips = allTripsInRange.filter(
+            (trip) => trip.status === TripStatus.TERMINADO,
+        );
+
+        if (filteredTrips.length === 0) {
+            return {
+                period,
+                generatedAt,
+                totalRoutes: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                routes: [],
+            };
+        }
+
+        // Obtener todas las rutas
+        const routesRequest: ListRoutesRequest = {};
+        const { routes } = await safeGrpcCall(
+            routesClient.ListRoutes(routesRequest, metadata),
+            'FuelService.ListRoutes',
+        );
+
+        // Agrupar viajes por routeId
+        const tripsByRouteId = new Map<number, any[]>();
+        for (const trip of filteredTrips) {
+            const routeId = Number(trip.routeId ?? 0);
+            if (routeId > 0) {
+                if (!tripsByRouteId.has(routeId)) {
+                    tripsByRouteId.set(routeId, []);
+                }
+                tripsByRouteId.get(routeId)!.push(trip);
+            }
+        }
+
+        // Calcular métricas para cada ruta
+        const routeSummaries: RouteConsumptionSummary[] = [];
+
+        for (const route of routes) {
+            const routeId = Number(route.id ?? 0);
+            const trips = tripsByRouteId.get(routeId) || [];
+
+            // Solo incluir rutas que tienen viajes
+            if (trips.length === 0) {
+                continue;
+            }
+
+            // Calcular totales
+            let totalEstimated = 0;
+            let totalActual = 0;
+
+            for (const trip of trips) {
+                const estimated = trip.fuelEstimated ?? 0;
+                const actual = trip.fuelActual ?? 0;
+
+                totalEstimated += estimated;
+                totalActual += actual;
+            }
+
+            // Calcular diferencia y eficiencia
+            const difference = totalActual - totalEstimated;
+            const efficiency =
+                totalActual > 0
+                    ? (totalEstimated / totalActual) * 100
+                    : totalEstimated > 0
+                      ? 100
+                      : 0;
+
+            // Formatear nombre de ruta: "Origen → Destino"
+            const originName = route.originName ?? 'Origen';
+            const destinationName = route.destinationName ?? 'Destino';
+            const routeName = `${originName} → ${destinationName}`;
+
+            // Obtener tipo de vehículo de la ruta
+            const vehicleType = route.vehicleType ?? VehicleType.CUALQUIERA;
+
+            routeSummaries.push({
+                routeId: routeId,
+                routeName: routeName,
+                vehicleType: vehicleType,
+                trips: trips.length,
+                estimated: Number(totalEstimated.toFixed(2)),
+                actual: Number(totalActual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(1)),
+            });
+        }
+
+        // Calcular totales globales
+        let totalEstimated = 0;
+        let totalActual = 0;
+
+        for (const summary of routeSummaries) {
+            totalEstimated += summary.estimated;
+            totalActual += summary.actual;
+        }
+
+        // Calcular eficiencia global: (estimado / real) * 100
+        const globalEfficiency =
+            totalActual > 0 ? (totalEstimated / totalActual) * 100 : 0;
+
+        // Ordenar por cantidad de viajes descendente
+        routeSummaries.sort((a, b) => b.trips - a.trips);
+
+        return {
+            period,
+            generatedAt,
+            totalRoutes: routeSummaries.length,
+            totalTrips: filteredTrips.length,
+            totalEstimated: Number(totalEstimated.toFixed(2)),
+            totalActual: Number(totalActual.toFixed(2)),
+            globalEfficiency: Number(globalEfficiency.toFixed(1)),
+            routes: routeSummaries,
+        };
     }
 
     /**

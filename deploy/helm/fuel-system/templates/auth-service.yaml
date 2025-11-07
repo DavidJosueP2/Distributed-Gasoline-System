@@ -82,11 +82,18 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: PROTOS_DIR
-
+        - name: AUTH_SERVICE_REGISTER_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         - name: SERVICE_REGISTER_HOST
-          value: {{ include "fuel-system.fullname" . }}-auth-service
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         - name: REGISTER_HOST
-          value: {{ include "fuel-system.fullname" . }}-auth-service
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         - name: SERVICE_BIND_HOST
           valueFrom:
             configMapKeyRef:

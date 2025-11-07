@@ -203,6 +203,40 @@ export interface GenerateMachineryTypeReportResponse {
   machineryTypes: MachineryTypeSummary[];
 }
 
+export interface GenerateDriverConsumptionReportRequest {
+  startDate: string;
+  endDate: string;
+}
+
+export interface DriverConsumptionSummary {
+  driverId: number;
+  driverFirstName: string;
+  driverLastName: string;
+  trips: number; // cantidad de viajes
+  vehicles: number; // cantidad de vehículos únicos
+  estimated: number; // consumo estimado en litros
+  actual: number; // consumo real en litros
+  difference: number; // diferencia en litros (actual - estimado)
+  efficiency: number; // eficiencia en porcentaje
+}
+
+export interface GenerateDriverConsumptionReportResponse {
+  // Información del reporte
+  period: string; // formato ISO 8601: "2025-10-01 – 2025-10-31"
+  generatedBy?: string; // nombre del usuario que generó el reporte (opcional)
+  generatedAt: string; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+  // KPIs globales
+  totalDrivers: number;
+  totalTrips: number;
+  totalEstimated: number; // consumo estimado total en litros
+  totalActual: number; // consumo real total en litros
+  globalEfficiency: number; // eficiencia global en porcentaje
+
+  // Resumen por chofer
+  drivers: DriverConsumptionSummary[];
+}
+
 export interface FuelServiceClient {
   GenerateGeneralReport(
     data: GenerateGeneralReportRequest,
@@ -248,4 +282,9 @@ export interface FuelServiceClient {
     data: GenerateMachineryTypeReportRequest,
     metadata?: any,
   ): Observable<GenerateMachineryTypeReportResponse>;
+
+  GenerateDriverConsumptionReport(
+    data: GenerateDriverConsumptionReportRequest,
+    metadata?: any,
+  ): Observable<GenerateDriverConsumptionReportResponse>;
 }

@@ -20,6 +20,8 @@ import {
     type GetRouteTripsDetailResponse,
     type GenerateMachineryTypeReportRequest,
     type GenerateMachineryTypeReportResponse,
+    type GenerateDriverConsumptionReportRequest,
+    type GenerateDriverConsumptionReportResponse,
 } from './dto/fuel.dto';
 import { Metadata } from '@grpc/grpc-js';
 import { Roles } from './common/auth/decorators/roles.decorator';
@@ -107,5 +109,14 @@ export class FuelController {
         metadata?: Metadata,
     ): Promise<GenerateMachineryTypeReportResponse> {
         return this.fuelService.generateMachineryTypeReport(data, metadata);
+    }
+
+    @Roles('ADMIN', 'SUPERVISOR')
+    @GrpcMethod('FuelService', 'GenerateDriverConsumptionReport')
+    public async generateDriverConsumptionReport(
+        data: GenerateDriverConsumptionReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateDriverConsumptionReportResponse> {
+        return this.fuelService.generateDriverConsumptionReport(data, metadata);
     }
 }

@@ -25,6 +25,9 @@ import {
     type GenerateMachineryTypeReportRequest,
     type GenerateMachineryTypeReportResponse,
     type MachineryTypeSummary,
+    type GenerateDriverConsumptionReportRequest,
+    type GenerateDriverConsumptionReportResponse,
+    type DriverConsumptionSummary,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
@@ -1040,6 +1043,157 @@ export class FuelService {
             totalActual: Number(totalActual.toFixed(2)),
             globalEfficiency: Number(globalEfficiency.toFixed(1)),
             machineryTypes,
+        };
+    }
+
+    public async generateDriverConsumptionReport(
+        data: GenerateDriverConsumptionReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateDriverConsumptionReportResponse> {
+        const tripsClient = await this.tripsClient();
+
+        const startTimeStr = this.formatDateToYYYYMMDD(data.startDate);
+        const endTimeStr = this.formatDateToYYYYMMDD(data.endDate);
+
+        const request: ListTripsByTimeRangeRequest = {
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+        };
+
+        // Formatear período en ISO 8601: "2025-10-01 – 2025-10-31"
+        const startDateISO = this.formatDateToYYYYMMDD(data.startDate);
+        const endDateISO = this.formatDateToYYYYMMDD(data.endDate);
+        const period = `${startDateISO} – ${endDateISO}`;
+
+        // Formatear fecha de generación en ISO 8601
+        const generatedAt = new Date().toISOString();
+
+        // Obtener todos los viajes en el rango de fechas
+        const { trips: allTripsInRange, totalTrips } = await safeGrpcCall(
+            tripsClient.ListTripsByTimeRange(request, metadata),
+            'FuelService.ListTripsByTimeRange',
+        );
+
+        if (Number(totalTrips) === 0) {
+            return {
+                period,
+                generatedAt,
+                totalDrivers: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                drivers: [],
+            };
+        }
+
+        // Filtrar solo los viajes TERMINADOS
+        const filteredTrips = allTripsInRange.filter(
+            (trip) => trip.status === TripStatus.TERMINADO,
+        );
+
+        if (filteredTrips.length === 0) {
+            return {
+                period,
+                generatedAt,
+                totalDrivers: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                drivers: [],
+            };
+        }
+
+        // Agrupar viajes por chofer
+        const driverMap = new Map<
+            number,
+            {
+                driverId: number;
+                driverFirstName: string;
+                driverLastName: string;
+                trips: number;
+                vehicles: Set<number>; // Set para contar vehículos únicos
+                estimated: number;
+                actual: number;
+            }
+        >();
+
+        // Procesar viajes y agrupar por chofer
+        for (const trip of filteredTrips) {
+            const driverId = Number(trip.driverId);
+
+            if (!driverMap.has(driverId)) {
+                driverMap.set(driverId, {
+                    driverId,
+                    driverFirstName: trip.driverFirstName || '',
+                    driverLastName: trip.driverLastName || '',
+                    trips: 0,
+                    vehicles: new Set<number>(),
+                    estimated: 0,
+                    actual: 0,
+                });
+            }
+
+            const summary = driverMap.get(driverId)!;
+            summary.trips += 1;
+            summary.estimated += trip.fuelEstimated || 0;
+            summary.actual += trip.fuelActual || 0;
+
+            // Agregar vehículo al set (solo si tiene vehicleId)
+            if (trip.vehicleId) {
+                summary.vehicles.add(Number(trip.vehicleId));
+            }
+        }
+
+        // Calcular totales globales
+        let totalEstimated = 0;
+        let totalActual = 0;
+
+        for (const summary of driverMap.values()) {
+            totalEstimated += summary.estimated;
+            totalActual += summary.actual;
+        }
+
+        // Calcular eficiencia global: (estimado / real) * 100
+        const globalEfficiency =
+            totalActual > 0 ? (totalEstimated / totalActual) * 100 : 0;
+
+        // Construir resumen por chofer
+        const driverSummaries: DriverConsumptionSummary[] = [];
+
+        for (const summary of driverMap.values()) {
+            const difference = summary.actual - summary.estimated;
+            const efficiency =
+                summary.actual > 0
+                    ? (summary.estimated / summary.actual) * 100
+                    : 0;
+
+            driverSummaries.push({
+                driverId: summary.driverId,
+                driverFirstName: summary.driverFirstName,
+                driverLastName: summary.driverLastName,
+                trips: summary.trips,
+                vehicles: summary.vehicles.size,
+                estimated: Number(summary.estimated.toFixed(2)),
+                actual: Number(summary.actual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(1)),
+            });
+        }
+
+        // Ordenar por cantidad de viajes descendente
+        driverSummaries.sort((a, b) => b.trips - a.trips);
+
+        return {
+            period,
+            generatedAt,
+            totalDrivers: driverMap.size,
+            totalTrips: filteredTrips.length,
+            totalEstimated: Number(totalEstimated.toFixed(2)),
+            totalActual: Number(totalActual.toFixed(2)),
+            globalEfficiency: Number(globalEfficiency.toFixed(1)),
+            drivers: driverSummaries,
         };
     }
 

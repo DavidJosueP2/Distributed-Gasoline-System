@@ -20,6 +20,8 @@ service FuelService {
       returns (GetRouteTripsDetailResponse);
   rpc GenerateMachineryTypeReport(GenerateMachineryTypeReportRequest)
       returns (GenerateMachineryTypeReportResponse);
+  rpc GenerateDriverConsumptionReport(GenerateDriverConsumptionReportRequest)
+      returns (GenerateDriverConsumptionReportResponse);
 }
 
 message GetFuelRequest { string id = 1; }
@@ -218,4 +220,39 @@ message GenerateMachineryTypeReportResponse {
 
   // Resumen comparativo por tipo
   repeated MachineryTypeSummary machinery_types = 7;
+}
+
+message GenerateDriverConsumptionReportRequest {
+  string startDate = 1;
+  string endDate = 2;
+}
+
+message DriverConsumptionSummary {
+  int64 driver_id = 1;
+  string driver_first_name = 2;
+  string driver_last_name = 3;
+  int64 trips = 4;       // cantidad de viajes
+  int64 vehicles = 5;    // cantidad de vehículos únicos
+  double estimated = 6;  // consumo estimado en litros
+  double actual = 7;     // consumo real en litros
+  double difference = 8; // diferencia en litros (actual - estimado)
+  double efficiency = 9; // eficiencia en porcentaje
+}
+
+message GenerateDriverConsumptionReportResponse {
+  // Información del reporte
+  string period = 1; // formato ISO 8601: "2025-10-01 – 2025-10-31"
+  string generated_by =
+      2; // nombre del usuario que generó el reporte (opcional)
+  string generated_at = 3; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+  // KPIs globales
+  int64 total_drivers = 4;
+  int64 total_trips = 5;
+  double total_estimated = 6;   // consumo estimado total en litros
+  double total_actual = 7;      // consumo real total en litros
+  double global_efficiency = 8; // eficiencia global en porcentaje
+
+  // Resumen por chofer
+  repeated DriverConsumptionSummary drivers = 9;
 }

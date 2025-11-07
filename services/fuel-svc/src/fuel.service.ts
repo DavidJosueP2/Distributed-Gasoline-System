@@ -28,6 +28,9 @@ import {
     type GenerateDriverConsumptionReportRequest,
     type GenerateDriverConsumptionReportResponse,
     type DriverConsumptionSummary,
+    type GenerateRoutesConsumptionReportRequest,
+    type GenerateRoutesConsumptionReportResponse,
+    type RouteConsumptionSummary,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
@@ -1194,6 +1197,166 @@ export class FuelService {
             totalActual: Number(totalActual.toFixed(2)),
             globalEfficiency: Number(globalEfficiency.toFixed(1)),
             drivers: driverSummaries,
+        };
+    }
+
+    public async generateRoutesConsumptionReport(
+        data: GenerateRoutesConsumptionReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateRoutesConsumptionReportResponse> {
+        const routesClient = await this.routesClient();
+        const tripsClient = await this.tripsClient();
+
+        const startTimeStr = this.formatDateToYYYYMMDD(data.startDate);
+        const endTimeStr = this.formatDateToYYYYMMDD(data.endDate);
+
+        // Formatear período en ISO 8601: "2025-10-01 – 2025-10-31"
+        const startDateISO = this.formatDateToYYYYMMDD(data.startDate);
+        const endDateISO = this.formatDateToYYYYMMDD(data.endDate);
+        const period = `${startDateISO} – ${endDateISO}`;
+
+        // Formatear fecha de generación en ISO 8601
+        const generatedAt = new Date().toISOString();
+
+        // Obtener todos los viajes en el rango de fechas
+        const tripsRequest: ListTripsByTimeRangeRequest = {
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+        };
+
+        const { trips: allTripsInRange, totalTrips } = await safeGrpcCall(
+            tripsClient.ListTripsByTimeRange(tripsRequest, metadata),
+            'FuelService.ListTripsByTimeRange',
+        );
+
+        if (Number(totalTrips) === 0) {
+            return {
+                period,
+                generatedAt,
+                totalRoutes: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                routes: [],
+            };
+        }
+
+        // Filtrar solo los viajes TERMINADOS
+        const filteredTrips = allTripsInRange.filter(
+            (trip) => trip.status === TripStatus.TERMINADO,
+        );
+
+        if (filteredTrips.length === 0) {
+            return {
+                period,
+                generatedAt,
+                totalRoutes: 0,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                routes: [],
+            };
+        }
+
+        // Obtener todas las rutas
+        const routesRequest: ListRoutesRequest = {};
+        const { routes } = await safeGrpcCall(
+            routesClient.ListRoutes(routesRequest, metadata),
+            'FuelService.ListRoutes',
+        );
+
+        // Agrupar viajes por routeId
+        const tripsByRouteId = new Map<number, any[]>();
+        for (const trip of filteredTrips) {
+            const routeId = Number(trip.routeId ?? 0);
+            if (routeId > 0) {
+                if (!tripsByRouteId.has(routeId)) {
+                    tripsByRouteId.set(routeId, []);
+                }
+                tripsByRouteId.get(routeId)!.push(trip);
+            }
+        }
+
+        // Calcular métricas para cada ruta
+        const routeSummaries: RouteConsumptionSummary[] = [];
+
+        for (const route of routes) {
+            const routeId = Number(route.id ?? 0);
+            const trips = tripsByRouteId.get(routeId) || [];
+
+            // Solo incluir rutas que tienen viajes
+            if (trips.length === 0) {
+                continue;
+            }
+
+            // Calcular totales
+            let totalEstimated = 0;
+            let totalActual = 0;
+
+            for (const trip of trips) {
+                const estimated = trip.fuelEstimated ?? 0;
+                const actual = trip.fuelActual ?? 0;
+
+                totalEstimated += estimated;
+                totalActual += actual;
+            }
+
+            // Calcular diferencia y eficiencia
+            const difference = totalActual - totalEstimated;
+            const efficiency =
+                totalActual > 0
+                    ? (totalEstimated / totalActual) * 100
+                    : totalEstimated > 0
+                      ? 100
+                      : 0;
+
+            // Formatear nombre de ruta: "Origen → Destino"
+            const originName = route.originName ?? 'Origen';
+            const destinationName = route.destinationName ?? 'Destino';
+            const routeName = `${originName} → ${destinationName}`;
+
+            // Obtener tipo de vehículo de la ruta
+            const vehicleType = route.vehicleType ?? VehicleType.CUALQUIERA;
+
+            routeSummaries.push({
+                routeId: routeId,
+                routeName: routeName,
+                vehicleType: vehicleType,
+                trips: trips.length,
+                estimated: Number(totalEstimated.toFixed(2)),
+                actual: Number(totalActual.toFixed(2)),
+                difference: Number(difference.toFixed(2)),
+                efficiency: Number(efficiency.toFixed(1)),
+            });
+        }
+
+        // Calcular totales globales
+        let totalEstimated = 0;
+        let totalActual = 0;
+
+        for (const summary of routeSummaries) {
+            totalEstimated += summary.estimated;
+            totalActual += summary.actual;
+        }
+
+        // Calcular eficiencia global: (estimado / real) * 100
+        const globalEfficiency =
+            totalActual > 0 ? (totalEstimated / totalActual) * 100 : 0;
+
+        // Ordenar por cantidad de viajes descendente
+        routeSummaries.sort((a, b) => b.trips - a.trips);
+
+        return {
+            period,
+            generatedAt,
+            totalRoutes: routeSummaries.length,
+            totalTrips: filteredTrips.length,
+            totalEstimated: Number(totalEstimated.toFixed(2)),
+            totalActual: Number(totalActual.toFixed(2)),
+            globalEfficiency: Number(globalEfficiency.toFixed(1)),
+            routes: routeSummaries,
         };
     }
 

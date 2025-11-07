@@ -22,6 +22,8 @@ service FuelService {
       returns (GenerateMachineryTypeReportResponse);
   rpc GenerateDriverConsumptionReport(GenerateDriverConsumptionReportRequest)
       returns (GenerateDriverConsumptionReportResponse);
+  rpc GenerateRoutesConsumptionReport(GenerateRoutesConsumptionReportRequest)
+      returns (GenerateRoutesConsumptionReportResponse);
 }
 
 message GetFuelRequest { string id = 1; }
@@ -255,4 +257,36 @@ message GenerateDriverConsumptionReportResponse {
 
   // Resumen por chofer
   repeated DriverConsumptionSummary drivers = 9;
+}
+
+message GenerateRoutesConsumptionReportRequest {
+  string startDate = 1;
+  string endDate = 2;
+}
+
+message RouteConsumptionSummary {
+  int64 route_id = 1;
+  string route_name = 2;        // formato: "Origen → Destino"
+  VehicleType vehicle_type = 3; // LIVIANO, PESADO, CUALQUIERA
+  int64 trips = 4;              // cantidad de viajes
+  double estimated = 5;         // consumo estimado en litros
+  double actual = 6;            // consumo real en litros
+  double difference = 7;        // diferencia en litros (actual - estimado)
+  double efficiency = 8;        // eficiencia en porcentaje
+}
+
+message GenerateRoutesConsumptionReportResponse {
+  // Información del reporte
+  string period = 1;       // formato ISO 8601: "2025-10-01 – 2025-10-31"
+  string generated_at = 2; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+  // KPIs globales
+  int64 total_routes = 3;
+  int64 total_trips = 4;
+  double total_estimated = 5;   // consumo estimado total en litros
+  double total_actual = 6;      // consumo real total en litros
+  double global_efficiency = 7; // eficiencia global en porcentaje
+
+  // Resumen por rutas
+  repeated RouteConsumptionSummary routes = 8;
 }

@@ -195,4 +195,30 @@ export class FuelHttpController {
       ),
     );
   }
+
+  @Get('reports/routes-consumption')
+  @GrpcTimeout(10000)
+  generateRoutesConsumptionReport(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Req() req: any,
+  ) {
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'startDate and endDate are required query parameters',
+      );
+    }
+
+    return from(this.svc(req)).pipe(
+      switchMap((svc) =>
+        svc.GenerateRoutesConsumptionReport(
+          {
+            startDate,
+            endDate,
+          },
+          req._grpcMetadata,
+        ),
+      ),
+    );
+  }
 }

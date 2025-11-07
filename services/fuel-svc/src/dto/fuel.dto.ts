@@ -260,3 +260,35 @@ export interface GenerateDriverConsumptionReportResponse {
     // Resumen por chofer
     drivers: DriverConsumptionSummary[];
 }
+
+export interface GenerateRoutesConsumptionReportRequest {
+    startDate: string;
+    endDate: string;
+}
+
+export interface RouteConsumptionSummary {
+    routeId: number;
+    routeName: string; // formato: "Origen → Destino"
+    vehicleType: VehicleType; // LIVIANO, PESADO, CUALQUIERA
+    trips: number; // cantidad de viajes
+    estimated: number; // consumo estimado en litros
+    actual: number; // consumo real en litros
+    difference: number; // diferencia en litros (actual - estimado)
+    efficiency: number; // eficiencia en porcentaje
+}
+
+export interface GenerateRoutesConsumptionReportResponse {
+    // Información del reporte
+    period: string; // formato ISO 8601: "2025-10-01 – 2025-10-31"
+    generatedAt: string; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+    // KPIs globales
+    totalRoutes: number;
+    totalTrips: number;
+    totalEstimated: number; // consumo estimado total en litros
+    totalActual: number; // consumo real total en litros
+    globalEfficiency: number; // eficiencia global en porcentaje
+
+    // Resumen por rutas
+    routes: RouteConsumptionSummary[];
+}

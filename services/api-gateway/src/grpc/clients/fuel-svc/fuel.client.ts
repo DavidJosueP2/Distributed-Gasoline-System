@@ -174,6 +174,35 @@ export interface GetRouteTripsDetailResponse {
   trips: RouteTripDetail[];
 }
 
+export interface GenerateMachineryTypeReportRequest {
+  startDate: string;
+  endDate: string;
+}
+
+export interface MachineryTypeSummary {
+  type: VehicleType;
+  trips: number; // cantidad de viajes
+  estimated: number; // consumo estimado en litros
+  actual: number; // consumo real en litros
+  difference: number; // diferencia en litros (actual - estimado)
+  efficiency: number; // eficiencia en porcentaje
+}
+
+export interface GenerateMachineryTypeReportResponse {
+  // Información del reporte
+  period: string; // formato ISO 8601: "2025-10-01 – 2025-10-31"
+  generatedAt: string; // formato ISO 8601: "2025-11-06T00:00:00.000Z"
+
+  // KPIs principales
+  totalTrips: number;
+  totalEstimated: number; // consumo estimado total en litros
+  totalActual: number; // consumo real total en litros
+  globalEfficiency: number; // eficiencia global en porcentaje
+
+  // Resumen comparativo por tipo
+  machineryTypes: MachineryTypeSummary[];
+}
+
 export interface FuelServiceClient {
   GenerateGeneralReport(
     data: GenerateGeneralReportRequest,
@@ -214,4 +243,9 @@ export interface FuelServiceClient {
     data: GetRouteTripsDetailRequest,
     metadata?: any,
   ): Observable<GetRouteTripsDetailResponse>;
+
+  GenerateMachineryTypeReport(
+    data: GenerateMachineryTypeReportRequest,
+    metadata?: any,
+  ): Observable<GenerateMachineryTypeReportResponse>;
 }

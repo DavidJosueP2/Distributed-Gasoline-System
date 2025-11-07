@@ -22,6 +22,9 @@ import {
     type GetRouteTripsDetailRequest,
     type GetRouteTripsDetailResponse,
     type RouteTripDetail,
+    type GenerateMachineryTypeReportRequest,
+    type GenerateMachineryTypeReportResponse,
+    type MachineryTypeSummary,
 } from './dto/fuel.dto';
 import { GrpcClientFactory } from './grpc/grpc-client.factory';
 import { VehicleType } from './types/routes-client';
@@ -842,6 +845,202 @@ export class FuelService {
         });
 
         return { trips: tripDetails };
+    }
+
+    public async generateMachineryTypeReport(
+        data: GenerateMachineryTypeReportRequest,
+        metadata?: Metadata,
+    ): Promise<GenerateMachineryTypeReportResponse> {
+        const tripsClient = await this.tripsClient();
+
+        const startTimeStr = this.formatDateToYYYYMMDD(data.startDate);
+        const endTimeStr = this.formatDateToYYYYMMDD(data.endDate);
+
+        const request: ListTripsByTimeRangeRequest = {
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+        };
+
+        // Formatear período en ISO 8601: "2025-10-01 – 2025-10-31"
+        const startDateISO = this.formatDateToYYYYMMDD(data.startDate);
+        const endDateISO = this.formatDateToYYYYMMDD(data.endDate);
+        const period = `${startDateISO} – ${endDateISO}`;
+
+        // Formatear fecha de generación en ISO 8601
+        const generatedAt = new Date().toISOString();
+
+        // Obtener todos los viajes en el rango de fechas
+        const { trips: allTripsInRange, totalTrips } = await safeGrpcCall(
+            tripsClient.ListTripsByTimeRange(request, metadata),
+            'FuelService.ListTripsByTimeRange',
+        );
+
+        if (Number(totalTrips) === 0) {
+            return {
+                period,
+                generatedAt,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                machineryTypes: [],
+            };
+        }
+
+        // Filtrar solo los viajes TERMINADOS
+        const filteredTrips = allTripsInRange.filter(
+            (trip) => trip.status === TripStatus.TERMINADO,
+        );
+
+        if (filteredTrips.length === 0) {
+            return {
+                period,
+                generatedAt,
+                totalTrips: 0,
+                totalEstimated: 0,
+                totalActual: 0,
+                globalEfficiency: 0,
+                machineryTypes: [],
+            };
+        }
+
+        const routesClient = await this.routesClient();
+
+        // Consultar todas las rutas en paralelo
+        const routeResponses = await Promise.all(
+            filteredTrips.map((trip) =>
+                safeGrpcCall(
+                    routesClient.GetRoute({ id: trip.routeId }, metadata),
+                    'FuelService.GetRoute',
+                ),
+            ),
+        );
+
+        // Acumulador de combustible por tipo
+        const fuelTotals = {
+            [VehicleType.LIVIANO]: {
+                trips: 0,
+                estimated: 0,
+                actual: 0,
+            },
+            [VehicleType.PESADO]: {
+                trips: 0,
+                estimated: 0,
+                actual: 0,
+            },
+            [VehicleType.CUALQUIERA]: {
+                trips: 0,
+                estimated: 0,
+                actual: 0,
+            },
+        };
+
+        // Procesar viajes y agrupar por tipo
+        for (let i = 0; i < filteredTrips.length; i++) {
+            const trip = filteredTrips[i];
+            const route = routeResponses[i].route;
+            const type = route.vehicleType ?? VehicleType.CUALQUIERA;
+
+            fuelTotals[type].trips += 1;
+            fuelTotals[type].estimated += trip.fuelEstimated || 0;
+            fuelTotals[type].actual += trip.fuelActual || 0;
+        }
+
+        // Calcular totales globales
+        const totalEstimated =
+            fuelTotals[VehicleType.LIVIANO].estimated +
+            fuelTotals[VehicleType.PESADO].estimated +
+            fuelTotals[VehicleType.CUALQUIERA].estimated;
+
+        const totalActual =
+            fuelTotals[VehicleType.LIVIANO].actual +
+            fuelTotals[VehicleType.PESADO].actual +
+            fuelTotals[VehicleType.CUALQUIERA].actual;
+
+        // Calcular eficiencia global: (estimado / real) * 100
+        const globalEfficiency =
+            totalActual > 0 ? (totalEstimated / totalActual) * 100 : 0;
+
+        // Construir resumen por tipo
+        const machineryTypes: MachineryTypeSummary[] = [];
+
+        // Liviana
+        const lightDifference =
+            fuelTotals[VehicleType.LIVIANO].actual -
+            fuelTotals[VehicleType.LIVIANO].estimated;
+        const lightEfficiency =
+            fuelTotals[VehicleType.LIVIANO].actual > 0
+                ? (fuelTotals[VehicleType.LIVIANO].estimated /
+                      fuelTotals[VehicleType.LIVIANO].actual) *
+                  100
+                : 0;
+
+        machineryTypes.push({
+            type: VehicleType.LIVIANO,
+            trips: fuelTotals[VehicleType.LIVIANO].trips,
+            estimated: Number(
+                fuelTotals[VehicleType.LIVIANO].estimated.toFixed(2),
+            ),
+            actual: Number(fuelTotals[VehicleType.LIVIANO].actual.toFixed(2)),
+            difference: Number(lightDifference.toFixed(2)),
+            efficiency: Number(lightEfficiency.toFixed(1)),
+        });
+
+        // Pesada
+        const heavyDifference =
+            fuelTotals[VehicleType.PESADO].actual -
+            fuelTotals[VehicleType.PESADO].estimated;
+        const heavyEfficiency =
+            fuelTotals[VehicleType.PESADO].actual > 0
+                ? (fuelTotals[VehicleType.PESADO].estimated /
+                      fuelTotals[VehicleType.PESADO].actual) *
+                  100
+                : 0;
+
+        machineryTypes.push({
+            type: VehicleType.PESADO,
+            trips: fuelTotals[VehicleType.PESADO].trips,
+            estimated: Number(
+                fuelTotals[VehicleType.PESADO].estimated.toFixed(2),
+            ),
+            actual: Number(fuelTotals[VehicleType.PESADO].actual.toFixed(2)),
+            difference: Number(heavyDifference.toFixed(2)),
+            efficiency: Number(heavyEfficiency.toFixed(1)),
+        });
+
+        // Cualquiera
+        const anyDifference =
+            fuelTotals[VehicleType.CUALQUIERA].actual -
+            fuelTotals[VehicleType.CUALQUIERA].estimated;
+        const anyEfficiency =
+            fuelTotals[VehicleType.CUALQUIERA].actual > 0
+                ? (fuelTotals[VehicleType.CUALQUIERA].estimated /
+                      fuelTotals[VehicleType.CUALQUIERA].actual) *
+                  100
+                : 0;
+
+        machineryTypes.push({
+            type: VehicleType.CUALQUIERA,
+            trips: fuelTotals[VehicleType.CUALQUIERA].trips,
+            estimated: Number(
+                fuelTotals[VehicleType.CUALQUIERA].estimated.toFixed(2),
+            ),
+            actual: Number(
+                fuelTotals[VehicleType.CUALQUIERA].actual.toFixed(2),
+            ),
+            difference: Number(anyDifference.toFixed(2)),
+            efficiency: Number(anyEfficiency.toFixed(1)),
+        });
+
+        return {
+            period,
+            generatedAt,
+            totalTrips: filteredTrips.length,
+            totalEstimated: Number(totalEstimated.toFixed(2)),
+            totalActual: Number(totalActual.toFixed(2)),
+            globalEfficiency: Number(globalEfficiency.toFixed(1)),
+            machineryTypes,
+        };
     }
 
     /**

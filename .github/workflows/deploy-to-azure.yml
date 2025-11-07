@@ -1,14 +1,12 @@
 name: Deploy to Azure AKS
 
-# ⚠️ TEMPORALMENTE DESHABILITADO - Solo build a GHCR por ahora
-# Se habilitará a futuro para el deploy completo
 on:
-  # workflow_run:
-  #   workflows: ["Build and Push Docker Images"]
-  #   types:
-  #     - completed
-  #   branches:
-  #     - main
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       environment:
@@ -27,7 +25,6 @@ env:
   HELM_CHART_PATH: ./deploy/helm/fuel-system
   NAMESPACE: fuel-system
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/fuel-system
 
 jobs:
   deploy:
@@ -39,6 +36,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: 🔧 Convert repository name to lowercase
+        id: repo_name
+        run: |
+          echo "repository_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Azure Login
         uses: azure/login@v1
@@ -85,7 +88,7 @@ jobs:
           helm upgrade --install fuel-system ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} \
             --create-namespace \
-            --set imageRegistry.url=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }} \
+            --set imageRegistry.url=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system \
             --set global.imagePullSecrets[0]=ghcr-secret \
             --set global.imageTag=${{ steps.image-tag.outputs.tag }} \
             --set postgresql.external.enabled=true \
@@ -118,6 +121,7 @@ jobs:
           # Esperar a que los pods estén listos
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=users-service -n ${{ env.NAMESPACE }} --timeout=300s || true
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=vehicles-service -n ${{ env.NAMESPACE }} --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=driver-service -n ${{ env.NAMESPACE }} --timeout=300s || true
           
           # Ejecutar migraciones de Prisma
           echo "Running Prisma migrations for users-service..."
@@ -142,7 +146,8 @@ jobs:
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Registry:** GitHub Container Registry (GHCR)" >> $GITHUB_STEP_SUMMARY
-          echo "**Images from:** \`${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Images from:** \`${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** \`${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pods Status" >> $GITHUB_STEP_SUMMARY
           kubectl get pods -n ${{ env.NAMESPACE }} -o wide >> $GITHUB_STEP_SUMMARY || true

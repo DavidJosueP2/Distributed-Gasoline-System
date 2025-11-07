@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: fuel-system
+  labels:
+    app: eureka-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka-server
+  template:
+    metadata:
+      labels:
+        app: eureka-server
+    spec:
+      containers:
+      - name: eureka-server
+        image: steeltoeoss/eureka-server:latest
+        ports:
+        - containerPort: 8761
+          name: http
+        env:
+        - name: EUREKA_INSTANCE_HOSTNAME
+          value: "eureka-server"
+        - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+          value: "false"
+        - name: EUREKA_CLIENT_FETCH_REGISTRY
+          value: "false"
+        - name: EUREKA_SERVER_ENABLE_SELF_PRESERVATION
+          value: "false"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8761
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8761
+          initialDelaySeconds: 30
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-server
+  namespace: fuel-system
+  labels:
+    app: eureka-server
+spec:
+  type: NodePort
+  ports:
+  - port: 8761
+    targetPort: 8761
+    nodePort: 30761
+    protocol: TCP
+    name: http
+  selector:
+    app: eureka-server
+

@@ -20,7 +20,7 @@ export class PublisherService implements OnModuleInit, OnModuleDestroy {
   private readonly routingKey = process.env.LOGS_ROUTING_KEY || 'logs.created';
   private readonly rabbitCandidates = [
     process.env.RABBITMQ_URL,
-    process.env.RABBITMQ_HOST ? `amqp://guest:guest@${process.env.RABBITMQ_HOST}:5672` : undefined,
+    this.buildRabbitMQUrl(),
     'amqp://guest:guest@localhost:5672',
     'amqp://guest:guest@rabbitmq:5672',
   ].filter(Boolean) as string[];
@@ -31,6 +31,17 @@ export class PublisherService implements OnModuleInit, OnModuleDestroy {
     this.ready = new Promise<void>((resolve) => {
       this.readyResolve = resolve;
     });
+  }
+
+  private buildRabbitMQUrl(): string | undefined {
+    const host = process.env.RABBITMQ_HOST;
+    const port = process.env.RABBITMQ_PORT || '5672';
+    const username = process.env.RABBITMQ_USERNAME || 'guest';
+    const password = process.env.RABBITMQ_PASSWORD || 'guest';
+
+    if (!host) return undefined;
+
+    return `amqp://${username}:${password}@${host}:${port}`;
   }
 
   async onModuleInit() {
@@ -51,22 +62,22 @@ export class PublisherService implements OnModuleInit, OnModuleDestroy {
     await this.conn?.close().catch(() => undefined);
   }
 
-private async createRabbitConnection(): Promise<ConfirmConnection> {
-  let lastError: unknown;
-  for (const candidate of this.rabbitCandidates) {
-    try {
-      // Cast seguro usando unknown
-      const conn = await connect(candidate) as unknown as ConfirmConnection;
-      logger.log(`Connected to RabbitMQ using ${candidate}`);
-      return conn;
-    } catch (err) {
-      lastError = err;
-      logger.warn(`Failed to connect to RabbitMQ using ${candidate}: ${err instanceof Error ? err.message : err}`);
+  private async createRabbitConnection(): Promise<ConfirmConnection> {
+    let lastError: unknown;
+    for (const candidate of this.rabbitCandidates) {
+      try {
+        // Cast seguro usando unknown
+        const conn = await connect(candidate) as unknown as ConfirmConnection;
+        logger.log(`Connected to RabbitMQ using ${candidate}`);
+        return conn;
+      } catch (err) {
+        lastError = err;
+        logger.warn(`Failed to connect to RabbitMQ using ${candidate}: ${err instanceof Error ? err.message : err}`);
+      }
     }
-  }
 
-  throw lastError ?? new Error('Unable to connect to RabbitMQ: no candidates succeeded');
-}
+    throw lastError ?? new Error('Unable to connect to RabbitMQ: no candidates succeeded');
+  }
 
   async publishLog(entry: LogEntryDto) {
     await this.ready;

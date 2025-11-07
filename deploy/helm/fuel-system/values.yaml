@@ -336,6 +336,7 @@ publisherService:
     targetPort: 4100
   env:
     NODE_ENV: production
+    GRPC_PORT: 4100
     PORT: 4100
     OUTBOX_PUBLISHER_PORT: 4100
   resources:

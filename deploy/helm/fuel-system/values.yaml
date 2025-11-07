@@ -11,8 +11,9 @@ global:
   imageTag: "latest"
   
 # Image registry configuration for GitHub Container Registry (GHCR)
+# NOTA: El URL base apunta al registry, los repositorios individuales se especifican en cada servicio
 imageRegistry:
-  url: "ghcr.io/DavidJosueP2/fuel-system"  # Actualizar con tu usuario de GitHub
+  url: "ghcr.io/davidjosuep2/distributed-gasoline-system/fuel-system"
   username: ""
   password: ""
 
@@ -26,18 +27,24 @@ commonLabels:
 # ==============================================
 
 # PostgreSQL Configuration
-# NOTA: En producción, usar Azure Database for PostgreSQL Flexible Server
-# Las bases de datos están fuera de AKS y son administradas por Azure
+# NOTA: Se instalan como releases externos separados (ver kind-fuel-local.md)
+# auth-db, driver-db, users-db, vehicles-db, vehicles-shadow-db
 postgresql:
-  enabled: false  # Deshabilitado - usamos Azure PostgreSQL Flexible Server
+  enabled: false  # Deshabilitado - se instalan como releases separados
   external:
     enabled: true
-    # Estos valores se sobreescriben con --set en el deploy
-    host: "fuel-system-postgres.postgres.database.azure.com"
+    # En local: <release-name>-postgresql (ej: auth-db-postgresql)
+    # En Azure: fuel-system-postgres.postgres.database.azure.com
+    hosts:
+      auth: "auth-db-postgresql"
+      driver: "driver-db-postgresql"
+      users: "users-db-postgresql"
+      vehicles: "vehicles-db-postgresql"
+      vehiclesShadow: "vehicles-shadow-db-postgresql"
     port: 5432
-    username: "pgadmin"
-    password: ""  # Se configura vía secret
-    sslMode: "require"
+    username: "postgres"
+    password: "root"  # Se sobreescribe en producción vía secret
+    sslMode: "disable"  # En local. En Azure: "require"
     databases:
       auth: "auth_db"
       driver: "driver_db"
@@ -46,52 +53,30 @@ postgresql:
       vehiclesShadow: "vehicles_shadow_db"
 
 # RabbitMQ Configuration
-# En AKS - autoescalado y alta disponibilidad
+# NOTA: Se instala como release externo separado (ver kind-fuel-local.md)
 rabbitmq:
-  enabled: true
-  auth:
-    username: admin
-    password: admin123
-  replicaCount: 2  # Alta disponibilidad
-  persistence:
+  enabled: false  # Deshabilitado - se instala como release separado
+  external:
     enabled: true
-    size: 8Gi
-    storageClass: "managed-premium"  # Azure Premium SSD
-  resources:
-    requests:
-      memory: 512Mi
-      cpu: 250m
-    limits:
-      memory: 1Gi
-      cpu: 500m
-  clustering:
-    enabled: true  # Cluster de RabbitMQ
-  metrics:
-    enabled: true  # Para monitoreo
+    # En local: rabbitmq (nombre del release)
+    # En Azure: rabbitmq service en AKS
+    host: "rabbitmq"
+    port: 5672
+    managementPort: 15672
+    username: "admin"
+    password: "admin123"  # Se sobreescribe en producción
 
 # Elasticsearch Configuration
-# En AKS - para logs centralizados
+# NOTA: Se instala como release externo separado (ver kind-fuel-local.md)
 elasticsearch:
-  enabled: true
-  master:
-    replicaCount: 3  # Para producción, mínimo 3 nodos
-    persistence:
-      enabled: true
-      size: 50Gi
-      storageClass: "managed-premium"
-    resources:
-      requests:
-        memory: 2Gi
-        cpu: 500m
-      limits:
-        memory: 4Gi
-        cpu: 1000m
-  data:
-    replicaCount: 2
-    persistence:
-      enabled: true
-      size: 100Gi
-      storageClass: "managed-premium"
+  enabled: false  # Deshabilitado - se instala como release separado
+  external:
+    enabled: true
+    # En local: elasticsearch-master (nombre del servicio)
+    # En Azure: elasticsearch service en AKS
+    host: "elasticsearch-master"
+    port: 9200
+    scheme: "http"  # En producción: "https"
 
 # Eureka Server Configuration
 eurekaServer:
@@ -120,7 +105,7 @@ apiGateway:
   enabled: true
   replicaCount: 2
   image:
-    repository: fuel-system/api-gateway
+    repository: api-gateway
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -150,7 +135,7 @@ authService:
   enabled: true
   replicaCount: 2
   image:
-    repository: fuel-system/auth-svc
+    repository: auth-svc
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -180,7 +165,7 @@ driverService:
   enabled: true
   replicaCount: 2
   image:
-    repository: fuel-system/driver-ms
+    repository: driver-ms
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -211,7 +196,7 @@ usersService:
   enabled: true
   replicaCount: 2
   image:
-    repository: fuel-system/users-srv
+    repository: users-srv
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -240,7 +225,7 @@ vehiclesService:
   enabled: true
   replicaCount: 2
   image:
-    repository: fuel-system/vehicles-svc
+    repository: vehicles-svc
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -269,7 +254,7 @@ emailService:
   enabled: true
   replicaCount: 2
   image:
-    repository: fuel-system/email-svc
+    repository: email-svc
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -293,7 +278,7 @@ helloService:
   enabled: true
   replicaCount: 1
   image:
-    repository: fuel-system/hello-svc
+    repository: hello-svc
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -317,7 +302,7 @@ loggerService:
   enabled: true
   replicaCount: 2
   image:
-    repository: fuel-system/logger-svc
+    repository: logger-svc
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -342,7 +327,7 @@ publisherService:
   enabled: true
   replicaCount: 1
   image:
-    repository: fuel-system/publisher-rabbit-srv
+    repository: publisher-rabbit-srv
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -387,9 +372,21 @@ secrets:
 ingress:
   enabled: true
   className: nginx
+  # Usar regla sin host para acceso directo por IP (útil en Azure AKS sin dominio)
+  # En local se sobreescribe en values-local.yaml
+  useDefaultBackend: false  # true = acceso por IP, false = acceso por dominio
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  # Configuración para acceso SIN dominio (por IP directa)
+  paths:
+    - path: /
+      pathType: Prefix
+      backend:
+        service:
+          name: api-gateway
+          port: 8080
+  # Configuración para acceso CON dominio
   hosts:
     - host: fuel-system.example.com  # Actualizar con tu dominio
       paths:

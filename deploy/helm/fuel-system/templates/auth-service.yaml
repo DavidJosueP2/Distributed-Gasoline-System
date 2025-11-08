@@ -34,16 +34,127 @@ spec:
           value: {{ .Values.authService.env.NODE_ENV | quote }}
         - name: GRPC_PORT
           value: {{ .Values.authService.env.GRPC_PORT | quote }}
-        - name: DB_HOST
+        - name: AUTH_GRPC_PORT
+          value: {{ .Values.authService.env.AUTH_GRPC_PORT | quote }}
+
+        # ========== CRÍTICO: Variables de Service Discovery ==========
+        - name: DISCOVERY_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: DISCOVERY_MODE
+        - name: EUREKA_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: EUREKA_HOST
+        - name: EUREKA_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: EUREKA_PORT
+        - name: EUREKA_BASE_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: EUREKA_BASE_PATH
+        - name: EUREKA_WAIT_TIMEOUT_MS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: EUREKA_WAIT_TIMEOUT_MS
+
+        # Auth Service App Name
+        - name: AUTH_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_APP_NAME
+
+        # Variables de archivos .proto
+        - name: PROTO_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: PROTO_ROOT
+        - name: PROTOS_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: PROTOS_DIR
+        - name: AUTH_SERVICE_REGISTER_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: SERVICE_REGISTER_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: REGISTER_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: SERVICE_BIND_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: SERVICE_BIND_HOST
+
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-jwt
+              key: secret
+        - name: JWT_EXPIRES_IN
+          value: "1h"
+
+        # ========== Variables de Base de Datos (Auth DB) ==========
+        # Variables con prefijo AUTH_ (para el auth-svc específicamente)
+        - name: AUTH_DB_HOST
+          {{- if .Values.postgresql.external.authHost }}
+          value: {{ .Values.postgresql.external.authHost | quote }}
+          {{- else }}
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: POSTGRESQL_HOST
+          {{- end }}
+        - name: AUTH_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_PORT
+        - name: AUTH_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-postgresql
+              key: username
+        - name: AUTH_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-postgresql
+              key: password
+        - name: AUTH_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_NAME
+
+        # Variables sin prefijo (para compatibilidad con TypeORM)
+        - name: DB_HOST
+          {{- if .Values.postgresql.external.authHost }}
+          value: {{ .Values.postgresql.external.authHost | quote }}
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
         - name: DB_PORT
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
-              key: POSTGRESQL_PORT
+              key: AUTH_DB_PORT
         - name: DB_USERNAME
           valueFrom:
             secretKeyRef:
@@ -55,22 +166,15 @@ spec:
               name: {{ include "fuel-system.fullname" . }}-postgresql
               key: password
         - name: DB_NAME
-          value: {{ .Values.authService.env.DB_NAME | quote }}
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "fuel-system.fullname" . }}-jwt
-              key: secret
-        - name: EUREKA_HOST
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
-              key: EUREKA_HOST
-        - name: EUREKA_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "fuel-system.fullname" . }}-config
-              key: EUREKA_PORT
+              key: AUTH_DB_NAME
+        - name: DB_SYNCHRONIZE
+          value: "false"
+        - name: DB_LOGGING
+          value: "false"
+
         resources:
           {{- toYaml .Values.authService.resources | nindent 10 }}
 ---
@@ -118,4 +222,3 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
-

@@ -16,7 +16,7 @@ export class GrpcTimeoutInterceptor implements NestInterceptor {
     const handler = ctx.getHandler();
     // lee override por handler (decorador @GrpcTimeout)
     const override = Reflect.getMetadata(GRPC_TIMEOUT, handler);
-    const ms = Number(override ?? process.env.GRPC_CALL_TIMEOUT_MS ?? 10000); // default 10s
+    const ms = Number(override ?? process.env.GRPC_CALL_TIMEOUT_MS ?? 100000); // default 10s
     return next.handle().pipe(timeout(ms));
   }
 }

@@ -24,6 +24,21 @@ spec:
     {{- end }}
   {{- end }}
   rules:
+    {{- if .Values.ingress.useDefaultBackend }}
+    # Regla sin host - para acceso directo por IP (Azure AKS o Kind local)
+    - http:
+        paths:
+          {{- range .Values.ingress.paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "fuel-system.fullname" $ }}-{{ .backend.service.name }}
+                port:
+                  number: {{ .backend.service.port }}
+          {{- end }}
+    {{- else }}
+    # Reglas con host - para producción con dominio
     {{- range .Values.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
@@ -38,5 +53,5 @@ spec:
                   number: {{ .backend.service.port }}
           {{- end }}
     {{- end }}
+    {{- end }}
 {{- end }}
-

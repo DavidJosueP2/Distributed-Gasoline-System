@@ -1,11 +1,10 @@
 {{- range $serviceName, $config := list 
-  (dict "name" "driver-service" "config" .Values.driverService "dbEnv" (dict "DB_NAME" .Values.driverService.env.DB_NAME) "needsDB" true)
-  (dict "name" "users-service" "config" .Values.usersService "prisma" true "needsDB" true)
-  (dict "name" "vehicles-service" "config" .Values.vehiclesService "prisma" true "needsDB" true)
-  (dict "name" "email-service" "config" .Values.emailService "smtp" true)
-  (dict "name" "hello-service" "config" .Values.helloService "rabbitmq" true)
-  (dict "name" "logger-service" "config" .Values.loggerService "elasticsearch" true "rabbitmq" true)
-  (dict "name" "publisher-service" "config" .Values.publisherService "rabbitmq" true)
+  (dict "name" "driver-service" "config" .Values.driverService "dbEnv" (dict "DB_NAME" .Values.driverService.env.DB_NAME) "needsDB" true "needsProtos" true "hasHttpPort" true "httpPort" .Values.driverService.env.DRIVER_HTTP_PORT)
+  (dict "name" "users-service" "config" .Values.usersService "prisma" true "needsDB" true "needsProtos" true)
+  (dict "name" "vehicles-service" "config" .Values.vehiclesService "prisma" true "needsDB" true "needsProtos" true)
+  (dict "name" "email-service" "config" .Values.emailService "smtp" true "needsProtos" true)
+  (dict "name" "logger-service" "config" .Values.loggerService "elasticsearch" true "rabbitmq" true "hasHttpPort" true "httpPort" .Values.loggerService.env.LOGGER_HTTP_PORT)
+  (dict "name" "publisher-service" "config" .Values.publisherService "rabbitmq" true "needsProtos" true "hasHttpPort" true "httpPort" .Values.publisherService.env.PORT)
 }}
 {{- if $config.config.enabled }}
 ---
@@ -17,7 +16,7 @@ metadata:
     {{- include "fuel-system.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $config.name }}
 spec:
-  {{- if not $config.config.autoscaling.enabled }}
+  {{- if not (and $config.config.autoscaling $config.config.autoscaling.enabled) }}
   replicas: {{ $config.config.replicaCount }}
   {{- end }}
   selector:
@@ -40,13 +39,33 @@ spec:
         command: ["sh", "-c", "npx prisma migrate deploy"]
         env:
         - name: NODE_ENV
-          value: "production"
+          value: {{ $config.config.env.NODE_ENV | default "production" | quote }}
         {{- if $config.needsDB }}
         - name: DB_HOST
+          {{- if eq $config.name "users-service" }}
+            {{- if $.Values.postgresql.external.usersHost }}
+          value: {{ $.Values.postgresql.external.usersHost | quote }}
+            {{- else }}
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: POSTGRESQL_HOST
+            {{- end }}
+          {{- else if eq $config.name "vehicles-service" }}
+            {{- if $.Values.postgresql.external.vehiclesHost }}
+          value: {{ $.Values.postgresql.external.vehiclesHost | quote }}
+            {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+            {{- end }}
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
         - name: DB_PORT
           valueFrom:
             configMapKeyRef:
@@ -63,14 +82,15 @@ spec:
               name: {{ include "fuel-system.fullname" $ }}-postgresql
               key: password
         {{- end }}
+        {{- $sslMode := $.Values.postgresql.external.sslMode | default "require" }}
         {{- if eq $config.name "users-service" }}
         - name: USERS_DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public&sslmode=require"
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public&sslmode={{ $sslMode }}"
         {{- else if eq $config.name "vehicles-service" }}
         - name: DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode=require"
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode={{ $sslMode }}"
         - name: SHADOW_DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode=require"
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode={{ $sslMode }}"
         {{- end }}
       {{- end }}
       containers:
@@ -81,17 +101,206 @@ spec:
         - name: grpc
           containerPort: {{ $config.config.service.targetPort }}
           protocol: TCP
+        {{- if $config.hasHttpPort }}
+        - name: http
+          containerPort: {{ $config.httpPort }}
+          protocol: TCP
+        {{- end }}
         env:
         - name: NODE_ENV
           value: {{ $config.config.env.NODE_ENV | quote }}
         - name: GRPC_PORT
           value: {{ $config.config.env.GRPC_PORT | quote }}
-        {{- if $config.needsDB }}
-        - name: DB_HOST
+
+        # ========== CRÍTICO: Variables de Service Discovery ==========
+        - name: DISCOVERY_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DISCOVERY_MODE
+        - name: EUREKA_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: EUREKA_HOST
+        - name: EUREKA_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: EUREKA_PORT
+        - name: EUREKA_BASE_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: EUREKA_BASE_PATH
+        - name: EUREKA_WAIT_TIMEOUT_MS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: EUREKA_WAIT_TIMEOUT_MS
+
+        # Service Names for Eureka Registration (APP_NAME)
+        {{- if eq $config.name "driver-service" }}
+        - name: DRIVER_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DRIVER_APP_NAME
+        {{- else if eq $config.name "users-service" }}
+        - name: USERS_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: USERS_APP_NAME
+        {{- else if eq $config.name "vehicles-service" }}
+        - name: VEHICLES_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: VEHICLES_APP_NAME
+        {{- else if eq $config.name "email-service" }}
+        - name: EMAIL_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: EMAIL_APP_NAME
+        {{- else if eq $config.name "logger-service" }}
+        - name: LOGGER_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: LOGGER_APP_NAME
+        {{- else if eq $config.name "publisher-service" }}
+        - name: OUTBOX_PUBLISHER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: OUTBOX_PUBLISHER_PORT
+        {{- end }}
+
+        {{- if $config.needsProtos }}
+        - name: PROTO_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: PROTO_ROOT
+        - name: PROTOS_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: PROTOS_DIR
+        {{- end }}
+
+        # Variables de registro en Eureka
+        - name: SERVICE_REGISTER_HOST
+          value: {{ include "fuel-system.fullname" $ }}-{{ $config.name }}
+        - name: REGISTER_HOST
+          value: {{ include "fuel-system.fullname" $ }}-{{ $config.name }}
+        - name: SERVICE_BIND_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: SERVICE_BIND_HOST
+        {{- if eq $config.name "driver-service" }}
+        - name: DRIVER_HTTP_PORT
+          value: {{ $config.config.env.DRIVER_HTTP_PORT | quote }}
+        - name: DRIVER_GRPC_PORT
+          value: {{ $config.config.env.DRIVER_GRPC_PORT | quote }}
+        - name: SERVICE_BIND_HOST
+          value: "0.0.0.0"
+        - name: BIND_HOST
+          value: "0.0.0.0"
+        - name: EUREKA_BASE_PATH
+          value: "/eureka/apps"
+        - name: EUREKA_WAIT_TIMEOUT_MS
+          value: "30000"
+        - name: DRIVER_NODE_ENV
+          value: {{ $config.config.env.NODE_ENV | quote }}
+        - name: DRIVER_DB_HOST
+          {{- if $.Values.postgresql.external.driverHost }}
+          value: {{ $.Values.postgresql.external.driverHost | quote }}
+          {{- else }}
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: POSTGRESQL_HOST
+          {{- end }}
+        - name: DRIVER_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_PORT
+        - name: DRIVER_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: username
+        - name: DRIVER_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: password
+        - name: DRIVER_DB_NAME
+          value: {{ $config.config.env.DB_NAME | quote }}
+        - name: DRIVER_DB_SYNCHRONIZE
+          value: "false"
+        - name: DRIVER_DB_LOGGING
+          value: "false"
+        {{- else if eq $config.name "users-service" }}
+        - name: USERS_GRPC_PORT
+          value: {{ $config.config.env.GRPC_PORT | quote }}
+        {{- else if eq $config.name "vehicles-service" }}
+        - name: VEHICLES_GRPC_PORT
+          value: {{ $config.config.env.GRPC_PORT | quote }}
+        {{- else if eq $config.name "email-service" }}
+        - name: EMAIL_GRPC_PORT
+          value: {{ $config.config.env.GRPC_PORT | quote }}
+        {{- else if eq $config.name "logger-service" }}
+        - name: LOGGER_HTTP_PORT
+          value: {{ $config.config.env.LOGGER_HTTP_PORT | quote }}
+        - name: LOGGER_GRPC_PORT
+          value: {{ $config.config.env.LOGGER_GRPC_PORT | quote }}
+        {{- else if eq $config.name "publisher-service" }}
+        - name: PORT
+          value: {{ $config.config.env.PORT | quote }}
+        - name: OUTBOX_PUBLISHER_PORT
+          value: {{ $config.config.env.OUTBOX_PUBLISHER_PORT | quote }}
+        {{- end }}
+        {{- if $config.needsDB }}
+        - name: DB_HOST
+          {{- if eq $config.name "driver-service" }}
+            {{- if $.Values.postgresql.external.driverHost }}
+          value: {{ $.Values.postgresql.external.driverHost | quote }}
+            {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+            {{- end }}
+          {{- else if eq $config.name "users-service" }}
+            {{- if $.Values.postgresql.external.usersHost }}
+          value: {{ $.Values.postgresql.external.usersHost | quote }}
+            {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+            {{- end }}
+          {{- else if eq $config.name "vehicles-service" }}
+            {{- if $.Values.postgresql.external.vehiclesHost }}
+          value: {{ $.Values.postgresql.external.vehiclesHost | quote }}
+            {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+            {{- end }}
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
         - name: DB_PORT
           valueFrom:
             configMapKeyRef:
@@ -115,19 +324,18 @@ spec:
         {{- end }}
         {{- end }}
         {{- if $config.prisma }}
+        {{- $sslMode := $.Values.postgresql.external.sslMode | default "require" }}
         {{- if eq $config.name "users-service" }}
         - name: USERS_DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public"
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public&sslmode={{ $sslMode }}"
         {{- else if eq $config.name "vehicles-service" }}
         - name: DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public"
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode={{ $sslMode }}"
         - name: SHADOW_DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public"
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode={{ $sslMode }}"
         {{- end }}
         {{- end }}
         {{- if $config.rabbitmq }}
-        - name: RABBITMQ_URL
-          value: "amqp://$(RABBITMQ_USERNAME):$(RABBITMQ_PASSWORD)@$(RABBITMQ_HOST):$(RABBITMQ_PORT)"
         - name: RABBITMQ_HOST
           valueFrom:
             configMapKeyRef:
@@ -148,6 +356,8 @@ spec:
             secretKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-rabbitmq
               key: password
+        - name: RABBITMQ_URL
+          value: "amqp://$(RABBITMQ_USERNAME):$(RABBITMQ_PASSWORD)@$(RABBITMQ_HOST):$(RABBITMQ_PORT)"
         {{- end }}
         {{- if $config.elasticsearch }}
         - name: ELASTICSEARCH_NODE
@@ -245,4 +455,3 @@ spec:
 {{- end }}
 {{- end }}
 {{- end }}
-

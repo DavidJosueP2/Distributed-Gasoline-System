@@ -2,6 +2,7 @@
 import { Trip } from '../../../domain/entities/trip.entity';
 import { TripStatus } from '../../../domain/value-objects/trip-status.vo';
 import { TripEnriched } from '../../../application/interfaces/trip-enriched.interface';
+import { TripDriverDetail } from '../../../application/interfaces/trip-driver-detail.interface';
 
 export class TripGrpcMapper {
   static toProto(trip: Trip): any {
@@ -11,7 +12,9 @@ export class TripGrpcMapper {
       supervisorId: trip.supervisorId.toString(),
       driverId: trip.driverId.toString(),
       vehicleId: trip.vehicleId.toString(),
-      startTime: trip.startTime ? this.mapDateToTimestamp(trip.startTime) : null,
+      startTime: trip.startTime
+        ? this.mapDateToTimestamp(trip.startTime)
+        : null,
       endTime: trip.endTime ? this.mapDateToTimestamp(trip.endTime) : null,
       status: this.mapTripStatusToProto(trip.status),
       odometerStart: trip.odometerStart,
@@ -29,6 +32,28 @@ export class TripGrpcMapper {
     };
   }
 
+  static toProtoDriverDetail(trip: TripDriverDetail): any {
+    return {
+      id: trip.id.toString(),
+      startTime: trip.startTime
+        ? this.mapDateToTimestamp(trip.startTime)
+        : null,
+      endTime: trip.endTime ? this.mapDateToTimestamp(trip.endTime) : null,
+      status: this.mapTripStatusToProto(trip.status as TripStatus),
+      fuelEstimated: trip.fuelEstimated,
+      fuelActual: trip.fuelActual || 0,
+      // Información del vehículo
+      vehiclePlate: trip.vehiclePlate || '',
+      // Información de la ruta
+      originName: trip.originName || '',
+      destinationName: trip.destinationName || '',
+      originLat: trip.originLat || 0,
+      originLng: trip.originLng || 0,
+      destinationLat: trip.destinationLat || 0,
+      destinationLng: trip.destinationLng || 0,
+    };
+  }
+
   static toProtoEnriched(trip: TripEnriched): any {
     return {
       id: trip.id.toString(),
@@ -36,7 +61,9 @@ export class TripGrpcMapper {
       supervisorId: trip.supervisorId.toString(),
       driverId: trip.driverId.toString(),
       vehicleId: trip.vehicleId.toString(),
-      startTime: trip.startTime ? this.mapDateToTimestamp(trip.startTime) : null,
+      startTime: trip.startTime
+        ? this.mapDateToTimestamp(trip.startTime)
+        : null,
       endTime: trip.endTime ? this.mapDateToTimestamp(trip.endTime) : null,
       status: this.mapTripStatusToProto(trip.status),
       odometerStart: trip.odometerStart,
@@ -55,6 +82,10 @@ export class TripGrpcMapper {
       routeName: trip.routeName || '',
       originName: trip.originName || '',
       destinationName: trip.destinationName || '',
+      originLat: trip.originLat ?? 0,
+      originLng: trip.originLng ?? 0,
+      destinationLat: trip.destinationLat ?? 0,
+      destinationLng: trip.destinationLng ?? 0,
       vehiclePlate: trip.vehicleInfo.plate,
       driverFirstName: trip.driverInfo.firstName,
       driverLastName: trip.driverInfo.lastName,
@@ -88,7 +119,9 @@ export class TripGrpcMapper {
       supervisorId: BigInt(proto.supervisorId),
       driverId: BigInt(proto.driverId),
       vehicleId: BigInt(proto.vehicleId),
-      startTime: proto.startTime ? this.mapTimestampToDate(proto.startTime) : null,
+      startTime: proto.startTime
+        ? this.mapTimestampToDate(proto.startTime)
+        : null,
       endTime: proto.endTime ? this.mapTimestampToDate(proto.endTime) : null,
       status: this.mapTripStatusFromProto(proto.status),
       odometerStart: proto.odometerStart,

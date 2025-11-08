@@ -5,13 +5,120 @@ metadata:
   labels:
     {{- include "fuel-system.labels" . | nindent 4 }}
 data:
-  EUREKA_HOST: {{ include "fuel-system.eureka.host" . | quote }}
-  EUREKA_PORT: "8761"
-  POSTGRESQL_HOST: {{ include "fuel-system.postgresql.host" . | quote }}
-  POSTGRESQL_PORT: "5432"
-  RABBITMQ_HOST: {{ include "fuel-system.rabbitmq.host" . | quote }}
-  RABBITMQ_PORT: "5672"
-  ELASTICSEARCH_HOST: {{ include "fuel-system.elasticsearch.host" . | quote }}
-  ELASTICSEARCH_PORT: "9200"
-  NODE_ENV: "production"
+  # ========== General Configuration ==========
+  NODE_ENV: {{ .Values.global.nodeEnv | default "production" | quote }}
+  LOG_LEVEL: "info"
 
+  # ========== Service Discovery Configuration ==========
+  # CRÍTICO: Esta variable indica a los microservicios que deben usar Eureka
+  DISCOVERY_MODE: "eureka"
+
+  # Eureka Configuration
+  {{- if .Values.eurekaServer.enabled }}
+  EUREKA_HOST: {{ include "fuel-system.eureka.host" . | quote }}
+  {{- else if .Values.eurekaServer.external.enabled }}
+  EUREKA_HOST: {{ .Values.eurekaServer.external.host | default "eureka-server" | quote }}
+  {{- else }}
+  EUREKA_HOST: {{ include "fuel-system.eureka.host" . | quote }}
+  {{- end }}
+  EUREKA_PORT: "8761"
+  EUREKA_BASE_PATH: "/eureka"
+  EUREKA_WAIT_TIMEOUT_MS: "15000"
+
+  # ========== Proto Files Configuration ==========
+  PROTO_ROOT: "/app/protos"
+  PROTOS_DIR: "/app/protos"
+
+  # ========== Service Registration Configuration ==========
+  SERVICE_BIND_HOST: "0.0.0.0"
+
+  # ========== Gateway Configuration ==========
+  GATEWAY_APP_NAME: "API-GATEWAY"
+  GATEWAY_HTTP_PORT: "8080"
+  GRPC_CALL_TIMEOUT_MS: "5000"
+
+  # ========== Microservices App Names ==========
+  # Estos nombres DEBEN coincidir con los que Eureka espera
+  HELLO_APP_NAME: "HELLO-SERVICE"
+  AUTH_APP_NAME: "AUTH-SERVICE"
+  EMAIL_APP_NAME: "EMAIL-SERVICE"
+  USERS_APP_NAME: "USERS-SERVICE"
+  VEHICLES_APP_NAME: "VEHICLES-SERVICE"
+  LOGGER_APP_NAME: "LOGGER-SERVICE"
+  DRIVER_APP_NAME: "DRIVER-SERVICE"
+
+  # ========== Service Ports ==========
+  HELLO_GRPC_PORT: "50051"
+  AUTH_GRPC_PORT: "50052"
+  EMAIL_GRPC_PORT: "50053"
+  VEHICLES_GRPC_PORT: "50055"
+  USERS_GRPC_PORT: "50057"
+  LOGGER_GRPC_PORT: "50058"
+  DRIVER_GRPC_PORT: "50062"
+  DRIVER_HTTP_PORT: "3100"
+
+  # ========== PostgreSQL Configuration ==========
+  {{- if .Values.postgresql.enabled }}
+  POSTGRESQL_HOST: {{ include "fuel-system.postgresql.host" . | quote }}
+  {{- else if .Values.postgresql.external.enabled }}
+  POSTGRESQL_HOST: {{ .Values.postgresql.external.host | default "postgres" | quote }}
+  {{- else }}
+  POSTGRESQL_HOST: {{ include "fuel-system.postgresql.host" . | quote }}
+  {{- end }}
+  POSTGRESQL_PORT: {{ .Values.postgresql.external.port | default "5432" | quote }}
+  
+  # PostgreSQL - Database specific hosts (para local con múltiples instancias)
+  {{- if .Values.postgresql.external.enabled }}
+  AUTH_DB_HOST: {{ .Values.postgresql.external.authHost | default "auth-db-postgresql" | quote }}
+  DRIVER_DB_HOST: {{ .Values.postgresql.external.driverHost | default "driver-db-postgresql" | quote }}
+  USERS_DB_HOST: {{ .Values.postgresql.external.usersHost | default "users-db-postgresql" | quote }}
+  VEHICLES_DB_HOST: {{ .Values.postgresql.external.vehiclesHost | default "vehicles-db-postgresql" | quote }}
+  {{- end }}
+
+  AUTH_DB_PORT: "5432"
+  DRIVER_DB_PORT: "5432"
+  USERS_DB_PORT: "5432"
+  VEHICLES_DB_PORT: "5432"
+
+  AUTH_DB_NAME: {{ .Values.postgresql.external.databases.auth | default "auth_db" | quote }}
+  DRIVER_DB_NAME: {{ .Values.postgresql.external.databases.driver | default "driver_db" | quote }}
+  USERS_DB_NAME: {{ .Values.postgresql.external.databases.users | default "users_db" | quote }}
+  VEHICLES_DB_NAME: {{ .Values.postgresql.external.databases.vehicles | default "vehicles_db" | quote }}
+
+  # TypeORM Configuration (para driver-ms)
+  DRIVER_DB_SYNCHRONIZE: "false"
+  DRIVER_DB_LOGGING: "false"
+  DRIVER_NODE_ENV: {{ .Values.global.nodeEnv | default "production" | quote }}
+
+  # ========== RabbitMQ Configuration ==========
+  {{- if .Values.rabbitmq.enabled }}
+  RABBITMQ_HOST: {{ include "fuel-system.rabbitmq.host" . | quote }}
+  {{- else if .Values.rabbitmq.external.enabled }}
+  RABBITMQ_HOST: {{ .Values.rabbitmq.external.host | default "rabbitmq" | quote }}
+  {{- else }}
+  RABBITMQ_HOST: {{ include "fuel-system.rabbitmq.host" . | quote }}
+  {{- end }}
+  RABBITMQ_PORT: {{ .Values.rabbitmq.external.port | default "5672" | quote }}
+  RABBITMQ_MANAGEMENT_PORT: {{ .Values.rabbitmq.external.managementPort | default "15672" | quote }}
+  RABBITMQ_USERNAME: {{ .Values.rabbitmq.external.username | default .Values.secrets.rabbitmq.username | quote }}
+  RABBITMQ_PASSWORD: {{ .Values.rabbitmq.external.password | default .Values.secrets.rabbitmq.password | quote }}
+
+  # Outbox Pattern Configuration
+  OUTBOX_EXCHANGE: "service.events"
+  PUBLISH_BATCH: "20"
+  POLL_MS: "500"
+  OUTBOX_PUBLISHER_PORT: "4100"
+
+  # ========== Elasticsearch Configuration ==========
+  {{- if .Values.elasticsearch.enabled }}
+  ELASTICSEARCH_HOST: {{ include "fuel-system.elasticsearch.host" . | quote }}
+  {{- else if .Values.elasticsearch.external.enabled }}
+  ELASTICSEARCH_HOST: {{ .Values.elasticsearch.external.host | default "elasticsearch-master" | quote }}
+  {{- else }}
+  ELASTICSEARCH_HOST: {{ include "fuel-system.elasticsearch.host" . | quote }}
+  {{- end }}
+  ELASTICSEARCH_PORT: {{ .Values.elasticsearch.external.port | default "9200" | quote }}
+  ELASTICSEARCH_NODE: "http://{{ .Values.elasticsearch.external.host | default "elasticsearch-master" }}:{{ .Values.elasticsearch.external.port | default "9200" }}"
+
+  # ========== Email/SMTP Configuration (non-sensitive defaults) ==========
+  FRONTEND_URL: "http://localhost:5174"

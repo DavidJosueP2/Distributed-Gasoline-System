@@ -1,0 +1,14 @@
+# Helm dependencies (subcharts)
+charts/*.tgz
+charts/*/
+
+# Helm lock file (opcional, algunos prefieren committearlo)
+# Chart.lock
+
+# Helm generated files
+*.tgz
+
+# Temporal files
+.DS_Store
+Thumbs.db
+

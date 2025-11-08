@@ -8,10 +8,13 @@ function basePath() {
 // Registra el microservicio actual en Eureka
 export function registerInEureka() {
   const app =
-    process.env.AUTH_APP_NAME;
+    process.env.AUTH_APP_NAME || 'AUTH-SERVICE';
 
   const host =
-    process.env.AUTH_SERVICE_REGISTER_HOST;
+    process.env.AUTH_SERVICE_REGISTER_HOST ||
+    process.env.SERVICE_REGISTER_HOST ||
+    process.env.REGISTER_HOST ||
+    '127.0.0.1';
 
   const port = Number(
     process.env.AUTH_GRPC_PORT || 50052,

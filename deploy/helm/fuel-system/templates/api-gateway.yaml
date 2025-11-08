@@ -34,6 +34,13 @@ spec:
           value: {{ .Values.apiGateway.env.NODE_ENV | quote }}
         - name: PORT
           value: {{ .Values.apiGateway.env.PORT | quote }}
+
+        # ========== CRÍTICO: Variables de Service Discovery ==========
+        - name: DISCOVERY_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: DISCOVERY_MODE
         - name: EUREKA_HOST
           valueFrom:
             configMapKeyRef:
@@ -44,6 +51,45 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: EUREKA_PORT
+        - name: EUREKA_BASE_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: EUREKA_BASE_PATH
+        - name: EUREKA_WAIT_TIMEOUT_MS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: EUREKA_WAIT_TIMEOUT_MS
+
+        # Gateway Specific Variables
+        - name: GATEWAY_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: GATEWAY_APP_NAME
+        - name: GATEWAY_HTTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: GATEWAY_HTTP_PORT
+        - name: GRPC_CALL_TIMEOUT_MS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: GRPC_CALL_TIMEOUT_MS
+
+        # Variables de archivos .proto
+        - name: PROTO_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: PROTO_ROOT
+        - name: PROTOS_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: PROTOS_DIR
         livenessProbe:
           httpGet:
             path: /health
@@ -111,4 +157,3 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
-

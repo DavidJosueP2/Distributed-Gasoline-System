@@ -8,15 +8,18 @@ function basePath() {
 // Registra el microservicio actual en Eureka
 export function registerInEureka() {
   const app =
-    process.env.EMAIL_APP_NAME;
+    process.env.EMAIL_APP_NAME || 'EMAIL-SERVICE';
 
   console.log("EUREKA REGISTER", { app })
 
   const host =
-    process.env.EMAIL_SERVICE_REGISTER_HOST;
+    process.env.EMAIL_SERVICE_REGISTER_HOST ||
+    process.env.SERVICE_REGISTER_HOST ||
+    process.env.REGISTER_HOST ||
+    '127.0.0.1';
 
   const port = Number(
-    process.env.EMAIL_GRPC_PORT || 50052,
+    process.env.EMAIL_GRPC_PORT || 50053,
   );
 
   const client = new Eureka({

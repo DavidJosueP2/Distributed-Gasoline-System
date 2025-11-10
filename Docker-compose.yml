@@ -102,6 +102,7 @@ services:
       - "${DRIVER_DB_PORT:-5436}:5432"
     volumes:
       - driver_db_data:/var/lib/postgresql/data
+      - ./services/driver-ms/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - fuel-network
     healthcheck:
@@ -245,7 +246,7 @@ services:
       POSTGRES_PASSWORD: ${ROUTES_DB_PASS:-admin}
       POSTGRES_DB: ${ROUTES_DB_NAME:-routes}
     ports:
-      - "5500:5432"
+      - "5437:5432"
     volumes:
       - routes_db_data:/var/lib/postgresql/data
       - ./services/routes-srv/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -372,6 +373,40 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('net').connect({port:50062,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------- Routes Service ----------
+  routes-srv:
+    build:
+      context: .
+      dockerfile: ./services/routes-srv/Dockerfile
+    container_name: fuel-routes-srv
+    env_file: .env
+    environment:
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
+      - ROUTES_DB_HOST=${ROUTES_DB_HOST:-routes-db}
+      - ROUTES_DB_PORT=5432
+      - ROUTES_DB_USER=${ROUTES_DB_USER:-postgres}
+      - ROUTES_DB_PASS=${ROUTES_DB_PASS:-admin}
+      - ROUTES_DB_NAME=${ROUTES_DB_NAME:-routes}
+      - SERVICE_REGISTER_HOST=fuel-routes-srv
+      - REGISTER_HOST=fuel-routes-srv
+    ports:
+      - "${ROUTES_GRPC_PORT:-50053}:${ROUTES_GRPC_PORT:-50053}"
+    depends_on:
+      routes-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fuel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect({port:50053,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 5

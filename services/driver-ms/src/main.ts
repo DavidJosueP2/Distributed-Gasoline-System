@@ -5,7 +5,6 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { registerInEureka } from './discovery/eureka-register';
-import { getEurekaConfig, validateEurekaConfig } from './utils/eureka-helper';
 
 // ✅ Define un módulo raíz que cargue las variables desde ../../../.env
 import { Module } from '@nestjs/common';
@@ -25,16 +24,15 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   
   // ✅ Configuración centralizada de puertos y hosts
-  const GRPC_PORT = Number(process.env.DRIVER_GRPC_PORT || 50052);
-  const HTTP_PORT = Number(process.env.DRIVER_HTTP_PORT || 3001);
+  const GRPC_PORT = Number(process.env.DRIVER_GRPC_PORT || 50062);
+  const HTTP_PORT = Number(process.env.DRIVER_HTTP_PORT || 3100);
   const BIND_HOST = process.env.SERVICE_BIND_HOST || '0.0.0.0';
-  const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../protos'); // Ruta relativa desde la carpeta dist
+  const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../protos');
   const SHOULD_REGISTER =
     (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
     (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';
 
-
-    logger.log(`Starting Driver Service...`);
+  logger.log(`Starting Driver Service...`);
   logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
   try {
@@ -65,15 +63,15 @@ async function bootstrap() {
       {
         transport: Transport.GRPC,
         options: {
-          package: ['driverms.v1'],  // Usar un arreglo para soportar múltiples paquetes
+          package: ['driverms.v1'],
           protoPath: protoPath,
           url: `${BIND_HOST}:${GRPC_PORT}`,
           loader: {
-            longs: Number,     // Convertir int64 a Number en JavaScript
-            enums: String,     // Usar strings para enums
-            defaults: true,    // Usar valores predeterminados para campos faltantes
-            oneofs: true,      // Manejar oneofs
-            includeDirs: [protoDir], // Usar el mismo directorio calculado
+            longs: Number,
+            enums: String,
+            defaults: true,
+            oneofs: true,
+            includeDirs: [protoDir],
           },
           keepalive: {
             keepaliveTimeMs: 120000,
@@ -84,27 +82,29 @@ async function bootstrap() {
       },
     );
 
-    // ✅ Registro en Eureka mejorado
+    // ✅ Registro en Eureka simplificado
     let eurekaClient: { stop: () => void; } | undefined = undefined;
-    if (validateEurekaConfig()) {
+    if (SHOULD_REGISTER) {
       try {
-        const { serviceUrl } = getEurekaConfig();
-        logger.log(`Attempting Eureka registration at: ${serviceUrl}`);
-        
-        eurekaClient = SHOULD_REGISTER ? registerInEureka() : undefined
+        const eurekaHost = process.env.EUREKA_HOST || 'localhost';
+        const eurekaPort = process.env.EUREKA_PORT || '8761';
+        const basePath = (process.env.EUREKA_BASE_PATH || '/eureka').replace(/\/$/, '');
+        logger.log(`Attempting Eureka registration at: http://${eurekaHost}:${eurekaPort}${basePath}/apps`);
+
+        eurekaClient = registerInEureka();
         logger.log('Eureka registration initiated');
       } catch (eurekaError) {
         logger.warn('Eureka registration failed, continuing without service discovery');
         logger.debug('Eureka error details:', eurekaError?.message || 'Unknown error');
       }
     } else {
-      logger.warn('Eureka configuration incomplete, skipping service discovery');
+      logger.log('Eureka registration disabled (DISCOVERY_MODE not set to eureka)');
     }
 
     // ✅ Inicio de servicios con manejo de errores individual
     try {
       await grpcApp.listen();
-      logger.log(`gRPC server successfully started on ${BIND_HOST}:${GRPC_PORT}`);
+      logger.log(`✓ gRPC server started on ${BIND_HOST}:${GRPC_PORT}`);
     } catch (grpcError) {
       logger.error(`Failed to start gRPC server: ${grpcError.message}`);
       throw grpcError;
@@ -112,7 +112,7 @@ async function bootstrap() {
 
     try {
       await httpApp.listen(HTTP_PORT);
-      logger.log(`HTTP server successfully started on ${BIND_HOST}:${HTTP_PORT}`);
+      logger.log(`✓ HTTP server started on ${BIND_HOST}:${HTTP_PORT}`);
     } catch (httpError) {
       logger.error(`Failed to start HTTP server: ${httpError.message}`);
       throw httpError;
@@ -136,12 +136,9 @@ async function bootstrap() {
         shutdownPromises.push(
           (async () => {
             try {
-              // Verificar que eurekaClient tenga el método stop
               if (typeof eurekaClient.stop === 'function') {
                 eurekaClient.stop();
                 logger.log('✓ Eureka client deregistered');
-              } else {
-                logger.warn('⚠️ Eureka client stop method not available');
               }
             } catch (eurekaError: any) {
               logger.error('✗ Error stopping Eureka client:', eurekaError?.message || 'Unknown error');
@@ -150,7 +147,7 @@ async function bootstrap() {
         );
       }
 
-      // Cerrar gRPC server
+      // Detener servidores
       shutdownPromises.push(
         (async () => {
           try {
@@ -162,7 +159,6 @@ async function bootstrap() {
         })()
       );
 
-      // Cerrar HTTP server
       shutdownPromises.push(
         (async () => {
           try {
@@ -174,34 +170,18 @@ async function bootstrap() {
         })()
       );
 
-      // Esperar a que todas las operaciones de shutdown terminen
-      await Promise.allSettled(shutdownPromises);
-      
-      logger.log('👋 Driver Service shutdown completed');
+      // Esperar todos los shutdowns
+      await Promise.all(shutdownPromises);
+      logger.log('✓ Graceful shutdown completed');
       process.exit(0);
     };
 
-    // Limpiar handlers existentes para evitar duplicados
-    ['SIGINT', 'SIGTERM'].forEach(signal => {
-      // Eliminar todos los listeners existentes para estos signals
-      process.removeAllListeners(signal);
-      
-      // Registrar nuestro handler de shutdown
-      process.on(signal, () => stop(signal));
-    });
-
-    // Manejar unhandled rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    });
-
-    process.on('uncaughtException', (error) => {
-      logger.error('Uncaught Exception thrown:', error);
-      process.exit(1);
-    });
+    process.on('SIGTERM', () => stop('SIGTERM'));
+    process.on('SIGINT', () => stop('SIGINT'));
 
   } catch (error) {
-    logger.error('❌ Bootstrap failed:', error);
+    logger.error('❌ Bootstrap failed:');
+    logger.error(error);
     process.exit(1);
   }
 }

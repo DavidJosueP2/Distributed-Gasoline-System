@@ -1,27 +1,38 @@
+
 -- =========================
--- SEED INICIAL - Solo Datos
+-- SEED DATA
 -- =========================
--- Este archivo solo contiene datos de semilla.
--- Las tablas son creadas automáticamente por TypeORM.
+-- Datos iniciales para testing
 
--- Insertar driver de prueba (user_id=1 debe existir en users-srv)
-INSERT INTO drivers(user_id, full_name, phone_number, email, availability)
-VALUES 
-  (1, 'Juan Pérez', '+593999999999', 'juan.perez@example.com', 'AVAILABLE')
-ON CONFLICT (user_id) DO NOTHING;
+-- Insertar conductores (user_id debe coincidir con users-srv)
+insert into drivers(user_id, availability)
+values
+    (3, 'AVAILABLE'),
+    (8, 'AVAILABLE'),
+    (9, 'AVAILABLE')
+    on conflict (user_id) do nothing;
 
--- Insertar vehículo de prueba
-INSERT INTO vehicles(driver_id, plate_number, model, brand, year, capacity)
-SELECT driver_id, 'ABC-1234', 'Hilux', 'Toyota', 2022, 1
-FROM drivers WHERE user_id = 1
-ON CONFLICT (plate_number) DO NOTHING;
+-- Insertar tipos de licencia comunes
+insert into license_types(code, description, is_professional)
+values
+    ('A', 'Motocicletas', false),
+    ('B', 'Vehículos livianos', false),
+    ('C', 'Vehículos pesados', true),
+    ('D', 'Transporte público', true),
+    ('E', 'Vehículos especiales', true)
+    on conflict (code) do nothing;
 
--- Insertar documento de prueba
-INSERT INTO driver_documents(driver_id, type, number, issued_at, expires_at, status)
-SELECT driver_id, 'LICENSE', 'DLN123456', 
-       current_date - interval '1 year', 
-       current_date + interval '4 years', 
-       'VALID'
-FROM drivers WHERE user_id = 1
-ON CONFLICT DO NOTHING;
-
+-- Insertar licencias de prueba para los conductores
+insert into driver_licenses(driver_id, license_type_id, number, issued_at, expires_at, status)
+select
+    d.driver_id,
+    lt.license_type_id,
+    'DLN' || d.user_id || '-001',
+    current_date - interval '1 year',
+    current_date + interval '4 years',
+    'VALID'
+from drivers d
+    cross join license_types lt
+where lt.code = 'B'
+  and d.user_id in (3, 8, 9)
+on conflict (number) do nothing;

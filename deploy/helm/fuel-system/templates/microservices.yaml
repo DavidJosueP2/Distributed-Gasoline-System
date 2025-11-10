@@ -1,5 +1,5 @@
 {{- range $serviceName, $config := list 
-  (dict "name" "driver-service" "config" .Values.driverService "dbEnv" (dict "DB_NAME" .Values.driverService.env.DB_NAME) "needsDB" true "needsProtos" true "hasHttpPort" true "httpPort" .Values.driverService.env.DRIVER_HTTP_PORT)
+  (dict "name" "driver-service" "config" .Values.driverService "dbEnv" (dict "DB_NAME" .Values.driverService.env.DB_NAME) "needsDB" true "needsProtos" true "hasHttpPort" true "httpPort" .Values.driverService.env.DRIVER_HTTP_PORT "typeorm" true)
   (dict "name" "users-service" "config" .Values.usersService "prisma" true "needsDB" true "needsProtos" true)
   (dict "name" "vehicles-service" "config" .Values.vehiclesService "prisma" true "needsDB" true "needsProtos" true)
   (dict "name" "email-service" "config" .Values.emailService "smtp" true "needsProtos" true)
@@ -43,7 +43,12 @@ spec:
         {{- if $config.needsDB }}
         - name: DB_HOST
           {{- if eq $config.name "users-service" }}
-            {{- if $.Values.postgresql.external.usersHost }}
+            {{- if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: USERS_DB_HOST
+            {{- else if $.Values.postgresql.external.usersHost }}
           value: {{ $.Values.postgresql.external.usersHost | quote }}
             {{- else }}
           valueFrom:
@@ -52,7 +57,12 @@ spec:
               key: POSTGRESQL_HOST
             {{- end }}
           {{- else if eq $config.name "vehicles-service" }}
-            {{- if $.Values.postgresql.external.vehiclesHost }}
+            {{- if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: VEHICLES_DB_HOST
+            {{- else if $.Values.postgresql.external.vehiclesHost }}
           value: {{ $.Values.postgresql.external.vehiclesHost | quote }}
             {{- else }}
           valueFrom:
@@ -146,6 +156,12 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: DRIVER_APP_NAME
+        {{- else if eq $config.name "auth-service" }}
+        - name: AUTH_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: AUTH_APP_NAME
         {{- else if eq $config.name "users-service" }}
         - name: USERS_APP_NAME
           valueFrom:
@@ -206,19 +222,18 @@ spec:
           value: {{ $config.config.env.DRIVER_HTTP_PORT | quote }}
         - name: DRIVER_GRPC_PORT
           value: {{ $config.config.env.DRIVER_GRPC_PORT | quote }}
-        - name: SERVICE_BIND_HOST
-          value: "0.0.0.0"
         - name: BIND_HOST
           value: "0.0.0.0"
-        - name: EUREKA_BASE_PATH
-          value: "/eureka/apps"
-        - name: EUREKA_WAIT_TIMEOUT_MS
-          value: "30000"
         - name: DRIVER_NODE_ENV
           value: {{ $config.config.env.NODE_ENV | quote }}
         - name: DRIVER_DB_HOST
           {{- if $.Values.postgresql.external.driverHost }}
           value: {{ $.Values.postgresql.external.driverHost | quote }}
+          {{- else if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DRIVER_DB_HOST
           {{- else }}
           valueFrom:
             configMapKeyRef:
@@ -229,7 +244,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
-              key: POSTGRESQL_PORT
+              key: DRIVER_DB_PORT
         - name: DRIVER_DB_USER
           valueFrom:
             secretKeyRef:
@@ -249,6 +264,47 @@ spec:
         {{- else if eq $config.name "users-service" }}
         - name: USERS_GRPC_PORT
           value: {{ $config.config.env.GRPC_PORT | quote }}
+        {{- else if eq $config.name "auth-service" }}
+        - name: AUTH_GRPC_PORT
+          value: {{ $config.config.env.AUTH_GRPC_PORT | quote }}
+        - name: AUTH_DB_HOST
+          {{- if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: AUTH_DB_HOST
+          {{- else if $.Values.postgresql.external.authHost }}
+          value: {{ $.Values.postgresql.external.authHost | quote }}
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
+        - name: AUTH_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_PORT
+        - name: AUTH_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: username
+        - name: AUTH_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: password
+        - name: AUTH_DB
+          value: {{ $config.config.env.DB_NAME | default "auth_db" | quote }}
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-jwt
+              key: secret
+        - name: JWT_EXPIRES_IN
+          value: "1h"
         {{- else if eq $config.name "vehicles-service" }}
         - name: VEHICLES_GRPC_PORT
           value: {{ $config.config.env.GRPC_PORT | quote }}
@@ -278,7 +334,12 @@ spec:
               key: POSTGRESQL_HOST
             {{- end }}
           {{- else if eq $config.name "users-service" }}
-            {{- if $.Values.postgresql.external.usersHost }}
+            {{- if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: USERS_DB_HOST
+            {{- else if $.Values.postgresql.external.usersHost }}
           value: {{ $.Values.postgresql.external.usersHost | quote }}
             {{- else }}
           valueFrom:
@@ -287,7 +348,12 @@ spec:
               key: POSTGRESQL_HOST
             {{- end }}
           {{- else if eq $config.name "vehicles-service" }}
-            {{- if $.Values.postgresql.external.vehiclesHost }}
+            {{- if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: VEHICLES_DB_HOST
+            {{- else if $.Values.postgresql.external.vehiclesHost }}
           value: {{ $.Values.postgresql.external.vehiclesHost | quote }}
             {{- else }}
           valueFrom:
@@ -360,8 +426,6 @@ spec:
           value: "amqp://$(RABBITMQ_USERNAME):$(RABBITMQ_PASSWORD)@$(RABBITMQ_HOST):$(RABBITMQ_PORT)"
         {{- end }}
         {{- if $config.elasticsearch }}
-        - name: ELASTICSEARCH_NODE
-          value: "http://$(ELASTICSEARCH_HOST):$(ELASTICSEARCH_PORT)"
         - name: ELASTICSEARCH_HOST
           valueFrom:
             configMapKeyRef:
@@ -372,6 +436,10 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: ELASTICSEARCH_PORT
+        - name: ELASTICSEARCH_NODE
+          value: "http://$(ELASTICSEARCH_HOST):$(ELASTICSEARCH_PORT)"
+        - name: ELASTICSEARCH_URL
+          value: "http://$(ELASTICSEARCH_HOST):$(ELASTICSEARCH_PORT)"
         {{- end }}
         {{- if $config.smtp }}
         - name: SMTP_HOST
@@ -395,16 +463,6 @@ spec:
               name: {{ include "fuel-system.fullname" $ }}-smtp
               key: password
         {{- end }}
-        - name: EUREKA_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "fuel-system.fullname" $ }}-config
-              key: EUREKA_HOST
-        - name: EUREKA_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "fuel-system.fullname" $ }}-config
-              key: EUREKA_PORT
         resources:
           {{- toYaml $config.config.resources | nindent 10 }}
 ---

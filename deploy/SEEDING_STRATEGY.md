@@ -126,6 +126,229 @@ Este servicio solo maneja la lógica de autenticación. Los usuarios y roles est
 
 ---
 
+## ☁️ Kubernetes/Azure - Implementación
+
+### 🚀 Estrategia: Helm Jobs con Hooks
+
+**Implementación:** Los archivos de migraciones y seeding están definidos en `deploy/helm/fuel-system/templates/jobs-migrations.yaml`
+
+Este archivo define **Kubernetes Jobs** que se ejecutan automáticamente usando **Helm Hooks**:
+
+- `helm.sh/hook: pre-install` → Se ejecuta **ANTES** de instalar los microservicios
+- `helm.sh/hook: pre-upgrade` → Se ejecuta **ANTES** de actualizar los microservicios
+- `helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded` → Limpia Jobs antiguos automáticamente
+
+**Orden de ejecución:**
+1. `users-db-migration` (weight: 10) → Prisma migrate + seed
+2. `vehicles-db-migration` (weight: 15) → Prisma migrate + seed
+3. `driver-db-migration` (weight: 20) → TypeORM migrate + init.sql + seed.sql
+4. `auth-db-setup` (weight: 25) → Configuración (opcional)
+
+### 📋 Jobs Definidos
+
+#### 1. Users Service Migration Job
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fuel-system-users-db-migration
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "10"
+spec:
+  template:
+    spec:
+      containers:
+      - name: users-migration
+        image: ghcr.io/.../users-srv:latest
+        command:
+          - sh
+          - -c
+          - |
+            echo "🔄 Starting Users DB Migration and Seeding..."
+            npx prisma migrate deploy
+            npx prisma db seed
+            echo "✅ Completed!"
+        env:
+        - name: USERS_DATABASE_URL
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public&sslmode=disable"
+```
+
+#### 2. Vehicles Service Migration Job
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fuel-system-vehicles-db-migration
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "15"
+spec:
+  template:
+    spec:
+      containers:
+      - name: vehicles-migration
+        image: ghcr.io/.../vehicles-svc:latest
+        command:
+          - sh
+          - -c
+          - |
+            echo "🔄 Starting Vehicles DB Migration and Seeding..."
+            npx prisma migrate deploy
+            npx prisma db seed
+            echo "✅ Completed!"
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode=disable"
+        - name: SHADOW_DATABASE_URL
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode=disable"
+```
+
+#### 3. Driver Service Migration Job
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fuel-system-driver-db-migration
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "20"
+spec:
+  template:
+    spec:
+      containers:
+      - name: driver-migration
+        image: ghcr.io/.../driver-ms:latest
+        command:
+          - sh
+          - -c
+          - |
+            echo "🔄 Starting Driver DB Migration and Seeding..."
+            npm run typeorm:migrate
+            PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USERNAME} -d ${DB_NAME} -f ./init.sql
+            PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USERNAME} -d ${DB_NAME} -f ./seed.sql
+            echo "✅ Completed!"
+```
+
+### 🔧 Ejecución Automática con Helm
+
+**Al instalar el chart:**
+
+```bash
+# Las migraciones y seeding se ejecutan automáticamente
+helm install fuel-system deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values deploy/local/values-local.yaml
+```
+
+**Al actualizar el chart:**
+
+```bash
+# Las migraciones se ejecutan automáticamente antes de actualizar
+helm upgrade fuel-system deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values deploy/local/values-local.yaml
+```
+
+### 🎯 Ejecución Manual de Migraciones
+
+Si necesitas ejecutar migraciones manualmente (sin reinstalar el chart):
+
+**Windows (PowerShell):**
+
+```powershell
+# Ejecutar todas las migraciones
+.\scripts\run-migrations.ps1 -Namespace fuel-system -Service all
+
+# Ejecutar solo un servicio específico
+.\scripts\run-migrations.ps1 -Namespace fuel-system -Service users
+.\scripts\run-migrations.ps1 -Namespace fuel-system -Service vehicles
+.\scripts\run-migrations.ps1 -Namespace fuel-system -Service driver
+```
+
+**Linux/macOS (Bash):**
+
+```bash
+# Ejecutar todas las migraciones
+./scripts/run-migrations.sh --namespace fuel-system --service all
+
+# Ejecutar solo un servicio específico
+./scripts/run-migrations.sh --namespace fuel-system --service users
+./scripts/run-migrations.sh --namespace fuel-system --service vehicles
+./scripts/run-migrations.sh --namespace fuel-system --service driver
+```
+
+### 📊 Verificar Estado de Migraciones
+
+```bash
+# Ver todos los Jobs de migración
+kubectl get jobs -n fuel-system -l app.kubernetes.io/component=migration
+
+# Ver logs de un Job específico
+kubectl logs -n fuel-system -l job-name=fuel-system-users-db-migration
+
+# Ver todos los logs de migraciones
+kubectl logs -n fuel-system -l app.kubernetes.io/component=migration --tail=100
+
+# Ver el estado de un Job
+kubectl describe job fuel-system-users-db-migration -n fuel-system
+```
+
+### 🗑️ Limpiar Jobs Completados
+
+```bash
+# Eliminar todos los Jobs de migración completados
+kubectl delete jobs -n fuel-system -l app.kubernetes.io/component=migration
+
+# Los Jobs se auto-limpian después de 300 segundos (5 minutos) gracias a ttlSecondsAfterFinished
+```
+
+### 🌍 Diferencias entre Local (Kind) y Azure (AKS)
+
+| Aspecto | Local (Kind) | Azure (AKS) |
+|---------|-------------|-------------|
+| **PostgreSQL** | Helm charts separados en el mismo cluster | Azure Database for PostgreSQL Flexible Server (servicio externo) |
+| **DB Hosts** | `auth-db-postgresql`, `driver-db-postgresql`, etc. | `fuel-system-postgres.postgres.database.azure.com` |
+| **SSL Mode** | `sslmode=disable` | `sslmode=require` |
+| **Credenciales** | ConfigMap + Secret en el cluster | Azure Key Vault + Secret CSI Driver |
+| **Migraciones** | Jobs ejecutan desde pods en el cluster | Jobs ejecutan desde pods y se conectan a Azure DB vía Private Endpoint |
+| **Seeding** | Se ejecuta siempre (datos de prueba) | Se ejecuta solo en dev/staging, **NO en producción** |
+
+### ⚙️ Configuración por Entorno
+
+**Local (`deploy/local/values-local.yaml`):**
+
+```yaml
+postgresql:
+  external:
+    enabled: true
+    hosts:
+      users: "users-db-postgresql"
+      vehicles: "vehicles-db-postgresql"
+      driver: "driver-db-postgresql"
+    port: 5432
+    sslMode: "disable"
+```
+
+**Azure (`deploy/helm/values-azure.yaml`):**
+
+```yaml
+postgresql:
+  external:
+    enabled: true
+    hosts:
+      users: "fuel-system-postgres.postgres.database.azure.com"
+      vehicles: "fuel-system-postgres.postgres.database.azure.com"
+      driver: "fuel-system-postgres.postgres.database.azure.com"
+    port: 5432
+    sslMode: "require"
+```
+
+---
+
 ## 🐳 Docker Compose - Comandos
 
 ### Servicios Prisma
@@ -143,55 +366,6 @@ command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/mai
 ```yaml
 # driver-ms
 CMD ["./docker-entrypoint.sh"]  # Script personalizado que ejecuta seed.sql
-```
-
----
-
-## ☁️ Kubernetes/Azure - Implementación
-
-### Servicios Prisma
-
-```yaml
-# initContainer para migraciones
-initContainers:
-- name: prisma-migrate
-  image: <service-image>
-  command: ["npx", "prisma", "migrate", "deploy"]
-  
-# initContainer para seeding (opcional, solo en dev/staging)
-- name: prisma-seed
-  image: <service-image>
-  command: ["npx", "prisma", "db", "seed"]
-  env:
-  - name: NODE_ENV
-    value: "development"  # Solo en dev/staging
-```
-
-### Servicios TypeORM
-
-```yaml
-# Las migraciones se ejecutan automáticamente al iniciar
-# El seeding puede ejecutarse como un Job separado:
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: driver-ms-seed
-spec:
-  template:
-    spec:
-      containers:
-      - name: seed
-        image: <driver-ms-image>
-        command:
-        - sh
-        - -c
-        - |
-          PGPASSWORD="${DRIVER_DB_PASS}" psql \
-            -h "${DRIVER_DB_HOST}" \
-            -U "${DRIVER_DB_USER}" \
-            -d "${DRIVER_DB_NAME}" \
-            -f seed.sql
-      restartPolicy: OnFailure
 ```
 
 ---
@@ -324,4 +498,3 @@ docker-compose logs driver-ms | grep "🌱"
 - [Prisma Seeding Guide](https://www.prisma.io/docs/guides/database/seed-database)
 - [TypeORM Migrations](https://typeorm.io/migrations)
 - [PostgreSQL INSERT ON CONFLICT](https://www.postgresql.org/docs/current/sql-insert.html#SQL-ON-CONFLICT)
-

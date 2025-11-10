@@ -82,23 +82,21 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: PROTOS_DIR
+        # 🔑 CRÍTICO: Variable específica que eureka-register.ts busca PRIMERO
         - name: AUTH_SERVICE_REGISTER_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
+          value: {{ include "fuel-system.fullname" . }}-auth-service
         - name: SERVICE_REGISTER_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
+          value: {{ include "fuel-system.fullname" . }}-auth-service
         - name: REGISTER_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
+          value: {{ include "fuel-system.fullname" . }}-auth-service
         - name: SERVICE_BIND_HOST
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: SERVICE_BIND_HOST
+        # 🔑 CRÍTICO: Variable de fallback para bind en gRPC
+        - name: BIND_HOST
+          value: "0.0.0.0"
 
         - name: JWT_SECRET
           valueFrom:
@@ -109,9 +107,13 @@ spec:
           value: "1h"
 
         # ========== Variables de Base de Datos (Auth DB) ==========
-        # Variables con prefijo AUTH_ (para el auth-svc específicamente)
         - name: AUTH_DB_HOST
-          {{- if .Values.postgresql.external.authHost }}
+          {{- if .Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_HOST
+          {{- else if .Values.postgresql.external.authHost }}
           value: {{ .Values.postgresql.external.authHost | quote }}
           {{- else }}
           valueFrom:
@@ -141,8 +143,14 @@ spec:
               key: AUTH_DB_NAME
 
         # Variables sin prefijo (para compatibilidad con TypeORM)
+        # 🔑 CRÍTICO: Usar AUTH_DB_HOST del ConfigMap, no POSTGRESQL_HOST
         - name: DB_HOST
-          {{- if .Values.postgresql.external.authHost }}
+          {{- if .Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_HOST
+          {{- else if .Values.postgresql.external.authHost }}
           value: {{ .Values.postgresql.external.authHost | quote }}
           {{- else }}
           valueFrom:

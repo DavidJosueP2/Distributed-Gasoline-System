@@ -13,9 +13,9 @@ export function registerInEureka() {
     serviceUrl
   } = getEurekaConfig();
 
-  const DRIVER_HTTP_PORT = Number(process.env.DRIVER_HTTP_PORT || 3001);
-  const DRIVER_GRPC_PORT = Number(process.env.DRIVER_GRPC_PORT || 50052);
-  const APP_NAME = process.env.DRIVER_APP_NAME || 'driver-service';
+  const DRIVER_HTTP_PORT = Number(process.env.DRIVER_HTTP_PORT || 3100);
+  const DRIVER_GRPC_PORT = Number(process.env.DRIVER_GRPC_PORT || 50062);
+  const APP_NAME = process.env.DRIVER_APP_NAME || 'DRIVER-SERVICE';
   const HOST = process.env.SERVICE_REGISTER_HOST || process.env.REGISTER_HOST || '127.0.0.1';
 
   logger.log(`Connecting to Eureka at: ${serviceUrl}`);

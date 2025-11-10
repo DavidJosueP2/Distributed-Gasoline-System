@@ -69,10 +69,17 @@ data:
   
   # PostgreSQL - Database specific hosts (para local con múltiples instancias)
   {{- if .Values.postgresql.external.enabled }}
+  {{- if .Values.postgresql.external.hosts }}
+  AUTH_DB_HOST: {{ .Values.postgresql.external.hosts.auth | default "auth-db-postgresql" | quote }}
+  DRIVER_DB_HOST: {{ .Values.postgresql.external.hosts.driver | default "driver-db-postgresql" | quote }}
+  USERS_DB_HOST: {{ .Values.postgresql.external.hosts.users | default "users-db-postgresql" | quote }}
+  VEHICLES_DB_HOST: {{ .Values.postgresql.external.hosts.vehicles | default "vehicles-db-postgresql" | quote }}
+  {{- else }}
   AUTH_DB_HOST: {{ .Values.postgresql.external.authHost | default "auth-db-postgresql" | quote }}
   DRIVER_DB_HOST: {{ .Values.postgresql.external.driverHost | default "driver-db-postgresql" | quote }}
   USERS_DB_HOST: {{ .Values.postgresql.external.usersHost | default "users-db-postgresql" | quote }}
   VEHICLES_DB_HOST: {{ .Values.postgresql.external.vehiclesHost | default "vehicles-db-postgresql" | quote }}
+  {{- end }}
   {{- end }}
 
   AUTH_DB_PORT: "5432"

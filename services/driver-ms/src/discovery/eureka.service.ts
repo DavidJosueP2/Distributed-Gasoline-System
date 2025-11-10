@@ -1,15 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
-import { getEurekaConfig, normalizeBasePath } from '../utils/eureka-helper'; 
+import { getEurekaConfig, normalizeBasePath } from '../utils/eureka-helper';
 import { Eureka } from 'eureka-js-client';
-
-// ✅ Importar normalizeBasePath
-
-// ❌ ELIMINAR esta función local (está duplicada)
-// function normalizeBasePath(basePath: string): string {
-//   const raw = basePath || '/eureka';
-//   // Remover slash final si existe y asegurar formato correcto
-//   return raw.endsWith('/') ? raw.slice(0, -1) : raw;
-// }
 
 @Injectable()
 export class EurekaDiscovery implements OnModuleInit, OnModuleDestroy {
@@ -27,7 +18,7 @@ export class EurekaDiscovery implements OnModuleInit, OnModuleDestroy {
 
     const APP_NAME = process.env.APP_NAME || 'LOOKUP';
     const REGISTER_HOST = process.env.REGISTER_HOST || 'lookup';
-    const basePath = normalizeBasePath(eurekaBasePath); // ✅ Usar la función importada
+    const basePath = normalizeBasePath(eurekaBasePath);
 
     this.logger.log(`Initializing Eureka discovery for: ${APP_NAME}`);
     this.logger.log(`Eureka server: ${serviceUrl}`);
@@ -60,7 +51,6 @@ export class EurekaDiscovery implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    // Manejo de shutdown graceful
     this.setupShutdownHooks();
   }
 
@@ -70,7 +60,6 @@ export class EurekaDiscovery implements OnModuleInit, OnModuleDestroy {
       this.logger.log('Eureka discovery client started successfully');
     } catch (error) {
       this.logger.error('Failed to start Eureka discovery client:', error);
-      // No lanzar error para que la aplicación pueda continuar sin discovery
     }
   }
 
@@ -112,11 +101,9 @@ export class EurekaDiscovery implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // ✅ Método adicional útil para obtener todos los servicios - CORREGIDO
   getAllApps(): string[] {
     try {
       const apps = this.client.getApps();
-      // Corrección: eureka-js-client tiene diferente API
       if (apps && Array.isArray(apps)) {
         return apps.map((app: any) => app.name || app.app) || [];
       }
@@ -127,12 +114,10 @@ export class EurekaDiscovery implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // ✅ Método para verificar salud del cliente Eureka
   isEurekaClientReady(): boolean {
     return this.client && this.client.getInstancesByAppId !== undefined;
   }
 
-  // ✅ Método público para forzar actualización del registro
   async fetchRegistry(): Promise<void> {
     try {
       if (this.client && typeof (this.client as any).fetchRegistry === 'function') {
@@ -140,7 +125,6 @@ export class EurekaDiscovery implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error) {
       this.logger.debug('Error fetching registry:', error);
-      // No lanzar error, solo registrar para debugging
     }
   }
 }

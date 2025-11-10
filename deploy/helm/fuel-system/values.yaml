@@ -9,7 +9,9 @@ global:
   storageClass: ""
   # Tag global para todas las imágenes (se puede sobrescribir por servicio)
   imageTag: "latest"
-  
+  # Node environment (production, development, staging)
+  nodeEnv: "production"
+
 # Image registry configuration for GitHub Container Registry (GHCR)
 # NOTA: El URL base apunta al registry, los repositorios individuales se especifican en cada servicio
 imageRegistry:
@@ -147,6 +149,8 @@ authService:
     GRPC_PORT: 50052
     AUTH_GRPC_PORT: 50052
     DB_NAME: auth_db
+  database:
+    enabled: false
   resources:
     requests:
       memory: 256Mi

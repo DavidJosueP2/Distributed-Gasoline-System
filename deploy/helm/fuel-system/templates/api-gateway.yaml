@@ -119,6 +119,9 @@ spec:
     targetPort: http
     protocol: TCP
     name: http
+    {{- if and (eq .Values.apiGateway.service.type "NodePort") .Values.apiGateway.service.nodePort }}
+    nodePort: {{ .Values.apiGateway.service.nodePort }}
+    {{- end }}
   selector:
     {{- include "fuel-system.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: api-gateway

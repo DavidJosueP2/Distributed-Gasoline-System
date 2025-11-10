@@ -9,6 +9,7 @@ global:
   imagePullSecrets: []  # Las imágenes son públicas, no necesitamos secret
   storageClass: "standard"  # Local usa standard storage class
   imageTag: "latest"
+  nodeEnv: "development"  # Ambiente de desarrollo en local
 
 # Image registry configuration
 imageRegistry:
@@ -20,8 +21,13 @@ postgresql:
   external:
     enabled: true
     # Los hosts apuntan a los servicios de PostgreSQL desplegados por Helm separadamente
-    # Cada microservicio se conectará a su propia base de datos usando estos valores base
-    host: "REPLACED_PER_SERVICE"  # Se sobreescribe por servicio en runtime
+    # Cada microservicio se conectará a su propia base de datos
+    hosts:
+      auth: "auth-db-postgresql"
+      driver: "driver-db-postgresql"
+      users: "users-db-postgresql"
+      vehicles: "vehicles-db-postgresql"
+      vehiclesShadow: "vehicles-shadow-db-postgresql"
     port: 5432
     username: "postgres"
     password: "root"
@@ -32,12 +38,6 @@ postgresql:
       users: "users_db"
       vehicles: "vehicles_db"
       vehiclesShadow: "vehicles_shadow_db"
-    # Hosts específicos para cada base de datos
-    authHost: "auth-db-postgresql"
-    driverHost: "driver-db-postgresql"
-    usersHost: "users-db-postgresql"
-    vehiclesHost: "vehicles-db-postgresql"
-    vehiclesShadowHost: "vehicles-shadow-db-postgresql"
 
 # RabbitMQ Configuration - DESHABILITADO (usamos Helm chart separado)
 rabbitmq:

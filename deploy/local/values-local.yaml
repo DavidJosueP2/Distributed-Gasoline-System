@@ -121,7 +121,7 @@ authService:
   image:
     repository: "auth-svc"
     tag: "latest"
-    pullPolicy: IfNotPresent
+    pullPolicy: Always  # Cambiado a Always para forzar descarga de la nueva imagen
   service:
     type: ClusterIP
     port: 50052

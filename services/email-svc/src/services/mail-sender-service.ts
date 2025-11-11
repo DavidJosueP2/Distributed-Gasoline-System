@@ -8,7 +8,7 @@ import { status as GrpcStatus } from '@grpc/grpc-js';
 export class MailSenderService {
 
   private readonly logger = new Logger(MailSenderService.name);
-  private transporter: nodemailer.Transporter;
+  private readonly transporter: nodemailer.Transporter;
 
   constructor() {
     this.transporter = nodemailer.createTransport({

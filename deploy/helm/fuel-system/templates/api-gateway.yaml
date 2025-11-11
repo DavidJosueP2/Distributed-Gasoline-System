@@ -90,6 +90,14 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: PROTOS_DIR
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-jwt
+              key: secret
+        - name: JWT_EXPIRES_IN
+          value: "1h"
+
         livenessProbe:
           httpGet:
             path: /health

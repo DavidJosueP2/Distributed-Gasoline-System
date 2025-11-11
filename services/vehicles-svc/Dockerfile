@@ -56,7 +56,7 @@ RUN npx tsc prisma/seed.ts --outDir dist --rootDir . --esModuleInterop --resolve
 
 # Crear directorio y copiar archivo .proto desde la raíz del proyecto
 RUN mkdir -p ./protos
-COPY protos/vehicles.proto ./protos/vehicles.proto
+COPY protos ./protos
 
 # ===== STAGE 3: Runtime =====
 FROM node:20-alpine AS runtime

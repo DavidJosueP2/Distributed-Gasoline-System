@@ -49,6 +49,7 @@ const globalProviders: Provider[] = [
     DiscoveryModule,
   ],
   controllers: [
+    HealthController,
     HelloController,
     DriversHttpController,
     LicenseTypesHttpController,

@@ -72,7 +72,7 @@ COPY services/users-srv/package.json ./
 # Copiar dependencias de producción y Prisma Client generado
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copiar Prisma schema (necesario para db push)
+# Copiar Prisma schema y migraciones (necesarios para 'db push' en Kubernetes)
 COPY --from=build /app/prisma ./prisma
 
 # Copiar archivo .proto (necesario para gRPC)
@@ -96,4 +96,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Comando de inicio
 CMD ["node", "dist/src/main.js"]
-

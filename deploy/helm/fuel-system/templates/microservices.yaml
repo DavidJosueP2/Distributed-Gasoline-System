@@ -41,7 +41,7 @@ spec:
         command: ["sh", "-c", "npx prisma db push --accept-data-loss --skip-generate && node dist/prisma/seed.js"]
         {{- else }}
         # Otros servicios
-        command: ["sh", "-c", "npx prisma migrate deploy"]
+        command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
         {{- end }}
         env:
         - name: NODE_ENV

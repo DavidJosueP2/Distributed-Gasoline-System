@@ -58,6 +58,12 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `GATEWAY_HTTP_PORT` | `8080` | Puerto HTTP del gateway |
 | `GRPC_CALL_TIMEOUT_MS` | `5000` | Timeout para llamadas gRPC en ms |
 
+**🔑 Variables adicionales específicas (definidas directamente en el deployment)**:
+- `JWT_SECRET`: Secret para verificar tokens JWT (se obtiene del secret `fuel-system-jwt`)
+- `JWT_EXPIRES_IN`: Tiempo de expiración de tokens JWT (default: `1h`)
+
+**⚠️ CRÍTICO**: El API Gateway necesita `JWT_SECRET` para validar los tokens JWT en rutas protegidas. Este valor **DEBE ser el mismo** que usa el Auth Service para firmar los tokens.
+
 #### 1.3.2 Auth Service
 
 | Variable | Valor | Descripción |
@@ -539,4 +545,3 @@ Acceder a `http://localhost:15672` con credenciales del ConfigMap.
 **Última actualización**: 2025-11-10  
 **Versión del Chart**: 1.1.0  
 **Namespace**: `fuel-system`
-

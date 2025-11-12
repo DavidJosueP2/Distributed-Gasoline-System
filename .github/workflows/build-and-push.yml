@@ -53,6 +53,9 @@ jobs:
           - name: publisher-rabbit-srv
             dockerfile: ./services/publisher-rabbit-srv/Dockerfile
             needs_build_args: false
+          - name: routes-srv
+            dockerfile: ./services/routes-srv/Dockerfile
+            needs_build_args: false
           - name: users-srv
             dockerfile: ./services/users-srv/Dockerfile
             needs_build_args: true
@@ -173,6 +176,7 @@ jobs:
           echo "| 📧 email-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📝 logger-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📤 publisher-rabbit-srv | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚦 routes-srv | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 👥 users-srv (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚙 vehicles-svc (Prisma) | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

@@ -351,6 +351,35 @@ publisherService:
       memory: 256Mi
       cpu: 200m
 
+routesService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: routes-srv
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50056
+    targetPort: 50056
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50056
+    ROUTES_GRPC_PORT: 50056
+    DB_NAME: routes_db
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
 # ==============================================
 # SECRETS & CONFIGMAPS
 # ==============================================

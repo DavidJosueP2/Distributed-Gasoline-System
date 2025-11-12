@@ -45,10 +45,10 @@ Esta documentación explica cómo se manejan los datos iniciales (seeding) en ca
   - `sam_supervisor` / `supervisor123` → Rol: SUPERVISOR
   - `dylan_driver` / `driver123` → Rol: DRIVER
 
-**Comando de ejecución:**
+**Comando de ejecución en Init Container:**
 ```bash
-# Dentro del contenedor
-npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed
+# Dentro del initContainer
+npx prisma db push --accept-data-loss --skip-generate && node dist/prisma/seed.js
 ```
 
 **Características:**
@@ -78,10 +78,10 @@ npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed
 - ♿ 1 Vehículo Adaptado (Licencia F) - Renault
 - 🚜 1 Vehículo Agrícola (Licencia G) - John Deere
 
-**Comando de ejecución:**
+**Comando de ejecución en Init Container:**
 ```bash
-# Dentro del contenedor
-npx prisma migrate deploy && npx prisma db seed
+# Dentro del initContainer
+npx prisma migrate deploy && node dist/prisma/seed.js
 ```
 
 **Características:**
@@ -100,25 +100,53 @@ npx prisma migrate deploy && npx prisma db seed
 - ✅ 1 Vehículo asociado (Toyota Hilux, placa ABC-1234)
 - ✅ 1 Documento de licencia válido
 
-**Comando de ejecución:**
+**Comando de ejecución en Init Container:**
 ```bash
-# Ejecutado automáticamente por docker-entrypoint.sh
-# Espera 10s después del inicio para que TypeORM cree las tablas
+# Ejecutado automáticamente en el initContainer
 PGPASSWORD="${DRIVER_DB_PASS}" psql \
   -h "${DRIVER_DB_HOST}" \
   -U "${DRIVER_DB_USER}" \
   -d "${DRIVER_DB_NAME}" \
-  -f seed.sql
+  -f /app/seed.sql
 ```
 
 **Características:**
 - 🔄 Idempotente (usa `ON CONFLICT DO NOTHING`)
 - 🔗 Depende de que exista `user_id=1` en `users-srv`
-- 🚀 Se ejecuta en background sin bloquear el inicio
 
 ---
 
-### 4. `auth-svc` (TypeORM)
+### 4. `routes-srv` (TypeORM)
+
+**Archivo:** `services/routes-srv/db/init.sql` (incluye seeding)
+
+**Datos que inserta:**
+- ✅ 5 Rutas de prueba (Centro-Norte, Sur-Aeropuerto, Este-Oeste, Norte-Sur, Centro-Comercial)
+- ✅ Diferentes tipos de vehículos (LIVIANO, PESADO, CUALQUIERA)
+- ✅ Coordenadas GPS para origen y destino
+- ✅ 5 Viajes de prueba con diferentes estados:
+  - 1 viaje EN_RUTA (driver_id=1)
+  - 1 viaje CREADO (supervisor_id=2)
+  - 3 viajes TERMINADOS
+
+**Comando de ejecución en Init Container:**
+```bash
+# Ejecutado automáticamente en el initContainer
+PGPASSWORD="${ROUTES_DB_PASS}" psql \
+  -h "${ROUTES_DB_HOST}" \
+  -U "${ROUTES_DB_USER}" \
+  -d "${ROUTES_DB_NAME}" \
+  -f /app/db/init.sql
+```
+
+**Características:**
+- 🔄 Idempotente (usa `WHERE NOT EXISTS` y `ON CONFLICT DO NOTHING`)
+- 📍 Incluye coordenadas reales de Bogotá
+- 🚗 Vinculado con drivers y vehículos de otros servicios
+
+---
+
+### 5. `auth-svc` (TypeORM)
 
 **⚠️ No requiere seeding**
 
@@ -126,119 +154,131 @@ Este servicio solo maneja la lógica de autenticación. Los usuarios y roles est
 
 ---
 
-## ☁️ Kubernetes/Azure - Implementación
+## ☁️ Kubernetes - Implementación con Init Containers
 
-### 🚀 Estrategia: Helm Jobs con Hooks
+### 🚀 Estrategia Actual: Init Containers
 
-**Implementación:** Los archivos de migraciones y seeding están definidos en `deploy/helm/fuel-system/templates/jobs-migrations.yaml`
+Usamos **Init Containers** en cada Deployment para ejecutar migraciones y seeding **antes** de que el contenedor principal inicie.
 
-Este archivo define **Kubernetes Jobs** que se ejecutan automáticamente usando **Helm Hooks**:
+**Ventajas:**
+- ✅ Automático en cada deploy
+- ✅ Fail-fast: Si falla, el pod no inicia
+- ✅ Integrado con el ciclo de vida del pod
+- ✅ No requiere gestión manual de Jobs
 
-- `helm.sh/hook: pre-install` → Se ejecuta **ANTES** de instalar los microservicios
-- `helm.sh/hook: pre-upgrade` → Se ejecuta **ANTES** de actualizar los microservicios
-- `helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded` → Limpia Jobs antiguos automáticamente
+### 📋 Implementación por Servicio
 
-**Orden de ejecución:**
-1. `users-db-migration` (weight: 10) → Prisma migrate + seed
-2. `vehicles-db-migration` (weight: 15) → Prisma migrate + seed
-3. `driver-db-migration` (weight: 20) → TypeORM migrate + init.sql + seed.sql
-4. `auth-db-setup` (weight: 25) → Configuración (opcional)
+#### 1. Users Service (Prisma)
 
-### 📋 Jobs Definidos
-
-#### 1. Users Service Migration Job
+Configurado en `deploy/helm/fuel-system/templates/microservices.yaml`:
 
 ```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: fuel-system-users-db-migration
-  annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "10"
-spec:
-  template:
-    spec:
-      containers:
-      - name: users-migration
-        image: ghcr.io/.../users-srv:latest
-        command:
-          - sh
-          - -c
-          - |
-            echo "🔄 Starting Users DB Migration and Seeding..."
-            npx prisma migrate deploy
-            npx prisma db seed
-            echo "✅ Completed!"
-        env:
-        - name: USERS_DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public&sslmode=disable"
+initContainers:
+- name: prisma-migrate
+  image: ghcr.io/.../users-srv:latest
+  command: ["sh", "-c", "npx prisma db push --accept-data-loss --skip-generate && node dist/prisma/seed.js"]
+  env:
+  - name: USERS_DATABASE_URL
+    value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/users_db?schema=public&sslmode=disable"
+  - name: DB_HOST
+    valueFrom:
+      configMapKeyRef:
+        name: fuel-system-config
+        key: USERS_DB_HOST
+  # ... más variables
 ```
 
-#### 2. Vehicles Service Migration Job
+#### 2. Vehicles Service (Prisma)
 
 ```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: fuel-system-vehicles-db-migration
-  annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "15"
-spec:
-  template:
-    spec:
-      containers:
-      - name: vehicles-migration
-        image: ghcr.io/.../vehicles-svc:latest
-        command:
-          - sh
-          - -c
-          - |
-            echo "🔄 Starting Vehicles DB Migration and Seeding..."
-            npx prisma migrate deploy
-            npx prisma db seed
-            echo "✅ Completed!"
-        env:
-        - name: DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode=disable"
-        - name: SHADOW_DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode=disable"
+initContainers:
+- name: prisma-migrate
+  image: ghcr.io/.../vehicles-svc:latest
+  command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
+  env:
+  - name: DATABASE_URL
+    value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode=disable"
+  - name: SHADOW_DATABASE_URL
+    value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode=disable"
+  # ... más variables
 ```
 
-#### 3. Driver Service Migration Job
+#### 3. Driver Service (TypeORM)
 
 ```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: fuel-system-driver-db-migration
-  annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "20"
-spec:
-  template:
-    spec:
-      containers:
-      - name: driver-migration
-        image: ghcr.io/.../driver-ms:latest
-        command:
-          - sh
-          - -c
-          - |
-            echo "🔄 Starting Driver DB Migration and Seeding..."
-            npm run typeorm:migrate
-            PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USERNAME} -d ${DB_NAME} -f ./init.sql
-            PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USERNAME} -d ${DB_NAME} -f ./seed.sql
-            echo "✅ Completed!"
+initContainers:
+- name: typeorm-migrate
+  image: ghcr.io/.../driver-ms:latest
+  command:
+    - sh
+    - -c
+    - |
+      # Wait for DB
+      for i in $(seq 1 30); do
+        if PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -c '\q' 2>/dev/null; then
+          break
+        fi
+        sleep 2
+      done
+      
+      # Execute init.sql
+      PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -v ON_ERROR_STOP=1 -f /app/init.sql
+      
+      # Execute migrations
+      for migration in /app/migrations/*.sql; do
+        if [ -f "$migration" ]; then
+          PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -f "$migration" || true
+        fi
+      done
+      
+      # Execute seed
+      PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -f /app/seed.sql
+  env:
+  - name: DRIVER_DB_HOST
+    valueFrom:
+      configMapKeyRef:
+        name: fuel-system-config
+        key: DRIVER_DB_HOST
+  # ... más variables
 ```
 
-### 🔧 Ejecución Automática con Helm
+#### 4. Routes Service (TypeORM)
+
+```yaml
+initContainers:
+- name: typeorm-migrate
+  image: ghcr.io/.../routes-srv:latest
+  command:
+    - sh
+    - -c
+    - |
+      # Wait for DB
+      for i in $(seq 1 30); do
+        if PGPASSWORD="${ROUTES_DB_PASS}" psql -h "${ROUTES_DB_HOST}" -p "${ROUTES_DB_PORT}" -U "${ROUTES_DB_USER}" -d "${ROUTES_DB_NAME}" -c '\q' 2>/dev/null; then
+          break
+        fi
+        sleep 2
+      done
+      
+      # Execute init.sql (includes seeding)
+      PGPASSWORD="${ROUTES_DB_PASS}" psql -h "${ROUTES_DB_HOST}" -p "${ROUTES_DB_PORT}" -U "${ROUTES_DB_USER}" -d "${ROUTES_DB_NAME}" -v ON_ERROR_STOP=1 -f /app/db/init.sql
+      
+      echo "✅ Routes database initialized and seeded!"
+  env:
+  - name: ROUTES_DB_HOST
+    valueFrom:
+      configMapKeyRef:
+        name: fuel-system-config
+        key: ROUTES_DB_HOST
+  # ... más variables
+```
+
+### 🔧 Despliegue Automático
 
 **Al instalar el chart:**
 
 ```bash
-# Las migraciones y seeding se ejecutan automáticamente
+# Los init containers se ejecutan automáticamente
 helm install fuel-system deploy/helm/fuel-system \
   --namespace fuel-system \
   --values deploy/local/values-local.yaml
@@ -247,254 +287,121 @@ helm install fuel-system deploy/helm/fuel-system \
 **Al actualizar el chart:**
 
 ```bash
-# Las migraciones se ejecutan automáticamente antes de actualizar
+# Los init containers se ejecutan automáticamente antes de actualizar
 helm upgrade fuel-system deploy/helm/fuel-system \
   --namespace fuel-system \
   --values deploy/local/values-local.yaml
 ```
 
-### 🎯 Ejecución Manual de Migraciones
-
-Si necesitas ejecutar migraciones manualmente (sin reinstalar el chart):
-
-**Windows (PowerShell):**
-
-```powershell
-# Ejecutar todas las migraciones
-.\scripts\run-migrations.ps1 -Namespace fuel-system -Service all
-
-# Ejecutar solo un servicio específico
-.\scripts\run-migrations.ps1 -Namespace fuel-system -Service users
-.\scripts\run-migrations.ps1 -Namespace fuel-system -Service vehicles
-.\scripts\run-migrations.ps1 -Namespace fuel-system -Service driver
+**Flujo de despliegue:**
+```
+1. Helm crea/actualiza Deployment
+2. Kubernetes crea nuevo pod
+3. Init container ejecuta (migración + seed)
+   ├─ ✅ Success → Pod inicia normalmente
+   └─ ❌ Error → Pod queda en Init:Error
+4. Contenedor principal inicia (si init fue exitoso)
 ```
 
-**Linux/macOS (Bash):**
+### 📊 Verificar Estado de Init Containers
 
 ```bash
-# Ejecutar todas las migraciones
-./scripts/run-migrations.sh --namespace fuel-system --service all
+# Ver estado de todos los pods
+kubectl get pods -n fuel-system
 
-# Ejecutar solo un servicio específico
-./scripts/run-migrations.sh --namespace fuel-system --service users
-./scripts/run-migrations.sh --namespace fuel-system --service vehicles
-./scripts/run-migrations.sh --namespace fuel-system --service driver
+# Ver logs del init container específico
+kubectl logs -n fuel-system <pod-name> -c prisma-migrate
+kubectl logs -n fuel-system <pod-name> -c typeorm-migrate
+
+# Ver logs del init container de un deployment específico
+kubectl logs -n fuel-system -l app.kubernetes.io/component=users-service -c prisma-migrate
+kubectl logs -n fuel-system -l app.kubernetes.io/component=driver-service -c typeorm-migrate
+kubectl logs -n fuel-system -l app.kubernetes.io/component=routes-service -c typeorm-migrate
+
+# Ver eventos del pod (incluye información de init containers)
+kubectl describe pod -n fuel-system <pod-name>
 ```
 
-### 📊 Verificar Estado de Migraciones
+### 🗑️ Reiniciar Init Containers
+
+Si necesitas volver a ejecutar las migraciones/seeding:
 
 ```bash
-# Ver todos los Jobs de migración
-kubectl get jobs -n fuel-system -l app.kubernetes.io/component=migration
+# Reiniciar un deployment específico (fuerza recreación de pods con init containers)
+kubectl rollout restart deployment/fuel-system-users-service -n fuel-system
+kubectl rollout restart deployment/fuel-system-vehicles-service -n fuel-system
+kubectl rollout restart deployment/fuel-system-driver-service -n fuel-system
+kubectl rollout restart deployment/fuel-system-routes-service -n fuel-system
 
-# Ver logs de un Job específico
-kubectl logs -n fuel-system -l job-name=fuel-system-users-db-migration
-
-# Ver todos los logs de migraciones
-kubectl logs -n fuel-system -l app.kubernetes.io/component=migration --tail=100
-
-# Ver el estado de un Job
-kubectl describe job fuel-system-users-db-migration -n fuel-system
+# Reiniciar todos los microservicios
+kubectl rollout restart deployment -n fuel-system -l app.kubernetes.io/instance=fuel-system
 ```
 
-### 🗑️ Limpiar Jobs Completados
+## 🐛 Troubleshooting
 
+### ❌ Init Container falla: "Database not empty"
+
+**Para servicios con Prisma:**
+
+Ver [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md#-init-container-falla-error-p3005-database-not-empty) para soluciones detalladas.
+
+### ❌ Init Container en "Init:CrashLoopBackOff"
+
+**Diagnóstico:**
 ```bash
-# Eliminar todos los Jobs de migración completados
-kubectl delete jobs -n fuel-system -l app.kubernetes.io/component=migration
-
-# Los Jobs se auto-limpian después de 300 segundos (5 minutos) gracias a ttlSecondsAfterFinished
-```
-
-### 🌍 Diferencias entre Local (Kind) y Azure (AKS)
-
-| Aspecto | Local (Kind) | Azure (AKS) |
-|---------|-------------|-------------|
-| **PostgreSQL** | Helm charts separados en el mismo cluster | Azure Database for PostgreSQL Flexible Server (servicio externo) |
-| **DB Hosts** | `auth-db-postgresql`, `driver-db-postgresql`, etc. | `fuel-system-postgres.postgres.database.azure.com` |
-| **SSL Mode** | `sslmode=disable` | `sslmode=require` |
-| **Credenciales** | ConfigMap + Secret en el cluster | Azure Key Vault + Secret CSI Driver |
-| **Migraciones** | Jobs ejecutan desde pods en el cluster | Jobs ejecutan desde pods y se conectan a Azure DB vía Private Endpoint |
-| **Seeding** | Se ejecuta siempre (datos de prueba) | Se ejecuta solo en dev/staging, **NO en producción** |
-
-### ⚙️ Configuración por Entorno
-
-**Local (`deploy/local/values-local.yaml`):**
-
-```yaml
-postgresql:
-  external:
-    enabled: true
-    hosts:
-      users: "users-db-postgresql"
-      vehicles: "vehicles-db-postgresql"
-      driver: "driver-db-postgresql"
-    port: 5432
-    sslMode: "disable"
-```
-
-**Azure (`deploy/helm/values-azure.yaml`):**
-
-```yaml
-postgresql:
-  external:
-    enabled: true
-    hosts:
-      users: "fuel-system-postgres.postgres.database.azure.com"
-      vehicles: "fuel-system-postgres.postgres.database.azure.com"
-      driver: "fuel-system-postgres.postgres.database.azure.com"
-    port: 5432
-    sslMode: "require"
-```
-
----
-
-## 🐳 Docker Compose - Comandos
-
-### Servicios Prisma
-
-```yaml
-# users-srv
-command: sh -c "npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed && node dist/src/main.js"
-
-# vehicles-svc
-command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/main.js"
-```
-
-### Servicios TypeORM
-
-```yaml
-# driver-ms
-CMD ["./docker-entrypoint.sh"]  # Script personalizado que ejecuta seed.sql
-```
-
----
-
-## ✅ Verificación de Seeds
-
-### 1. Verificar Usuarios (users-srv)
-
-```bash
-# Conectarse a la DB
-docker exec -it fuel-users-db psql -U postgres -d users
-
-# Verificar datos
-SELECT username, first_name, last_name FROM users;
-SELECT name, description FROM roles;
-SELECT u.username, r.name as role
-FROM users u
-JOIN user_roles ur ON u.user_id = ur.user_id
-JOIN roles r ON ur.role_id = r.role_id;
-```
-
-### 2. Verificar Vehículos (vehicles-svc)
-
-```bash
-# Conectarse a la DB
-docker exec -it fuel-vehicles-db psql -U postgres -d vehicles
-
-# Verificar datos
-SELECT COUNT(*) FROM "VehicleModel";  -- Debe ser 20
-SELECT COUNT(*) FROM "VehicleUnit";   -- Debe ser 20
-SELECT brand, family, trim FROM "VehicleModel" LIMIT 5;
-```
-
-### 3. Verificar Drivers (driver-ms)
-
-```bash
-# Conectarse a la DB
-docker exec -it fuel-driver-db psql -U postgres -d drivers
-
-# Verificar datos
-SELECT * FROM drivers;
-SELECT * FROM vehicles;
-SELECT * FROM driver_documents;
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Problema: Seed no se ejecuta
-
-**Solución:**
-```bash
-# Forzar reconstrucción de imágenes
-docker-compose build --no-cache <service-name>
-
-# Reiniciar servicio
-docker-compose up -d <service-name>
-
 # Ver logs
-docker-compose logs -f <service-name>
+kubectl logs -n fuel-system <pod-name> -c prisma-migrate
+kubectl logs -n fuel-system <pod-name> -c typeorm-migrate
+
+# Ver eventos
+kubectl describe pod -n fuel-system <pod-name>
 ```
 
-### Problema: Error "duplicate key value"
+**Causas comunes:**
+1. Base de datos no está lista
+2. Credenciales incorrectas
+3. Archivos SQL no copiados al contenedor
 
-**Causa:** El seed no es idempotente.
+### ❌ Init Container tarda demasiado
 
-**Solución:**
-- Prisma: Verificar que usa `upsert` en lugar de `create`
-- TypeORM/SQL: Verificar que usa `ON CONFLICT DO NOTHING` o `ON CONFLICT (column) DO UPDATE`
-
-### Problema: driver-ms no encuentra user_id=1
-
-**Causa:** `users-srv` no ha ejecutado su seed o el usuario fue eliminado.
-
-**Solución:**
-```bash
-# Ejecutar seed de users-srv primero
-docker-compose restart users-srv
-
-# Esperar a que termine, luego reiniciar driver-ms
-docker-compose restart driver-ms
-```
-
----
-
-## 📝 Best Practices
-
-1. **✅ Siempre haz los seeds idempotentes**
-   - Prisma: Usa `upsert`
-   - SQL: Usa `ON CONFLICT DO NOTHING`
-
-2. **✅ Versiona los datos de seed**
-   - Si cambias un seed, documenta por qué
-
-3. **✅ No uses seeds en producción para datos reales**
-   - Solo para configuración mínima (roles, permisos)
-
-4. **✅ Documenta las dependencias entre seeds**
-   - Ejemplo: driver-ms depende de users-srv
-
-5. **✅ Incluye datos de prueba útiles**
-   - Usuarios con diferentes roles
-   - Variedad de vehículos
-   - Casos edge para testing
-
----
-
-## 🚀 Comandos Rápidos
+**Solución:** Los init containers tienen timeouts de 30 reintentos de 2 segundos cada uno (60 segundos total) para esperar que la base de datos esté lista. Si sigue fallando, verificar:
 
 ```bash
-# Reconstruir todos los servicios con seeds
-docker-compose down -v  # Elimina volúmenes (⚠️ borra datos)
-docker-compose build --no-cache
-docker-compose up -d
+# Verificar que la BD esté corriendo
+kubectl get pods -n fuel-system -l app.kubernetes.io/name=postgresql
 
-# Ejecutar seed manualmente para un servicio Prisma
-docker-compose exec users-srv npx prisma db seed
-
-# Ver logs de seeding
-docker-compose logs users-srv | grep "🌱"
-docker-compose logs vehicles-svc | grep "🌱"
-docker-compose logs driver-ms | grep "🌱"
+# Verificar conectividad desde el pod
+kubectl exec -it -n fuel-system <pod-name> -c typeorm-migrate -- sh
+# (Dentro del container)
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME
 ```
+
+## 📝 Resumen
+
+### ✅ Método Actual: Init Containers
+
+| Servicio | ORM | Init Container | Archivos de Seed |
+|----------|-----|----------------|------------------|
+| **users-srv** | Prisma | `npx prisma db push && seed` | `prisma/seed.ts` |
+| **vehicles-svc** | Prisma | `npx prisma migrate deploy && seed` | `prisma/seed.ts` |
+| **driver-ms** | TypeORM | `psql init.sql + migrations + seed.sql` | `init.sql`, `seed.sql` |
+| **routes-srv** | TypeORM | `psql db/init.sql` (incluye seeding) | `db/init.sql` |
+| **auth-svc** | TypeORM | `wait-for-db` (no seed necesario) | N/A |
+
+### 🚫 NO usamos Kubernetes Jobs
+
+Los Kubernetes Jobs fueron **descartados** en favor de Init Containers porque:
+- ❌ Requieren gestión manual del ciclo de vida
+- ❌ No garantizan orden con respecto a los Deployments
+- ❌ Complican el rollback
+- ❌ No son fail-fast por defecto
+
+Los Init Containers son superiores porque se integran directamente con el ciclo de vida del pod y garantizan que las migraciones se ejecuten antes de que la aplicación inicie.
 
 ---
 
-## 📚 Referencias
+## 🔗 Referencias
 
-- [Prisma Seeding Guide](https://www.prisma.io/docs/guides/database/seed-database)
-- [TypeORM Migrations](https://typeorm.io/migrations)
-- [PostgreSQL INSERT ON CONFLICT](https://www.postgresql.org/docs/current/sql-insert.html#SQL-ON-CONFLICT)
+- [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md) - Guía completa de migraciones
+- [INIT_CONTAINERS_SETUP.md](./INIT_CONTAINERS_SETUP.md) - Detalles de implementación
+- [Kubernetes Init Containers](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)

@@ -46,12 +46,14 @@ data:
   VEHICLES_APP_NAME: "VEHICLES-SERVICE"
   LOGGER_APP_NAME: "LOGGER-SERVICE"
   DRIVER_APP_NAME: "DRIVER-SERVICE"
+  ROUTES_APP_NAME: "ROUTES-SERVICE"
 
   # ========== Service Ports ==========
   HELLO_GRPC_PORT: "50051"
   AUTH_GRPC_PORT: "50052"
   EMAIL_GRPC_PORT: "50053"
   VEHICLES_GRPC_PORT: "50055"
+  ROUTES_GRPC_PORT: "50056"
   USERS_GRPC_PORT: "50057"
   LOGGER_GRPC_PORT: "50058"
   DRIVER_GRPC_PORT: "50062"
@@ -74,11 +76,13 @@ data:
   DRIVER_DB_HOST: {{ .Values.postgresql.external.hosts.driver | default "driver-db-postgresql" | quote }}
   USERS_DB_HOST: {{ .Values.postgresql.external.hosts.users | default "users-db-postgresql" | quote }}
   VEHICLES_DB_HOST: {{ .Values.postgresql.external.hosts.vehicles | default "vehicles-db-postgresql" | quote }}
+  ROUTES_DB_HOST: {{ .Values.postgresql.external.hosts.routes | default "routes-db-postgresql" | quote }}
   {{- else }}
   AUTH_DB_HOST: {{ .Values.postgresql.external.authHost | default "auth-db-postgresql" | quote }}
   DRIVER_DB_HOST: {{ .Values.postgresql.external.driverHost | default "driver-db-postgresql" | quote }}
   USERS_DB_HOST: {{ .Values.postgresql.external.usersHost | default "users-db-postgresql" | quote }}
   VEHICLES_DB_HOST: {{ .Values.postgresql.external.vehiclesHost | default "vehicles-db-postgresql" | quote }}
+  ROUTES_DB_HOST: {{ .Values.postgresql.external.routesHost | default "routes-db-postgresql" | quote }}
   {{- end }}
   {{- end }}
 
@@ -86,16 +90,20 @@ data:
   DRIVER_DB_PORT: "5432"
   USERS_DB_PORT: "5432"
   VEHICLES_DB_PORT: "5432"
+  ROUTES_DB_PORT: "5432"
 
   AUTH_DB_NAME: {{ .Values.postgresql.external.databases.auth | default "auth_db" | quote }}
   DRIVER_DB_NAME: {{ .Values.postgresql.external.databases.driver | default "driver_db" | quote }}
   USERS_DB_NAME: {{ .Values.postgresql.external.databases.users | default "users_db" | quote }}
   VEHICLES_DB_NAME: {{ .Values.postgresql.external.databases.vehicles | default "vehicles_db" | quote }}
+  ROUTES_DB_NAME: {{ .Values.postgresql.external.databases.routes | default "routes_db" | quote }}
 
-  # TypeORM Configuration (para driver-ms)
+  # TypeORM Configuration (para driver-ms y routes-srv)
   DRIVER_DB_SYNCHRONIZE: "false"
   DRIVER_DB_LOGGING: "false"
   DRIVER_NODE_ENV: {{ .Values.global.nodeEnv | default "production" | quote }}
+  ROUTES_DB_SYNCHRONIZE: "false"
+  ROUTES_DB_LOGGING: "false"
 
   # ========== RabbitMQ Configuration ==========
   {{- if .Values.rabbitmq.enabled }}

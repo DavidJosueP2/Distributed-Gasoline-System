@@ -12,7 +12,7 @@ create extension if not exists pgcrypto;
 -- Tabla: drivers
 -- Entidad: Driver (src/drivers/entities/driver.entity.ts)
 
-create table drivers (
+create table if not exists drivers (
   driver_id     bigint primary key generated always as identity,
   user_id       bigint not null unique,  -- ID externo (users-srv)
   availability  varchar(30) not null default 'AVAILABLE'
@@ -22,7 +22,7 @@ create table drivers (
   updated_at    timestamptz not null default now()
 );
 
-create index idx_drivers_availability on drivers(availability);
+create index if not exists idx_drivers_availability on drivers(availability);
 
 -- =========================
 -- LICENSE TYPES
@@ -30,7 +30,7 @@ create index idx_drivers_availability on drivers(availability);
 -- Tabla: license_types
 -- Entidad: LicenseType (src/license-types/entities/license-type.entity.ts)
 
-create table license_types (
+create table if not exists license_types (
   license_type_id  bigint primary key generated always as identity,
   code             varchar(10) not null unique,
   description      varchar(160),
@@ -45,7 +45,7 @@ create table license_types (
 -- Entidad: LicenseInclude (src/license-types/entities/license-include.entity.ts)
 -- Tabla de relación muchos-a-muchos para jerarquías de licencias
 
-create table license_includes (
+create table if not exists license_includes (
   parent_license_type_id  bigint not null,
   child_license_type_id   bigint not null,
   primary key (parent_license_type_id, child_license_type_id),
@@ -53,8 +53,8 @@ create table license_includes (
   foreign key (child_license_type_id) references license_types(license_type_id) on delete cascade
 );
 
-create index idx_license_includes_parent on license_includes(parent_license_type_id);
-create index idx_license_includes_child on license_includes(child_license_type_id);
+create index if not exists idx_license_includes_parent on license_includes(parent_license_type_id);
+create index if not exists idx_license_includes_child on license_includes(child_license_type_id);
 
 -- =========================
 -- DRIVER LICENSES
@@ -62,7 +62,7 @@ create index idx_license_includes_child on license_includes(child_license_type_i
 -- Tabla: driver_licenses
 -- Entidad: DriverLicense (src/drivers/entities/driver-license.entity.ts)
 
-create table driver_licenses (
+create table if not exists driver_licenses (
   driver_license_id  bigint primary key generated always as identity,
   driver_id           bigint not null,
   license_type_id     bigint not null,
@@ -76,9 +76,9 @@ create table driver_licenses (
   foreign key (license_type_id) references license_types(license_type_id) on delete restrict
 );
 
-create index idx_driver_licenses_driver on driver_licenses(driver_id);
-create index idx_driver_licenses_license on driver_licenses(license_type_id);
-create index idx_driver_licenses_expiry on driver_licenses(status, expires_at);
+create index if not exists idx_driver_licenses_driver on driver_licenses(driver_id);
+create index if not exists idx_driver_licenses_license on driver_licenses(license_type_id);
+create index if not exists idx_driver_licenses_expiry on driver_licenses(status, expires_at);
 
 -- =========================
 -- TRIGGERS
@@ -93,6 +93,8 @@ begin
 end;
 $$ language plpgsql;
 
+-- Drop trigger if exists before creating to avoid errors
+drop trigger if exists trg_update_drivers on drivers;
 create trigger trg_update_drivers
 before update on drivers
 for each row execute function set_updated_at();

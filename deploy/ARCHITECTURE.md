@@ -35,6 +35,10 @@ El sistema está diseñado con una arquitectura de microservicios distribuidos q
 │  │  │Auth      │  │Driver    │  │Users     │  ...       │       │
 │  │  │Service   │  │Service   │  │Service   │           │       │
 │  │  │(HPA 2-5) │  │(HPA 2-5) │  │(HPA 2-5) │           │       │
+│  │  │          │  │          │  │          │           │       │
+│  │  │Vehicles  │  │Routes    │  │Email     │  Logger   │       │
+│  │  │Service   │  │Service   │  │Service   │  Service  │       │
+│  │  │(HPA 2-5) │  │(HPA 2-5) │  │(2 rep.)  │  (2 rep.) │       │
 │  │  └──────────┘  └──────────┘  └──────────┘           │       │
 │  └────────────────┬───────────────────────────┬─────────┘       │
 │                   │                           │                   │
@@ -57,6 +61,11 @@ El sistema está diseñado con una arquitectura de microservicios distribuidos q
 │  │          │  │          │  │          │  │db        │      │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
 │                                                                 │
+│  ┌──────────┐  ┌─────────────────────┐                        │
+│  │routes_db │  │vehicles_shadow_db   │                        │
+│  │          │  │(migrations only)    │                        │
+│  └──────────┘  └─────────────────────┘                        │
+│                                                                 │
 │  - Automatic Backups                                           │
 │  - Point-in-time Restore                                       │
 │  - High Availability                                           │
@@ -73,7 +82,7 @@ El sistema está diseñado con una arquitectura de microservicios distribuidos q
 
 **Componentes**:
 - ✅ API Gateway
-- ✅ Microservicios (auth, driver, users, vehicles, email, etc.)
+- ✅ Microservicios (auth, driver, users, vehicles, routes, email, logger, publisher)
 - ✅ Eureka Server (Service Discovery)
 - ✅ RabbitMQ (Mensajería)
 - ✅ Elasticsearch (Logs)
@@ -96,7 +105,8 @@ El sistema está diseñado con una arquitectura de microservicios distribuidos q
 2. `driver_db` - Datos de conductores y licencias
 3. `users_db` - Usuarios y roles
 4. `vehicles_db` - Vehículos y modelos
-5. `vehicles_shadow_db` - DB shadow para migraciones de Prisma
+5. `routes_db` - Rutas y viajes
+6. `vehicles_shadow_db` - DB shadow para migraciones de Prisma
 
 **Características Administradas por Azure**:
 - ✅ Backups automáticos diarios
@@ -200,243 +210,187 @@ az postgres flexible-server replica create \
 - ✅ Health checks y auto-restart
 - ✅ Rolling updates sin downtime
 
-### PostgreSQL Flexible Server
-- ✅ Zone-redundant High Availability
-- ✅ Failover automático (< 120 segundos)
-- ✅ Réplicas síncronas
-- ✅ Backups en múltiples regiones
+### PostgreSQL
+- ✅ Zona-redundante (HA mode)
+- ✅ Backups automáticos con retención de 7-35 días
+- ✅ Réplicas de lectura en diferentes regiones
+- ✅ Failover automático
 
-## 💾 Gestión de Datos
+## 🔄 Flujo de Datos
 
-### Migraciones de Base de Datos
+### 1. Solicitud HTTP → API Gateway
 
-**Servicios con Prisma** (users-srv, vehicles-svc):
-
-En **Kubernetes/Azure** (Producción):
-```yaml
-# Se ejecutan automáticamente en initContainer ANTES de iniciar la app
-initContainers:
-- name: prisma-migrate
-  command: ["npx", "prisma", "migrate", "deploy"]
-  # ✅ Fail-fast: Si migraciones fallan, pod no inicia
-  # ✅ Automático: Se ejecuta en cada deploy
-  # ✅ Idempotent: Se puede ejecutar múltiples veces
+```
+Cliente → Azure ALB → Ingress Controller → API Gateway
 ```
 
-En **Docker Local** (Desarrollo):
-```bash
-# Migraciones + Seeding automático al iniciar
-command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/main.js"
-# users-srv usa: npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed && node dist/src/main.js
+### 2. API Gateway → Microservicio (gRPC)
+
+```
+API Gateway → Eureka (lookup) → Microservicio gRPC
 ```
 
-**Servicios con TypeORM** (auth-svc, driver-ms):
+**Ejemplo:**
 ```typescript
-// Las migraciones se ejecutan automáticamente al iniciar la aplicación
-await app.get(DataSource).runMigrations();
+// API Gateway descubre el servicio
+const driverService = await eurekaClient.getInstancesByAppId('DRIVER-SERVICE');
+// Llama al microservicio via gRPC
+const response = await grpcClient.getDriver({ id: 1 });
 ```
 
-**📚 Documentación:** Ver [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md) para más detalles
+### 3. Microservicio → Base de Datos
 
-### Seeding de Datos Iniciales
-
-**¿Qué es el seeding?**
-El seeding es el proceso de poblar la base de datos con datos iniciales necesarios para que la aplicación funcione correctamente (usuarios de prueba, roles, catálogos, etc.).
-
-**Servicios con Prisma**:
-
-Archivos de seed ubicados en `prisma/seed.ts`:
-- `users-srv/prisma/seed.ts` - Usuarios y roles iniciales (admin, supervisor, driver)
-- `vehicles-svc/prisma/seed.ts` - 20 modelos de vehículos con especificaciones completas
-
-Configuración en `package.json`:
-```json
-{
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  }
-}
+```
+Microservicio → Private Endpoint → Azure PostgreSQL
 ```
 
-Ejecución:
+**Ejemplo:**
+```typescript
+// Driver Service consulta su BD
+const driver = await driverRepository.findOne({ id: 1 });
+```
+
+### 4. Eventos Asíncronos (Outbox Pattern)
+
+```
+Microservicio → Outbox Table → Publisher → RabbitMQ → Subscriber
+```
+
+**Ejemplo:**
+```typescript
+// 1. Driver Service guarda evento en outbox
+await outboxRepository.save({
+  eventType: 'DRIVER_CREATED',
+  payload: { id: 1, name: 'Juan' }
+});
+
+// 2. Publisher lee outbox y publica a RabbitMQ
+publisherService.pollOutbox();
+
+// 3. Logger Service escucha y registra
+loggerService.subscribeToDriverEvents();
+```
+
+## 📦 Microservicios
+
+### Auth Service (TypeORM)
+- **Puerto gRPC**: 50052
+- **Base de Datos**: auth_db
+- **Propósito**: Autenticación y generación de JWT
+- **Init Container**: wait-for-db (synchronize:true en desarrollo)
+
+### Driver Service (TypeORM)
+- **Puerto gRPC**: 50062
+- **Puerto HTTP**: 3100
+- **Base de Datos**: driver_db
+- **Propósito**: Gestión de conductores y licencias
+- **Init Container**: Ejecuta init.sql, migrations/*.sql, seed.sql
+
+### Users Service (Prisma)
+- **Puerto gRPC**: 50057
+- **Base de Datos**: users_db
+- **Propósito**: Gestión de usuarios y roles
+- **Init Container**: npx prisma db push && seed
+
+### Vehicles Service (Prisma)
+- **Puerto gRPC**: 50055
+- **Base de Datos**: vehicles_db, vehicles_shadow_db
+- **Propósito**: Gestión de vehículos y modelos
+- **Init Container**: npx prisma migrate deploy && seed
+
+### Routes Service (TypeORM)
+- **Puerto gRPC**: 50056
+- **Base de Datos**: routes_db
+- **Propósito**: Gestión de rutas y viajes
+- **Init Container**: Ejecuta db/init.sql (incluye seeding)
+
+### Email Service
+- **Puerto gRPC**: 50053
+- **Propósito**: Envío de emails transaccionales
+- **No requiere BD**
+
+### Logger Service
+- **Puerto gRPC**: 50058
+- **Puerto HTTP**: 3200
+- **Propósito**: Centralización de logs en Elasticsearch
+- **Conexiones**: RabbitMQ, Elasticsearch
+
+### Publisher Service (Outbox Pattern)
+- **Puerto HTTP**: 4100
+- **Propósito**: Publicar eventos desde outbox tables a RabbitMQ
+- **Conexiones**: PostgreSQL (todas las DBs), RabbitMQ
+
+## 🚀 Estrategia de Despliegue
+
+### Desarrollo Local (Kind)
+
 ```bash
-npx prisma db seed  # Ejecuta automáticamente en Docker
+# 1. Infraestructura separada
+helm install auth-db bitnami/postgresql -n fuel-system --set ...
+helm install driver-db bitnami/postgresql -n fuel-system --set ...
+helm install users-db bitnami/postgresql -n fuel-system --set ...
+helm install vehicles-db bitnami/postgresql -n fuel-system --set ...
+helm install routes-db bitnami/postgresql -n fuel-system --set ...
+helm install rabbitmq bitnami/rabbitmq -n fuel-system
+helm install elasticsearch elastic/elasticsearch -n fuel-system
+
+# 2. Microservicios
+helm install fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values ./deploy/local/values-local.yaml
 ```
 
-**Características de los seeds Prisma:**
-- ✅ Idempotentes (usa `upsert` para evitar duplicados)
-- ✅ TypeScript con type-safety
-- ✅ Se ejecutan después de migraciones
-- ✅ Automáticos en Docker Compose
+### Producción (Azure AKS)
 
-**Servicios con TypeORM** (driver-ms):
-
-Archivo de seed: `services/driver-ms/seed.sql`
-```sql
--- Solo contiene INSERTs con ON CONFLICT DO NOTHING
-INSERT INTO drivers(user_id, full_name, phone_number, email, availability)
-VALUES (1, 'Juan Pérez', '+593999999999', 'juan.perez@example.com', 'AVAILABLE')
-ON CONFLICT (user_id) DO NOTHING;
-```
-
-Ejecución mediante script de entrada:
 ```bash
-# docker-entrypoint.sh
-# 1. Inicia la aplicación (TypeORM crea tablas automáticamente)
-# 2. Espera 10 segundos
-# 3. Ejecuta seed.sql con psql en background
-```
-
-**Características de los seeds TypeORM:**
-- ✅ Idempotentes (usa `ON CONFLICT DO NOTHING`)
-- ✅ Se ejecutan después de que TypeORM crea las tablas
-- ✅ No bloquean el arranque del servicio
-- ✅ Logs claros de éxito/error
-
-**⚠️ Importante:**
-- Los seeds solo se ejecutan en **desarrollo** y **staging**
-- En **producción**, los datos reales son cargados por otros procesos
-- Todos los seeds son idempotentes (se pueden ejecutar múltiples veces sin causar errores)
-
-### Backups
-
-**Automáticos** (Azure PostgreSQL):
-- Diarios con retención de 7-35 días
-- Point-in-time restore hasta el último segundo
-
-**Manuales**:
-```bash
-# Backup on-demand
-az postgres flexible-server backup create \
+# 1. Crear Azure PostgreSQL (una vez)
+az postgres flexible-server create \
   --resource-group fuel-system-rg \
   --name fuel-system-postgres \
-  --backup-name manual-backup-$(date +%Y%m%d)
+  --database-names auth_db,driver_db,users_db,vehicles_db,routes_db,vehicles_shadow_db
+
+# 2. Deploy a AKS (automático con GitHub Actions)
+git push origin main
+# → Build images → Push to ACR → Deploy to AKS
 ```
 
 ## 🔐 Seguridad
 
-### Network Security
-
-```
-┌─────────────────────────────────────────┐
-│  AKS Virtual Network (10.0.0.0/16)      │
-│  ┌────────────────────────────────┐     │
-│  │ Subnet: aks-subnet             │     │
-│  │ (10.0.1.0/24)                  │     │
-│  │ - Network Policies enabled     │     │
-│  │ - Private IPs only             │     │
-│  └────────────┬───────────────────┘     │
-│               │                          │
-│               │ Private Endpoint         │
-│               ▼                          │
-│  ┌────────────────────────────────┐     │
-│  │ Subnet: db-subnet              │     │
-│  │ (10.0.2.0/24)                  │     │
-│  │ - Private Endpoint to Postgres │     │
-│  │ - No public access             │     │
-│  └────────────────────────────────┘     │
-└─────────────────────────────────────────┘
-```
+### Network Policies
+- Microservicios solo pueden comunicarse entre sí
+- Solo API Gateway expuesto externamente
+- PostgreSQL accesible solo desde AKS (Private Endpoint)
 
 ### Secrets Management
+- Credenciales en Kubernetes Secrets
+- Azure Key Vault para producción
+- JWT secrets rotados periódicamente
 
-```yaml
-# En AKS - Kubernetes Secrets
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgresql-credentials
-type: Opaque
-data:
-  username: <base64-encoded>
-  password: <base64-encoded>
-  connection-string: <base64-encoded>
-```
+### SSL/TLS
+- Ingress con certificado TLS
+- PostgreSQL con sslmode=require
+- gRPC con TLS (opcional en producción)
 
-**Alternativa con Azure Key Vault** (recomendado):
-```yaml
-# CSI Driver para Azure Key Vault
-apiVersion: secrets-store.csi.x-k8s.io/v1
-kind: SecretProviderClass
-metadata:
-  name: azure-kvname-system-sync
-spec:
-  provider: azure
-  parameters:
-    keyvaultName: "fuel-system-kv"
-    objects: |
-      array:
-        - |
-          objectName: postgres-password
-          objectType: secret
-```
+## 📊 Monitoreo y Observabilidad
 
-## 📊 Monitoreo
+### Logs
+- Elasticsearch + Kibana
+- Logger Service centraliza logs
+- Retención: 30 días
 
-### Application Insights
-- Trazas distribuidas de cada request
-- Métricas de rendimiento
-- Logs centralizados
-- Detección de anomalías
+### Métricas
+- Prometheus (métricas de pods)
+- Azure Monitor (infraestructura)
+- Grafana (dashboards)
 
-### Azure Monitor
-- Métricas de AKS (CPU, memoria, red)
-- Métricas de PostgreSQL (conexiones, queries lentas)
-- Alertas automáticas
+### Trazabilidad
+- Correlation IDs en todas las requests
+- Logs estructurados (JSON)
+- Distributed tracing (futuro: Jaeger)
 
-### ELK Stack (en AKS)
-- Elasticsearch: Almacenamiento de logs
-- Logstash: Procesamiento de logs
-- Kibana: Dashboards y visualización
+## 🔗 Referencias
 
-## 💰 Estimación de Costos (Región East US)
-
-| Componente | Especificación | Costo Mensual |
-|------------|----------------|---------------|
-| **AKS** | 3 nodos D2s_v3 | ~$220 |
-| **PostgreSQL Flexible** | D4s_v3 + HA | ~$350 |
-| **Storage (Premium SSD)** | 500 GB | ~$75 |
-| **Load Balancer** | Standard | ~$20 |
-| **Outbound Data** | 500 GB | ~$40 |
-| **Application Insights** | 10 GB logs | ~$30 |
-| **Container Registry** | Standard | ~$20 |
-| **Total Estimado** | | **~$755/mes** |
-
-## 🚀 Ventajas de Esta Arquitectura
-
-### ✅ Separación de Responsabilidades
-- **Aplicación**: Kubernetes se encarga solo de microservicios
-- **Datos**: Azure administra backups, HA, seguridad
-
-### ✅ Escalabilidad Independiente
-- Escala microservicios sin afectar la BD
-- Escala BD sin reiniciar microservicios
-
-### ✅ Gestión Simplificada
-- No necesitas administrar PostgreSQL en K8s
-- Azure se encarga de parches, backups, HA
-
-### ✅ Costos Optimizados
-- Paga solo por los recursos que usas
-- Autoescalado reduce costos en horas valle
-
-### ✅ Alta Disponibilidad
-- Zona-redundant para base de datos
-- Multi-replica para microservicios
-
-### ✅ Seguridad
-- Private endpoints (sin acceso público)
-- SSL/TLS obligatorio
-- Network isolation
-
-## 📚 Referencias
-
-- [Azure Kubernetes Service](https://docs.microsoft.com/en-us/azure/aks/)
-- [Azure Database for PostgreSQL](https://docs.microsoft.com/en-us/azure/postgresql/flexible-server/)
-- [AKS Best Practices](https://docs.microsoft.com/en-us/azure/aks/best-practices)
-- [Microservices Architecture](https://microservices.io/)
-
----
-
-**Esta arquitectura está lista para producción** ✅
-
+- [CONFIGURATION_REFERENCE.md](./CONFIGURATION_REFERENCE.md) - Variables de configuración
+- [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md) - Estrategia de migraciones
+- [SEEDING_STRATEGY.md](./SEEDING_STRATEGY.md) - Estrategia de seeding
+- [DEPLOY_README.md](./DEPLOY_README.md) - Guía de despliegue

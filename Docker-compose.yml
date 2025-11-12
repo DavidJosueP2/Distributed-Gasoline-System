@@ -377,6 +377,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    command: >
+      sh -c "
+        echo '🔄 Ejecutando init.sql...' &&
+        PGPASSWORD=$${DRIVER_DB_PASS} psql -h $${DRIVER_DB_HOST} -p $${DRIVER_DB_PORT} -U $${DRIVER_DB_USER} -d $${DRIVER_DB_NAME} -f /app/init.sql &&
+        echo '🔄 Ejecutando migraciones...' &&
+        for migration in /app/migrations/*.sql; do
+          if [ -f \"$$migration\" ]; then
+            echo \"Aplicando: $$migration\" &&
+            PGPASSWORD=$${DRIVER_DB_PASS} psql -h $${DRIVER_DB_HOST} -p $${DRIVER_DB_PORT} -U $${DRIVER_DB_USER} -d $${DRIVER_DB_NAME} -f \"$$migration\" || echo '⚠️ Error en migración (puede ser normal si ya está aplicada)'
+          fi
+        done &&
+        echo '🌱 Ejecutando seed.sql...' &&
+        PGPASSWORD=$${DRIVER_DB_PASS} psql -h $${DRIVER_DB_HOST} -p $${DRIVER_DB_PORT} -U $${DRIVER_DB_USER} -d $${DRIVER_DB_NAME} -f /app/seed.sql &&
+        echo '✅ Inicialización completada. Iniciando servicio...' &&
+        node dist/main.js
+      "
 
   # ---------- Routes Service ----------
   routes-srv:

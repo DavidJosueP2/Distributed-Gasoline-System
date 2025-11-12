@@ -21,6 +21,62 @@ spec:
         app.kubernetes.io/component: auth-service
     spec:
       {{- include "fuel-system.imagePullSecrets" . | nindent 6 }}
+      # Init Container para esperar a que la base de datos esté disponible
+      # Auth-service usa TypeORM con synchronize:true, no necesita SQL manual
+      initContainers:
+      - name: wait-for-db
+        image: postgres:15-alpine
+        command:
+          - sh
+          - -c
+          - |
+            set -e
+            echo "🔄 Waiting for auth database to be ready..."
+            for i in $(seq 1 30); do
+              if PGPASSWORD="${AUTH_DB_PASS}" psql -h "${AUTH_DB_HOST}" -p "${AUTH_DB_PORT}" -U "${AUTH_DB_USER}" -d "${AUTH_DB_NAME}" -c '\q' 2>/dev/null; then
+                echo "✅ Auth database is ready!"
+                exit 0
+              fi
+              echo "⏳ Waiting for auth database... ($i/30)"
+              sleep 2
+            done
+            echo "❌ ERROR: Auth database no disponible después de 60 segundos"
+            exit 1
+        env:
+        - name: AUTH_DB_HOST
+          {{- if .Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_HOST
+          {{- else if .Values.postgresql.external.authHost }}
+          value: {{ .Values.postgresql.external.authHost | quote }}
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
+        - name: AUTH_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_PORT
+        - name: AUTH_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-postgresql
+              key: username
+        - name: AUTH_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-postgresql
+              key: password
+        - name: AUTH_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_NAME
       containers:
       - name: auth-service
         image: "{{ .Values.imageRegistry.url }}/{{ .Values.authService.image.repository }}:{{ .Values.authService.image.tag | default .Values.global.imageTag }}"

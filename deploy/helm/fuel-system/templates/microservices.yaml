@@ -109,6 +109,111 @@ spec:
           value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_shadow_db?schema=public&sslmode={{ $sslMode }}"
         {{- end }}
       {{- end }}
+      {{- if $config.typeorm }}
+      # Init Container para migraciones/seeding de TypeORM (driver-service)
+      initContainers:
+      - name: typeorm-migrate
+        image: "{{ $.Values.imageRegistry.url }}/{{ $config.config.image.repository }}:{{ $config.config.image.tag | default $.Values.global.imageTag }}"
+        imagePullPolicy: {{ $config.config.image.pullPolicy }}
+        command:
+          - sh
+          - -c
+          - |
+            set -e
+            echo "🔄 Waiting for database to be ready..."
+            for i in $(seq 1 30); do
+              if PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -c '\q' 2>/dev/null; then
+                echo "✅ Database is ready!"
+                break
+              fi
+              echo "⏳ Waiting for database... ($i/30)"
+              sleep 2
+            done
+
+            echo "🔄 Ejecutando init.sql para crear tablas..."
+            if [ -f /app/init.sql ]; then
+              PGPASSWORD="${DRIVER_DB_PASS}" psql \
+                -h "${DRIVER_DB_HOST}" \
+                -p "${DRIVER_DB_PORT}" \
+                -U "${DRIVER_DB_USER}" \
+                -d "${DRIVER_DB_NAME}" \
+                -v ON_ERROR_STOP=1 \
+                -f /app/init.sql
+              echo "✅ init.sql ejecutado correctamente"
+            else
+              echo "❌ ERROR: /app/init.sql no encontrado"
+              exit 1
+            fi
+
+            echo "🔄 Ejecutando migraciones SQL adicionales..."
+            if [ -d /app/migrations ]; then
+              for migration in /app/migrations/*.sql; do
+                if [ -f "$migration" ]; then
+                  echo "Aplicando: $migration"
+                  PGPASSWORD="${DRIVER_DB_PASS}" psql \
+                    -h "${DRIVER_DB_HOST}" \
+                    -p "${DRIVER_DB_PORT}" \
+                    -U "${DRIVER_DB_USER}" \
+                    -d "${DRIVER_DB_NAME}" \
+                    -f "$migration" || echo "⚠️ Error en $migration (puede ser normal si ya está aplicada)"
+                fi
+              done
+              echo "✅ Migraciones completadas"
+            else
+              echo "⚠️ No se encontró el directorio /app/migrations"
+            fi
+
+            echo "🌱 Ejecutando seed.sql..."
+            if [ -f /app/seed.sql ]; then
+              PGPASSWORD="${DRIVER_DB_PASS}" psql \
+                -h "${DRIVER_DB_HOST}" \
+                -p "${DRIVER_DB_PORT}" \
+                -U "${DRIVER_DB_USER}" \
+                -d "${DRIVER_DB_NAME}" \
+                -f /app/seed.sql
+              echo "✅ seed.sql ejecutado correctamente"
+            else
+              echo "❌ ERROR: /app/seed.sql no encontrado"
+              exit 1
+            fi
+
+            echo "✅ Inicialización de base de datos completada!"
+        env:
+        - name: DRIVER_DB_HOST
+          {{- if $.Values.postgresql.external.driverHost }}
+          value: {{ $.Values.postgresql.external.driverHost | quote }}
+          {{- else if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DRIVER_DB_HOST
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
+        - name: DRIVER_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DRIVER_DB_PORT
+        - name: DRIVER_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: username
+        - name: DRIVER_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: password
+        - name: DRIVER_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DRIVER_DB_NAME
+      {{- end }}
       containers:
       - name: {{ $config.name }}
         image: "{{ $.Values.imageRegistry.url }}/{{ $config.config.image.repository }}:{{ $config.config.image.tag | default $.Values.global.imageTag }}"
@@ -212,6 +317,15 @@ spec:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: PROTOS_DIR
         {{- end }}
+
+        # JWT Configuration (para validación de tokens en todos los microservicios)
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-jwt
+              key: secret
+        - name: JWT_EXPIRES_IN
+          value: "1h"
 
         # Variables de registro en Eureka
         - name: SERVICE_REGISTER_HOST

@@ -380,6 +380,35 @@ routesService:
     maxReplicas: 5
     targetCPUUtilizationPercentage: 70
 
+# Fuel Service (Orchestration/Aggregation Service - NO database)
+fuelService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: fuel-svc
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 50054
+    targetPort: 50054
+  env:
+    NODE_ENV: production
+    GRPC_PORT: 50054
+    FUEL_GRPC_PORT: 50054
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
 # ==============================================
 # SECRETS & CONFIGMAPS
 # ==============================================

@@ -3,6 +3,7 @@
   (dict "name" "routes-service" "config" .Values.routesService "dbEnv" (dict "DB_NAME" .Values.routesService.env.DB_NAME) "needsDB" true "needsProtos" true "typeorm" true)
   (dict "name" "users-service" "config" .Values.usersService "prisma" true "needsDB" true "needsProtos" true)
   (dict "name" "vehicles-service" "config" .Values.vehiclesService "prisma" true "needsDB" true "needsProtos" true)
+  (dict "name" "fuel-service" "config" .Values.fuelService "needsProtos" true)
   (dict "name" "email-service" "config" .Values.emailService "smtp" true "needsProtos" true)
   (dict "name" "logger-service" "config" .Values.loggerService "elasticsearch" true "rabbitmq" true "hasHttpPort" true "httpPort" .Values.loggerService.env.LOGGER_HTTP_PORT)
   (dict "name" "publisher-service" "config" .Values.publisherService "rabbitmq" true "needsProtos" true "hasHttpPort" true "httpPort" .Values.publisherService.env.PORT)
@@ -493,6 +494,16 @@ spec:
         {{- else if eq $config.name "vehicles-service" }}
         - name: VEHICLES_GRPC_PORT
           value: {{ $config.config.env.GRPC_PORT | quote }}
+        {{- else if eq $config.name "fuel-service" }}
+        - name: FUEL_GRPC_PORT
+          value: {{ $config.config.env.FUEL_GRPC_PORT | quote }}
+        - name: FUEL_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: FUEL_APP_NAME
+        - name: FUEL_SERVICE_REGISTER_HOST
+          value: {{ include "fuel-system.fullname" $ }}-fuel-service
         {{- else if eq $config.name "email-service" }}
         - name: EMAIL_GRPC_PORT
           value: {{ $config.config.env.GRPC_PORT | quote }}

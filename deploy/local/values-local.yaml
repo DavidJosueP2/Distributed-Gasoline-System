@@ -353,6 +353,32 @@ routesService:
   autoscaling:
     enabled: false
 
+# Fuel Service (Orchestration/Aggregation - NO database)
+fuelService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "fuel-svc"
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 50054
+    targetPort: 50054
+  env:
+    NODE_ENV: "development"
+    GRPC_PORT: "50054"
+    FUEL_GRPC_PORT: "50054"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+
 # Ingress - Configurado para acceso local sin dominio
 ingress:
   enabled: true

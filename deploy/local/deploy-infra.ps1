@@ -119,6 +119,19 @@ helm upgrade --install vehicles-shadow-db bitnami/postgresql `
   --wait --timeout 5m
 Print-Step "Vehicles Shadow DB desplegada"
 
+# Desplegar PostgreSQL - Routes DB
+Print-Info "Desplegando Routes DB (PostgreSQL)..."
+helm upgrade --install routes-db bitnami/postgresql `
+  --namespace $NAMESPACE `
+  --set auth.username=postgres `
+  --set auth.password=root `
+  --set auth.database=routes_db `
+  --set primary.persistence.size=2Gi `
+  --set primary.resources.requests.memory=256Mi `
+  --set primary.resources.requests.cpu=100m `
+  --wait --timeout 5m
+Print-Step "Routes DB desplegada"
+
 # Desplegar RabbitMQ (usando imagen legacy gratuita)
 Print-Info "Desplegando RabbitMQ..."
 helm upgrade --install rabbitmq bitnami/rabbitmq `

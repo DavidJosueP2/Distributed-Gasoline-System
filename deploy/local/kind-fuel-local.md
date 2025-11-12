@@ -316,6 +316,20 @@ helm install vehicles-shadow-db bitnami/postgresql `
   --set primary.resources.requests.memory=256Mi `
   --set primary.resources.requests.cpu=100m
 
+# Routes DB
+helm install routes-db bitnami/postgresql `
+  --namespace fuel-system `
+  --set auth.username=postgres `
+  --set auth.password=root `
+  --set auth.database=routes_db `
+  --set image.registry=docker.io `
+  --set image.repository=bitnamisecure/postgresql `
+  --set image.tag=latest `
+  --set global.security.allowInsecureImages=true `
+  --set primary.persistence.size=2Gi `
+  --set primary.resources.requests.memory=256Mi `
+  --set primary.resources.requests.cpu=100m
+
 # Verificar
 kubectl get pods -l app.kubernetes.io/name=postgresql
 ```

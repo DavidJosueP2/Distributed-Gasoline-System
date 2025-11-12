@@ -57,6 +57,8 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `GATEWAY_APP_NAME` | `API-GATEWAY` | Nombre de registro en Eureka |
 | `GATEWAY_HTTP_PORT` | `8080` | Puerto HTTP del gateway |
 | `GRPC_CALL_TIMEOUT_MS` | `5000` | Timeout para llamadas gRPC en ms |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT (obtiene del secret `fuel-system-jwt`) |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
 **🔑 Variables adicionales específicas (definidas directamente en el deployment)**:
 - `JWT_SECRET`: Secret para verificar tokens JWT (se obtiene del secret `fuel-system-jwt`)
@@ -73,10 +75,9 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `AUTH_DB_HOST` | `auth-db-postgresql` | Host de la base de datos de auth |
 | `AUTH_DB_PORT` | `5432` | Puerto de la base de datos |
 | `AUTH_DB_NAME` | `auth_db` | Nombre de la base de datos |
-
-**Variables adicionales específicas**:
-- `AUTH_SERVICE_REGISTER_HOST`: Hostname usado para registrarse en Eureka
-- `JWT_EXPIRES_IN`: Tiempo de expiración de tokens JWT (se pasa individualmente al deployment)
+| `JWT_SECRET` | *(desde secret)* | Secret para firmar/verificar tokens JWT |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
+| `AUTH_SERVICE_REGISTER_HOST` | *(auto-generado)* | Hostname usado para registrarse en Eureka |
 
 #### 1.3.3 Driver Service
 
@@ -91,6 +92,8 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `DRIVER_DB_SYNCHRONIZE` | `false` | Sincronización automática de TypeORM (⚠️ SIEMPRE false en producción) |
 | `DRIVER_DB_LOGGING` | `false` | Logging de queries de TypeORM |
 | `DRIVER_NODE_ENV` | `development` / `production` | Entorno específico de driver service |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
 #### 1.3.4 Users Service
 
@@ -101,6 +104,8 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `USERS_DB_HOST` | `users-db-postgresql` | Host de la base de datos de usuarios |
 | `USERS_DB_PORT` | `5432` | Puerto de la base de datos |
 | `USERS_DB_NAME` | `users_db` | Nombre de la base de datos |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
 #### 1.3.5 Vehicles Service
 
@@ -111,6 +116,8 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `VEHICLES_DB_HOST` | `vehicles-db-postgresql` | Host de la base de datos de vehículos |
 | `VEHICLES_DB_PORT` | `5432` | Puerto de la base de datos |
 | `VEHICLES_DB_NAME` | `vehicles_db` | Nombre de la base de datos |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
 **Shadow Database**: Para migraciones de Prisma, existe una base de datos shadow adicional:
 - Host: `vehicles-shadow-db-postgresql`
@@ -122,6 +129,8 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 |----------|-------|-------------|
 | `EMAIL_APP_NAME` | `EMAIL-SERVICE` | Nombre de registro en Eureka |
 | `EMAIL_GRPC_PORT` | `50053` | Puerto gRPC del servicio de email |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
 #### 1.3.7 Logger Service
 
@@ -129,6 +138,8 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 |----------|-------|-------------|
 | `LOGGER_APP_NAME` | `LOGGER-SERVICE` | Nombre de registro en Eureka |
 | `LOGGER_GRPC_PORT` | `50058` | Puerto gRPC del servicio de logging |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
 #### 1.3.8 Hello Service (Opcional)
 

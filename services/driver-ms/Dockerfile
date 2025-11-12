@@ -25,6 +25,7 @@ RUN npm install --no-package-lock
 COPY services/driver-ms/src ./src
 COPY services/driver-ms/migrations ./migrations
 COPY services/driver-ms/init.sql ./init.sql
+COPY services/driver-ms/seed.sql ./seed.sql
 
 # Construir la aplicación
 RUN npm run build
@@ -60,8 +61,9 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/src/data-source.ts ./src/data-source.ts
 COPY --from=build /app/migrations ./migrations
 
-# Copiar archivo de seed (solo datos, no estructura)
-COPY services/driver-ms/seed.sql ./seed.sql
+# Copiar archivos SQL para inicialización y seeding (desde el stage de build)
+COPY --from=build /app/init.sql ./init.sql
+COPY --from=build /app/seed.sql ./seed.sql
 
 # Copiar script de inicialización
 COPY services/driver-ms/docker-entrypoint.sh ./docker-entrypoint.sh
@@ -82,4 +84,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Comando de inicio
 CMD ["./docker-entrypoint.sh"]
-

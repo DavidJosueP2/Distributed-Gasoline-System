@@ -4,10 +4,10 @@ WORKDIR /app
 
 # Copiar archivos de dependencias
 COPY services/fuel-svc/package.json ./
-COPY services/fuel-svc/package-lock.json ./
+COPY services/fuel-svc/package-lock.json* ./
 
-# Instalar solo dependencias de producción
-RUN npm ci --only=production --ignore-scripts && npm cache clean --force
+# Instalar solo dependencias de producción (sintaxis actualizada para npm 9+)
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # ===== STAGE 2: Build =====
 FROM node:20-alpine AS build
@@ -15,7 +15,7 @@ WORKDIR /app
 
 # Copiar archivos de dependencias y configuración
 COPY services/fuel-svc/package.json ./
-COPY services/fuel-svc/package-lock.json ./
+COPY services/fuel-svc/package-lock.json* ./
 COPY services/fuel-svc/tsconfig.json ./
 COPY services/fuel-svc/tsconfig.build.json ./
 COPY services/fuel-svc/nest-cli.json ./
@@ -58,13 +58,12 @@ RUN addgroup -g 1001 -S nodejs && \
 
 USER nestjs
 
-# Exponer puerto gRPC (50053 es el puerto de fuel-svc)
-EXPOSE 50053
+# Exponer puerto gRPC (50054 es el puerto de fuel-svc)
+EXPOSE 50054
 
 # Health check básico usando conexión TCP
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=5 \
-  CMD node -e "require('net').connect({ port: 50053, host: '127.0.0.1' }).on('connect', ()=>process.exit(0)).on('error', ()=>process.exit(1))"
+  CMD node -e "require('net').connect({ port: 50054, host: '127.0.0.1' }).on('connect', ()=>process.exit(0)).on('error', ()=>process.exit(1))"
 
 # Comando de inicio
 CMD ["node", "dist/main.js"]
-

@@ -1,5 +1,6 @@
 {{- range $serviceName, $config := list 
   (dict "name" "driver-service" "config" .Values.driverService "dbEnv" (dict "DB_NAME" .Values.driverService.env.DB_NAME) "needsDB" true "needsProtos" true "hasHttpPort" true "httpPort" .Values.driverService.env.DRIVER_HTTP_PORT "typeorm" true)
+  (dict "name" "routes-service" "config" .Values.routesService "dbEnv" (dict "DB_NAME" .Values.routesService.env.DB_NAME) "needsDB" true "needsProtos" true "typeorm" true)
   (dict "name" "users-service" "config" .Values.usersService "prisma" true "needsDB" true "needsProtos" true)
   (dict "name" "vehicles-service" "config" .Values.vehiclesService "prisma" true "needsDB" true "needsProtos" true)
   (dict "name" "email-service" "config" .Values.emailService "smtp" true "needsProtos" true)
@@ -110,7 +111,7 @@ spec:
         {{- end }}
       {{- end }}
       {{- if $config.typeorm }}
-      # Init Container para migraciones/seeding de TypeORM (driver-service)
+      # Init Container para migraciones/seeding de TypeORM (driver-service y routes-service)
       initContainers:
       - name: typeorm-migrate
         image: "{{ $.Values.imageRegistry.url }}/{{ $config.config.image.repository }}:{{ $config.config.image.tag | default $.Values.global.imageTag }}"
@@ -122,7 +123,7 @@ spec:
             set -e
             echo "🔄 Waiting for database to be ready..."
             for i in $(seq 1 30); do
-              if PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -c '\q' 2>/dev/null; then
+              if PGPASSWORD="${DB_PASS}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c '\q' 2>/dev/null; then
                 echo "✅ Database is ready!"
                 break
               fi
@@ -130,13 +131,15 @@ spec:
               sleep 2
             done
 
+            {{- if eq $config.name "driver-service" }}
+            # Driver Service: init.sql en raíz + migrations/ + seed.sql
             echo "🔄 Ejecutando init.sql para crear tablas..."
             if [ -f /app/init.sql ]; then
-              PGPASSWORD="${DRIVER_DB_PASS}" psql \
-                -h "${DRIVER_DB_HOST}" \
-                -p "${DRIVER_DB_PORT}" \
-                -U "${DRIVER_DB_USER}" \
-                -d "${DRIVER_DB_NAME}" \
+              PGPASSWORD="${DB_PASS}" psql \
+                -h "${DB_HOST}" \
+                -p "${DB_PORT}" \
+                -U "${DB_USER}" \
+                -d "${DB_NAME}" \
                 -v ON_ERROR_STOP=1 \
                 -f /app/init.sql
               echo "✅ init.sql ejecutado correctamente"
@@ -150,11 +153,11 @@ spec:
               for migration in /app/migrations/*.sql; do
                 if [ -f "$migration" ]; then
                   echo "Aplicando: $migration"
-                  PGPASSWORD="${DRIVER_DB_PASS}" psql \
-                    -h "${DRIVER_DB_HOST}" \
-                    -p "${DRIVER_DB_PORT}" \
-                    -U "${DRIVER_DB_USER}" \
-                    -d "${DRIVER_DB_NAME}" \
+                  PGPASSWORD="${DB_PASS}" psql \
+                    -h "${DB_HOST}" \
+                    -p "${DB_PORT}" \
+                    -U "${DB_USER}" \
+                    -d "${DB_NAME}" \
                     -f "$migration" || echo "⚠️ Error en $migration (puede ser normal si ya está aplicada)"
                 fi
               done
@@ -165,21 +168,40 @@ spec:
 
             echo "🌱 Ejecutando seed.sql..."
             if [ -f /app/seed.sql ]; then
-              PGPASSWORD="${DRIVER_DB_PASS}" psql \
-                -h "${DRIVER_DB_HOST}" \
-                -p "${DRIVER_DB_PORT}" \
-                -U "${DRIVER_DB_USER}" \
-                -d "${DRIVER_DB_NAME}" \
+              PGPASSWORD="${DB_PASS}" psql \
+                -h "${DB_HOST}" \
+                -p "${DB_PORT}" \
+                -U "${DB_USER}" \
+                -d "${DB_NAME}" \
                 -f /app/seed.sql
               echo "✅ seed.sql ejecutado correctamente"
             else
               echo "❌ ERROR: /app/seed.sql no encontrado"
               exit 1
             fi
+            {{- else if eq $config.name "routes-service" }}
+            # Routes Service: db/init.sql (incluye seeding integrado)
+            echo "🔄 Ejecutando db/init.sql (schema + seeding)..."
+            if [ -f /app/db/init.sql ]; then
+              PGPASSWORD="${DB_PASS}" psql \
+                -h "${DB_HOST}" \
+                -p "${DB_PORT}" \
+                -U "${DB_USER}" \
+                -d "${DB_NAME}" \
+                -v ON_ERROR_STOP=1 \
+                -f /app/db/init.sql
+              echo "✅ db/init.sql ejecutado correctamente (schema + seeding completado)"
+            else
+              echo "❌ ERROR: /app/db/init.sql no encontrado"
+              exit 1
+            fi
+            {{- end }}
 
             echo "✅ Inicialización de base de datos completada!"
         env:
-        - name: DRIVER_DB_HOST
+        {{- if eq $config.name "driver-service" }}
+        # Variables para Driver Service
+        - name: DB_HOST
           {{- if $.Values.postgresql.external.driverHost }}
           value: {{ $.Values.postgresql.external.driverHost | quote }}
           {{- else if $.Values.postgresql.external.hosts }}
@@ -193,26 +215,63 @@ spec:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: POSTGRESQL_HOST
           {{- end }}
-        - name: DRIVER_DB_PORT
+        - name: DB_PORT
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: DRIVER_DB_PORT
-        - name: DRIVER_DB_USER
+        - name: DB_USER
           valueFrom:
             secretKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-postgresql
               key: username
-        - name: DRIVER_DB_PASS
+        - name: DB_PASS
           valueFrom:
             secretKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-postgresql
               key: password
-        - name: DRIVER_DB_NAME
+        - name: DB_NAME
           valueFrom:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: DRIVER_DB_NAME
+        {{- else if eq $config.name "routes-service" }}
+        # Variables para Routes Service
+        - name: DB_HOST
+          {{- if $.Values.postgresql.external.routesHost }}
+          value: {{ $.Values.postgresql.external.routesHost | quote }}
+          {{- else if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: ROUTES_DB_HOST
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: ROUTES_DB_PORT
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: username
+        - name: DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: password
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: ROUTES_DB_NAME
+        {{- end }}
       {{- end }}
       containers:
       - name: {{ $config.name }}
@@ -297,6 +356,12 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: LOGGER_APP_NAME
+        {{- else if eq $config.name "routes-service" }}
+        - name: ROUTES_APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: ROUTES_APP_NAME
         {{- else if eq $config.name "publisher-service" }}
         - name: OUTBOX_PUBLISHER_PORT
           valueFrom:
@@ -436,6 +501,46 @@ spec:
           value: {{ $config.config.env.LOGGER_HTTP_PORT | quote }}
         - name: LOGGER_GRPC_PORT
           value: {{ $config.config.env.LOGGER_GRPC_PORT | quote }}
+        {{- else if eq $config.name "routes-service" }}
+        - name: ROUTES_GRPC_PORT
+          value: {{ $config.config.env.ROUTES_GRPC_PORT | quote }}
+        - name: BIND_HOST
+          value: "0.0.0.0"
+        - name: ROUTES_DB_HOST
+          {{- if $.Values.postgresql.external.routesHost }}
+          value: {{ $.Values.postgresql.external.routesHost | quote }}
+          {{- else if $.Values.postgresql.external.hosts }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: ROUTES_DB_HOST
+          {{- else }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: POSTGRESQL_HOST
+          {{- end }}
+        - name: ROUTES_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: ROUTES_DB_PORT
+        - name: ROUTES_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: username
+        - name: ROUTES_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-postgresql
+              key: password
+        - name: ROUTES_DB_NAME
+          value: {{ $config.config.env.DB_NAME | quote }}
+        - name: ROUTES_DB_SYNCHRONIZE
+          value: "false"
+        - name: ROUTES_DB_LOGGING
+          value: "false"
         {{- else if eq $config.name "publisher-service" }}
         - name: PORT
           value: {{ $config.config.env.PORT | quote }}

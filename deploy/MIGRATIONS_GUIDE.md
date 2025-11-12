@@ -4,7 +4,7 @@
 1. [¿Qué es `prisma migrate`?](#qué-es-prisma-migrate)
 2. [Tipos de Migraciones](#tipos-de-migraciones)
 3. [Flujos por Entorno](#flujos-por-entorno)
-4. [Estrategias de Despliegue](#estrategias-de-despliegue)
+4. [Estrategia de Despliegue con Init Containers](#estrategia-de-despliegue-con-init-containers)
 5. [Troubleshooting](#troubleshooting)
 
 ---
@@ -156,16 +156,14 @@ command: sh -c "npx prisma migrate deploy && node dist/main.js"
 
 ---
 
-### 🔹 **3. Azure / Kubernetes (Producción)**
+### 🔹 **3. Kubernetes Local (Kind) / Azure AKS**
 
-Según `ARCHITECTURE.md`, usarás:
-- **AKS**: Para microservicios
-- **Azure PostgreSQL Flexible Server**: Base de datos administrada
+**✅ Estrategia ACTUAL: Init Containers**
 
-**Estrategia: initContainer**
+Usamos **Init Containers** en los Deployments para ejecutar migraciones **antes** de que el contenedor principal inicie.
 
+**Configuración en microservices.yaml:**
 ```yaml
-# deploy/helm/fuel-system/templates/microservices.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -176,49 +174,47 @@ spec:
       # 🚀 Init Container ejecuta migraciones ANTES del contenedor principal
       initContainers:
       - name: prisma-migrate
-        image: registry.azurecr.io/vehicles-svc:latest
-        command: ["sh", "-c", "npx prisma migrate deploy"]
+        image: ghcr.io/.../vehicles-svc:latest
+        command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
         env:
         - name: DATABASE_URL
-          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode=require"
+          value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/vehicles_db?schema=public&sslmode=disable"
         - name: DB_HOST
           valueFrom:
             configMapKeyRef:
               name: fuel-system-config
-              key: POSTGRESQL_HOST
+              key: VEHICLES_DB_HOST
         # ... más variables de entorno
       
       # 🎯 Contenedor principal (app)
       containers:
       - name: vehicles-service
-        image: registry.azurecr.io/vehicles-svc:latest
+        image: ghcr.io/.../vehicles-svc:latest
         command: ["node", "dist/main.js"]
         # ... resto de configuración
 ```
 
-**Flujo en Azure:**
+**Flujo en Kubernetes:**
 ```
 ┌─────────────────────────┐
-│ Azure PostgreSQL        │
-│ (Servicio Administrado) │
-│ BD vacía inicial        │
+│ PostgreSQL Pod Ready    │
+│ (vehicles-db)           │
 └──────────┬──────────────┘
            │
-           │ Connection via Private Endpoint
-           │
-┌──────────▼──────────────┐
-│ AKS Pod                 │
+           ▼
+┌─────────────────────────┐
+│ Pod starts              │
 │ ┌─────────────────────┐ │
 │ │ initContainer       │ │
 │ │ "prisma-migrate"    │ │
 │ │                     │ │
-│ │ npx prisma          │ │
-│ │   migrate deploy    │ │
+│ │ 1. npx prisma       │ │
+│ │    migrate deploy   │ │
+│ │ 2. node dist/       │ │
+│ │    prisma/seed.js   │ │
 │ └──────────┬──────────┘ │
 │            │             │
-│            ▼             │
-│  ✅ Migraciones         │
-│     aplicadas           │
+│      ✅ Success          │
 │            │             │
 │ ┌──────────▼──────────┐ │
 │ │ app container       │ │
@@ -229,91 +225,105 @@ spec:
 └─────────────────────────┘
 ```
 
-**Ventajas del initContainer:**
+**Ventajas del Init Container:**
 - ✅ Garantiza que migraciones se apliquen **antes** de iniciar la app
-- ✅ Si migraciones fallan, el pod no inicia
+- ✅ Si migraciones fallan, el pod no inicia (fail-fast)
 - ✅ Compatible con rolling updates
-- ✅ Se ejecuta en cada deploy automáticamente
+- ✅ Se ejecuta automáticamente en cada deploy
+- ✅ Idempotente - puede ejecutarse múltiples veces sin problemas
 
----
-
-## 🚀 Estrategias de Despliegue
-
-### Opción 1: initContainer (✅ Recomendado)
-
-**Pros:**
-- ✅ Automático en cada deploy
-- ✅ Fail-fast (pod no inicia si migración falla)
-- ✅ No requiere pasos manuales
-
-**Contras:**
-- ⚠️ Rolling updates pueden causar múltiples ejecuciones (OK porque es idempotent)
-
----
-
-### Opción 2: Kubernetes Job (Manual/CI)
-
-Para migraciones complejas que requieren supervisión:
+**Para TypeORM (driver-ms, routes-srv):**
 
 ```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: vehicles-migrate-{{ .Release.Revision }}
-spec:
-  template:
-    spec:
-      containers:
-      - name: migrate
-        image: registry.azurecr.io/vehicles-svc:latest
-        command: ["npx", "prisma", "migrate", "deploy"]
-        env:
-        - name: DATABASE_URL
-          value: "postgresql://..."
-      restartPolicy: Never
+initContainers:
+- name: typeorm-migrate
+  image: ghcr.io/.../driver-ms:latest
+  command:
+    - sh
+    - -c
+    - |
+      # 1. Wait for DB
+      echo "🔄 Waiting for database..."
+      for i in $(seq 1 30); do
+        if PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -c '\q' 2>/dev/null; then
+          echo "✅ Database ready!"
+          break
+        fi
+        sleep 2
+      done
+      
+      # 2. Execute init.sql
+      echo "🔄 Running init.sql..."
+      PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -v ON_ERROR_STOP=1 -f /app/init.sql
+      
+      # 3. Execute migrations
+      echo "🔄 Running migrations..."
+      for migration in /app/migrations/*.sql; do
+        if [ -f "$migration" ]; then
+          echo "Applying: $migration"
+          PGPASSWORD="${DRIVER_DB_PASS}" psql -h "${DRIVER_DB_HOST}" -p "${DRIVER_DB_PORT}" -U "${DRIVER_DB_USER}" -d "${DRIVER_DB_NAME}" -f "$migration" || echo "⚠️ Migration may be already applied"
+        fi
+      done
+      
+      echo "✅ Database initialization complete!"
+  env:
+  - name: DRIVER_DB_HOST
+    valueFrom:
+      configMapKeyRef:
+        name: fuel-system-config
+        key: DRIVER_DB_HOST
+  # ... más variables
 ```
 
-**Ejecutar manualmente:**
+---
+
+## 🚀 Estrategia de Despliegue con Init Containers
+
+### ✅ Recomendación: Init Containers (Método Actual)
+
+**Por qué Init Containers:**
+- ✅ **Automático**: Se ejecuta en cada deploy sin pasos manuales
+- ✅ **Fail-fast**: El pod no inicia si las migraciones fallan
+- ✅ **Rollback seguro**: Si falla, Kubernetes mantiene la versión anterior
+- ✅ **Idempotente**: `prisma migrate deploy` puede ejecutarse múltiples veces
+- ✅ **Sin downtime**: Compatible con rolling updates
+
+**Cómo funciona:**
+1. Kubernetes crea el pod
+2. Ejecuta el init container (migraciones + seed)
+3. Si tiene éxito → inicia el contenedor principal
+4. Si falla → el pod queda en estado `Init:Error`
+
+**Desplegar/Actualizar:**
 ```bash
-kubectl apply -f migrate-job.yaml
-kubectl wait --for=condition=complete job/vehicles-migrate-001
-kubectl apply -f deployment.yaml
+# Local (Kind)
+helm upgrade fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values ./deploy/local/values-local.yaml
+
+# Azure (AKS)
+helm upgrade fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values ./deploy/helm/fuel-system/values.yaml
 ```
 
----
+### 📊 Comparación de Estrategias
 
-### Opción 3: CI/CD Pipeline
+| Aspecto | Init Containers ✅ | Kubernetes Jobs ❌ | CI/CD Pipeline ❌ |
+|---------|-------------------|-------------------|------------------|
+| **Automático** | ✅ Sí | ⚠️ Requiere hooks | ⚠️ Requiere config |
+| **Fail-fast** | ✅ Sí | ⚠️ No | ⚠️ Depende |
+| **Rollback** | ✅ Automático | ❌ Manual | ❌ Manual |
+| **Complejidad** | ✅ Baja | ⚠️ Media | ⚠️ Alta |
+| **Recomendado** | ✅ Sí | ❌ No | ❌ No |
 
-Ejecuta migraciones ANTES de actualizar pods:
-
-```yaml
-# .github/workflows/deploy.yml
-jobs:
-  migrate:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Run Prisma Migrations
-      run: |
-        kubectl run migrate-temp \
-          --image=registry.azurecr.io/vehicles-svc:${{ github.sha }} \
-          --restart=Never \
-          --command -- npx prisma migrate deploy
-        kubectl wait --for=condition=Ready pod/migrate-temp
-        kubectl delete pod migrate-temp
-  
-  deploy:
-    needs: migrate
-    runs-on: ubuntu-latest
-    steps:
-    - name: Deploy to AKS
-      run: helm upgrade fuel-system ./deploy/helm/fuel-system
-```
+**Nota:** Anteriormente consideramos usar Kubernetes Jobs con Helm Hooks, pero los **Init Containers son superiores** para nuestro caso de uso porque garantizan el orden de ejecución y proporcionan mejor integración con el ciclo de vida del pod.
 
 ---
 
 ## 🔍 Troubleshooting
 
-### ❌ Error P3005: Database not empty
+### ❌ Init Container falla: "Error P3005: Database not empty"
 
 **Síntoma:**
 ```
@@ -328,45 +338,68 @@ The database schema is not empty.
 **Solución 1: Baseline (para BD existentes)**
 
 ```bash
-# Marca todas las migraciones como aplicadas sin ejecutarlas
+# Conectarse al pod temporalmente
+kubectl run prisma-baseline --rm -it \
+  --image=ghcr.io/.../vehicles-svc:latest \
+  --env="DATABASE_URL=postgresql://..." \
+  --command -- sh
+
+# Dentro del pod:
 npx prisma migrate resolve --applied 20251004143040_init_vehicles
 npx prisma migrate resolve --applied 20251004225500_make_baseline_override_optional
-
-# Ahora ejecuta normalmente
-npx prisma migrate deploy
 ```
 
-**Solución 2: Resetear BD (solo desarrollo)**
+**Solución 2: Eliminar y recrear el volumen (solo local)**
 
 ```bash
-# ⚠️ BORRA TODO
-npx prisma migrate reset --force
+# Eliminar el release y PVC
+helm uninstall vehicles-db -n fuel-system
+kubectl delete pvc data-vehicles-db-postgresql-0 -n fuel-system
 
-# Vuelve a aplicar
-npx prisma migrate deploy
+# Reinstalar
+helm install vehicles-db bitnami/postgresql -n fuel-system --set ...
 ```
 
-**Solución 3: Docker - Limpiar volúmenes**
+### ❌ Init Container queda en "Init:CrashLoopBackOff"
 
+**Síntoma:**
 ```bash
-# Detener y eliminar volúmenes
-docker-compose down -v
-
-# Reconstruir
-docker-compose up --build
+kubectl get pods -n fuel-system
+# fuel-system-vehicles-service-xxx   Init:CrashLoopBackOff
 ```
 
----
+**Diagnóstico:**
+```bash
+# Ver logs del init container
+kubectl logs -n fuel-system fuel-system-vehicles-service-xxx -c prisma-migrate
 
-### ❌ Error: Migration file not found
+# Ver eventos del pod
+kubectl describe pod -n fuel-system fuel-system-vehicles-service-xxx
+```
+
+**Causas comunes:**
+1. ⚠️ Base de datos no está lista
+2. ⚠️ Credenciales incorrectas
+3. ⚠️ Variables de entorno faltantes
+4. ⚠️ Archivo de migración corrupto
+
+**Solución:**
+```bash
+# Verificar conectividad a la BD
+kubectl exec -it -n fuel-system fuel-system-vehicles-service-xxx -c prisma-migrate -- sh
+# (Dentro del container)
+psql -h $DB_HOST -U $DB_USERNAME -d vehicles_db
+```
+
+### ❌ Error: "Migration file not found"
 
 **Síntoma:**
 ```
-Migration file not found: prisma/migrations/XXX
+Migration file not found: prisma/migrations/XXX/migration.sql
 ```
 
 **Causa:**
-- El archivo `migration.sql` no se copió al contenedor Docker
+- Los archivos de migración no se copiaron al contenedor Docker
 
 **Solución:**
 
@@ -374,131 +407,70 @@ Verifica el `Dockerfile`:
 
 ```dockerfile
 # DEBE copiar la carpeta prisma completa
+COPY services/vehicles-svc/prisma ./prisma
+
+# Y en el stage final:
 COPY --from=build /app/prisma ./prisma
 ```
 
----
-
-### ❌ Error: Connection refused
+### ❌ Init Container tarda mucho (Timeout)
 
 **Síntoma:**
-```
-Can't reach database server at vehicles-db:5432
-```
-
-**Causa:**
-- La BD no está lista
-- Variables de entorno incorrectas
+- El init container se queda "Running" por más de 5 minutos
 
 **Solución:**
 
-```yaml
-# docker-compose.yml
-vehicles-svc:
-  depends_on:
-    vehicles-db:
-      condition: service_healthy  # ✅ Espera health check
-```
+Ajustar timeouts en el Deployment:
 
----
-
-### ⚠️ Warning: `package.json#prisma` is deprecated
-
-**Causa:**
-- Prisma 7 deprecó la configuración en `package.json`
-
-**Solución:**
-
-Crear `prisma.config.ts`:
-
-```typescript
-import { defineConfig } from 'prisma';
-
-export default defineConfig({
-  seed: {
-    command: 'ts-node prisma/seed.ts',
-  },
-});
-```
-
-Eliminar de `package.json`:
-```json
-// ❌ Eliminar esto
-"prisma": {
-  "seed": "ts-node prisma/seed.ts"
-}
-```
-
----
-
-## 📊 Comparación de Enfoques
-
-| Aspecto | migrate dev | migrate deploy | Manual SQL |
-|---------|-------------|----------------|------------|
-| **Entorno** | Desarrollo local | Producción | Cualquiera |
-| **Crea migraciones** | ✅ Sí | ❌ No | ❌ No |
-| **Aplica migraciones** | ✅ Sí | ✅ Sí | ⚠️ Manual |
-| **Idempotent** | ⚠️ No (puede resetear) | ✅ Sí | ⚠️ Depende |
-| **Rastrea historial** | ✅ Sí | ✅ Sí | ❌ No |
-| **Seguro en prod** | ❌ No | ✅ Sí | ⚠️ Depende |
-
----
-
-## ✅ Best Practices
-
-### 1. Nunca uses `migrate dev` en producción
-```bash
-# ❌ PELIGROSO en producción
-npx prisma migrate dev
-
-# ✅ CORRECTO en producción
-npx prisma migrate deploy
-```
-
-### 2. Siempre usa initContainer o Job en Kubernetes
 ```yaml
 initContainers:
-- name: migrate
-  command: ["npx", "prisma", "migrate", "deploy"]
-```
-
-### 3. En Docker, NO montes SQL directamente
-```yaml
-# ❌ MALO
-volumes:
-  - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
-
-# ✅ BUENO (deja que Prisma lo maneje)
-command: sh -c "npx prisma migrate deploy && node dist/main.js"
-```
-
-### 4. Versiona tus migraciones en Git
-```bash
-git add prisma/migrations/
-git commit -m "feat: add user status field"
-```
-
-### 5. Prueba migraciones en staging antes de producción
-```bash
-# Staging
-helm upgrade --install fuel-system ./deploy/helm/fuel-system \
-  --namespace staging
-
-# Production (después de validar)
-helm upgrade --install fuel-system ./deploy/helm/fuel-system \
-  --namespace production
+- name: prisma-migrate
+  # ... configuración
+  # Agregar timeout explícito
+  livenessProbe:
+    exec:
+      command: ["true"]
+    initialDelaySeconds: 300  # 5 minutos
+    periodSeconds: 10
 ```
 
 ---
 
-## 📚 Referencias
+## 📝 Resumen
+
+### ✅ Método Actual: Init Containers
+
+```yaml
+# En cada Deployment de microservicio
+initContainers:
+- name: prisma-migrate  # o typeorm-migrate
+  image: <service-image>:latest
+  command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
+  env: [...]  # Variables de conexión a BD
+```
+
+### 🚫 NO usamos Kubernetes Jobs
+
+Los Kubernetes Jobs con Helm Hooks fueron considerados pero **descartados** porque:
+- ❌ Requieren gestión manual de ciclo de vida
+- ❌ No garantizan orden con respecto a los Deployments
+- ❌ Complican el rollback
+- ❌ No son fail-fast por defecto
+
+### 📦 Servicios y sus Estrategias
+
+| Servicio | ORM | Init Container | Archivos |
+|----------|-----|----------------|----------|
+| **users-srv** | Prisma | ✅ `npx prisma db push && seed` | `prisma/` |
+| **vehicles-svc** | Prisma | ✅ `npx prisma migrate deploy && seed` | `prisma/` |
+| **driver-ms** | TypeORM | ✅ `psql init.sql + migrations/*.sql` | `init.sql`, `migrations/`, `seed.sql` |
+| **routes-srv** | TypeORM | ✅ `psql db/init.sql` (incluye seed) | `db/init.sql` |
+| **auth-svc** | TypeORM | ✅ `wait-for-db` (synchronize:true en dev) | N/A |
+
+---
+
+## 🔗 Referencias
 
 - [Prisma Migrate Docs](https://www.prisma.io/docs/concepts/components/prisma-migrate)
-- [Production Migrations](https://www.prisma.io/docs/guides/deployment/deploy-database-changes-with-prisma-migrate)
-- [Baseline Existing Databases](https://www.prisma.io/docs/guides/database/developing-with-prisma-migrate/add-prisma-migrate-to-a-project)
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitectura del sistema
-
----
-
-**¿Preguntas?** Revisa la sección de [Troubleshooting](#troubleshooting) o consulta los docs de Prisma.
-
+- [Kubernetes Init Containers](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
+- [INIT_CONTAINERS_SETUP.md](./INIT_CONTAINERS_SETUP.md) - Detalles de implementación

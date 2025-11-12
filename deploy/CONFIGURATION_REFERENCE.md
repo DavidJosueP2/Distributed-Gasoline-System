@@ -138,10 +138,33 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 |----------|-------|-------------|
 | `LOGGER_APP_NAME` | `LOGGER-SERVICE` | Nombre de registro en Eureka |
 | `LOGGER_GRPC_PORT` | `50058` | Puerto gRPC del servicio de logging |
+| `LOGGER_HTTP_PORT` | `3200` | Puerto HTTP del servicio de logging |
 | `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
 | `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
-#### 1.3.8 Hello Service (Opcional)
+#### 1.3.8 Routes Service
+
+| Variable | Valor | Descripción |
+|----------|-------|-------------|
+| `ROUTES_APP_NAME` | `ROUTES-SERVICE` | Nombre de registro en Eureka |
+| `ROUTES_GRPC_PORT` | `50056` | Puerto gRPC del servicio de rutas |
+| `ROUTES_DB_HOST` | `routes-db-postgresql` | Host de la base de datos de routes |
+| `ROUTES_DB_PORT` | `5432` | Puerto de la base de datos |
+| `ROUTES_DB_NAME` | `routes_db` | Nombre de la base de datos |
+| `ROUTES_DB_SYNCHRONIZE` | `false` | Sincronización automática de TypeORM (⚠️ SIEMPRE false en producción) |
+| `ROUTES_DB_LOGGING` | `false` | Logging de queries de TypeORM |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
+
+**Características del Routes Service:**
+- 🔄 Usa TypeORM como ORM
+- 📍 Gestiona rutas con coordenadas GPS (origen y destino)
+- 🚗 Maneja tipos de vehículos (LIVIANO, PESADO, CUALQUIERA)
+- 🚦 Gestiona viajes con estados (CREADO, EN_RUTA, EN_REVISION, TERMINADO)
+- 📊 Calcula distancias planificadas vs reales
+- ⛽ Estima y registra consumo de combustible
+
+#### 1.3.9 Hello Service (Opcional)
 
 | Variable | Valor | Descripción |
 |----------|-------|-------------|
@@ -167,6 +190,7 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | **Driver** | `driver-db-postgresql` | `5432` | `driver_db` | Datos de conductores y licencias |
 | **Users** | `users-db-postgresql` | `5432` | `users_db` | Usuarios y roles |
 | **Vehicles** | `vehicles-db-postgresql` | `5432` | `vehicles_db` | Vehículos y modelos |
+| **Routes** | `routes-db-postgresql` | `5432` | `routes_db` | Rutas y viajes |
 | **Vehicles Shadow** | `vehicles-shadow-db-postgresql` | `5432` | `vehicles_shadow_db` | DB temporal para migraciones de Prisma |
 
 **🔐 Credenciales**: Las credenciales de PostgreSQL se almacenan en secrets (ver sección 2.1).

@@ -79,6 +79,16 @@ function Deploy-Databases {
         --set primary.persistence.size=2Gi `
         --set primary.resources.requests.memory=256Mi `
         --set primary.resources.requests.cpu=100m
+
+    # Routes DB
+    helm install routes-db bitnami/postgresql `
+        --namespace fuel-system `
+        --set auth.username=postgres `
+        --set auth.password=root `
+        --set auth.database=routes_db `
+        --set primary.persistence.size=2Gi `
+        --set primary.resources.requests.memory=256Mi `
+        --set primary.resources.requests.cpu=100m
 }
 
 # Desplegar RabbitMQ
@@ -208,6 +218,7 @@ function Remove-Infrastructure {
     helm uninstall users-db -n fuel-system
     helm uninstall vehicles-db -n fuel-system
     helm uninstall vehicles-shadow-db -n fuel-system
+    helm uninstall routes-db -n fuel-system
     helm uninstall rabbitmq -n fuel-system
     helm uninstall elasticsearch -n fuel-system
     kubectl delete -f ./eureka-deployment.yaml -n fuel-system

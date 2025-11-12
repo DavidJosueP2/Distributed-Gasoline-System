@@ -47,6 +47,9 @@ jobs:
           - name: email-svc
             dockerfile: ./services/email-svc/Dockerfile
             needs_build_args: false
+          - name: fuel-svc
+            dockerfile: ./services/fuel-svc/Dockerfile
+            needs_build_args: false
           - name: logger-svc
             dockerfile: ./services/logger-svc/Dockerfile
             needs_build_args: false
@@ -174,6 +177,7 @@ jobs:
           echo "| 🔐 auth-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚗 driver-ms | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📧 email-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⛽ fuel-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📝 logger-svc | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📤 publisher-rabbit-srv | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚦 routes-srv | ${{ needs.build-and-push.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY

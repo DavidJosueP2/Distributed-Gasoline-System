@@ -71,11 +71,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Eliminar triggers si existen antes de crearlos (idempotencia)
+DROP TRIGGER IF EXISTS update_routes_updated_at ON routes;
 CREATE TRIGGER update_routes_updated_at
     BEFORE UPDATE ON routes
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_trips_updated_at ON trips;
 CREATE TRIGGER update_trips_updated_at
     BEFORE UPDATE ON trips
     FOR EACH ROW

@@ -123,7 +123,36 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 - Host: `vehicles-shadow-db-postgresql`
 - Nombre: `vehicles_shadow_db`
 
-#### 1.3.6 Email Service
+#### 1.3.6 Fuel Service (Orquestación)
+
+| Variable | Valor | Descripción |
+|----------|-------|-------------|
+| `FUEL_APP_NAME` | `FUEL-SERVICE` | Nombre de registro en Eureka |
+| `FUEL_GRPC_PORT` | `50054` | Puerto gRPC del servicio de combustible |
+| `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
+| `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
+
+**⚠️ NOTA IMPORTANTE**: Fuel Service es un **servicio de orquestación/agregación** y **NO tiene base de datos propia**.
+
+**Características del Fuel Service:**
+- 🎯 **Tipo**: Servicio de orquestación y agregación
+- 🚫 **NO tiene base de datos**: Coordina otros microservicios
+- 📡 **Comunicación gRPC**: Se comunica con otros servicios vía gRPC
+- 🔐 **Validación JWT**: Valida tokens para autorización
+- 🧩 **Lógica de negocio**: Implementa lógica de agregación de datos
+
+**Servicios que coordina:**
+- `vehicles-svc` - Información de vehículos y consumo
+- `routes-srv` - Información de rutas y viajes
+- `driver-ms` - Información de conductores
+- Otros servicios según la lógica de negocio
+
+**Archivos requeridos:**
+- ✅ Archivos `.proto` para comunicación gRPC (copiados en el Dockerfile)
+- ✅ NO requiere Init Containers (no hay migraciones)
+- ✅ NO requiere seeding (no hay base de datos)
+
+#### 1.3.7 Email Service
 
 | Variable | Valor | Descripción |
 |----------|-------|-------------|
@@ -132,7 +161,7 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
 | `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
-#### 1.3.7 Logger Service
+#### 1.3.8 Logger Service
 
 | Variable | Valor | Descripción |
 |----------|-------|-------------|
@@ -142,7 +171,7 @@ Todas las variables de configuración no sensibles se almacenan en el ConfigMap 
 | `JWT_SECRET` | *(desde secret)* | Secret para verificar tokens JWT en rutas protegidas |
 | `JWT_EXPIRES_IN` | `1h` | Tiempo de expiración de tokens JWT |
 
-#### 1.3.8 Routes Service
+#### 1.3.9 Routes Service
 
 | Variable | Valor | Descripción |
 |----------|-------|-------------|

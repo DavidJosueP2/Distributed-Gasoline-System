@@ -4,10 +4,9 @@ WORKDIR /app
 
 # Copiar archivos de dependencias
 COPY services/fuel-svc/package.json ./
-COPY services/fuel-svc/package-lock.json* ./
 
-# Instalar solo dependencias de producción (sintaxis actualizada para npm 9+)
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+# Instalar solo dependencias de producción
+RUN npm install --production --no-package-lock && npm cache clean --force
 
 # ===== STAGE 2: Build =====
 FROM node:20-alpine AS build
@@ -15,13 +14,12 @@ WORKDIR /app
 
 # Copiar archivos de dependencias y configuración
 COPY services/fuel-svc/package.json ./
-COPY services/fuel-svc/package-lock.json* ./
 COPY services/fuel-svc/tsconfig.json ./
 COPY services/fuel-svc/tsconfig.build.json ./
 COPY services/fuel-svc/nest-cli.json ./
 
 # Instalar todas las dependencias (incluidas dev)
-RUN npm ci --ignore-scripts
+RUN npm install --no-package-lock
 
 # Copiar código fuente
 COPY services/fuel-svc/src ./src
@@ -29,7 +27,7 @@ COPY services/fuel-svc/src ./src
 # Construir la aplicación
 RUN npm run build
 
-# Copiar todos los archivos .proto necesarios (CRÍTICO para gRPC)
+# Copiar todos los archivos .proto necesarios
 RUN mkdir -p ./protos
 COPY protos ./protos
 
@@ -46,7 +44,7 @@ COPY services/fuel-svc/package.json ./
 # Copiar dependencias de producción
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copiar archivos .proto (CRÍTICO para gRPC)
+# Copiar archivos .proto
 COPY --from=build /app/protos ./protos
 
 # Copiar código compilado

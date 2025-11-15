@@ -25,7 +25,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/general')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateGeneralReport(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
@@ -39,7 +39,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/vehicle-detail')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateVehicleDetailReport(
     @Query('vehicleType') vehicleType: VehicleType, // Este si corresponde al tipo de vehiculo espeardo
     @Req() req: any,
@@ -52,7 +52,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/vehicle-routes')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateVehicleRoutesReport(
     @Query('vehicleId') vehicleId: string,
     @Req() req: any,
@@ -79,7 +79,7 @@ export class FuelHttpController {
   }
 
   @Get('kpis')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateKPIs(@Req() req: any, @Query('status') status?: string) {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
@@ -89,7 +89,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/driver-ranking')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateDriverRankingReport(
     @Req() req: any,
     @Query('status') status?: string,
@@ -105,7 +105,7 @@ export class FuelHttpController {
   }
 
   @Get('drivers/:driverId/trips')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   getDriverTrips(@Param('driverId') driverId: string, @Req() req: any) {
     const driverIdNum = Number.parseInt(driverId, 10);
     if (Number.isNaN(driverIdNum)) {
@@ -120,7 +120,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/routes-summary')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateRoutesSummaryReport(@Req() req: any) {
     return from(this.svc(req)).pipe(
       switchMap((svc) =>
@@ -130,7 +130,7 @@ export class FuelHttpController {
   }
 
   @Get('routes/:routeId/trips')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   getRouteTripsDetail(@Param('routeId') routeId: string, @Req() req: any) {
     const routeIdNum = Number.parseInt(routeId, 10);
     if (Number.isNaN(routeIdNum)) {
@@ -145,7 +145,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/machinery-type')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateMachineryTypeReport(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
@@ -171,7 +171,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/driver-consumption')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateDriverConsumptionReport(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
@@ -197,7 +197,7 @@ export class FuelHttpController {
   }
 
   @Get('reports/routes-consumption')
-  @GrpcTimeout(10000)
+  @GrpcTimeout(30000)
   generateRoutesConsumptionReport(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,

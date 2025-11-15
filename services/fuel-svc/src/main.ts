@@ -13,9 +13,9 @@ import { registerInEureka } from './discovery/eureka-register';
 import { AppModule } from './fuel.module';
 
 async function bootstrap() {
-  const PORT = Number(process.env.FUEL_GRPC_PORT || 50053);
-  const BIND_HOST = process.env.FUEL_SERVICE_REGISTER_HOST || '0.0.0.0';
-  const PROTO_ROOT = join(__dirname, '../../../protos');
+  const PORT = Number(process.env.FUEL_GRPC_PORT || 50054);
+  const BIND_HOST = process.env.SERVICE_BIND_HOST || process.env.BIND_HOST || '0.0.0.0';
+  const PROTO_ROOT = process.env.PROTO_ROOT || process.env.PROTOS_DIR || join(__dirname, '../../../protos');
   const SHOULD_REGISTER =
     (process.env.DISCOVERY_MODE || '').toLowerCase() === 'eureka' ||
     (process.env.EUREKA_ENABLED || '').toLowerCase() === 'true';

@@ -455,6 +455,42 @@ services:
       retries: 5
       start_period: 30s
 
+  # ---------- Fuel Service (Orquestador) ----------
+  fuel-svc:
+    build:
+      context: .
+      dockerfile: ./services/fuel-svc/Dockerfile
+    container_name: fuel-fuel-svc
+    env_file: .env
+    environment:
+      - PROTO_ROOT=/app/protos
+      - PROTOS_DIR=/app/protos
+      - SERVICE_REGISTER_HOST=fuel-fuel-svc
+      - REGISTER_HOST=fuel-fuel-svc
+      - SERVICE_BIND_HOST=0.0.0.0
+      - BIND_HOST=0.0.0.0
+      - FUEL_GRPC_PORT=${FUEL_GRPC_PORT:-50054}
+    ports:
+      - "${FUEL_GRPC_PORT:-50054}:${FUEL_GRPC_PORT:-50054}"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      users-srv:
+        condition: service_healthy
+      vehicles-svc:
+        condition: service_healthy
+      driver-ms:
+        condition: service_healthy
+    networks:
+      - fuel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect({port:50054,host:'localhost'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   # ---------- Logger Service ----------
   logger-svc:
     build:

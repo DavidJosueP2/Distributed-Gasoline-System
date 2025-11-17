@@ -15,7 +15,7 @@ export class DriversGrpcController {
       const { createDto } = DriversGrpcMapper.mapCreateDataToDto(data);
       const drv = await this.service.create(createDto, metadata);
 
-      const response = DriversGrpcMapper.mapDriverToResponse(drv);
+      const response = DriversGrpcMapper.mapDriverToProto(drv);
 
       console.log('✅ Driver Created - Response:', JSON.stringify(response, null, 2));
       return response;
@@ -90,7 +90,7 @@ export class DriversGrpcController {
       console.log('🔍 Update Data:', updateDto);
 
       const updatedDriver = await this.service.update(driverId, updateDto, metadata);
-      const response = DriversGrpcMapper.mapDriverToResponse(updatedDriver);
+      const response = DriversGrpcMapper.mapDriverToProto(updatedDriver);
 
       console.log('✅ Driver Updated - Response:', JSON.stringify(response, null, 2));
       return response;

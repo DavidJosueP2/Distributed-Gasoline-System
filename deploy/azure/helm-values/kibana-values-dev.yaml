@@ -1,0 +1,57 @@
+# Kibana Configuration for Development Environment
+# Version: 7.17.3
+
+## Elasticsearch connection
+elasticsearchHosts: "http://elasticsearch-master:9200"
+
+## Image configuration
+imageTag: "7.17.3"
+imagePullPolicy: "IfNotPresent"
+
+## Protocol - HTTP without TLS
+protocol: "http"
+
+## Replicas
+replicas: 1
+
+## Resources - Optimized for development
+resources:
+  requests:
+    cpu: "50m"
+    memory: "256Mi"
+  limits:
+    cpu: "200m"
+    memory: "512Mi"
+
+## Service configuration
+service:
+  type: NodePort
+  port: 5601
+
+## Environment variables
+env:
+  - name: ELASTICSEARCH_HOSTS
+    value: "http://elasticsearch-master:9200"
+  - name: NODE_OPTIONS
+    value: "--max-old-space-size=128"
+
+## Health checks
+healthCheckPath: "/app/kibana"
+
+## Kibana configuration
+kibanaConfig:
+  kibana.yml: |
+    server.host: "0.0.0.0"
+    server.port: 5601
+    elasticsearch.hosts: ["http://elasticsearch-master:9200"]
+    elasticsearch.ssl.verificationMode: none
+
+## Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+## Security context
+securityContext:
+  runAsUser: 1000
+  runAsNonRoot: true
+

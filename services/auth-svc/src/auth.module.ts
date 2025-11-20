@@ -6,7 +6,7 @@ import { AuthController } from './auth.controller';
 import { DiscoveryModule } from './discovery/discovery.module';
 import { RolesGuard } from './common/auth/guards/jwt.roles.guard';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VerificationToken } from './entities/verification-token.entity';
 
@@ -17,26 +17,39 @@ import { VerificationToken } from './entities/verification-token.entity';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
-    // Prefer a full DATABASE URL if provided (works well with docker-compose and local mapped ports)
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.AUTH_DB_HOST || process.env.DB_HOST,
-      port: process.env.AUTH_DB_PORT ? Number.parseInt(process.env.AUTH_DB_PORT, 10) : 5432,
-      username: process.env.AUTH_DB_USER || process.env.DB_USERNAME,
-      password: process.env.AUTH_DB_PASS || process.env.DB_PASSWORD,
-      database: process.env.AUTH_DB_NAME || process.env.AUTH_DB || process.env.DB_NAME,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.DB_SYNCHRONIZE === 'true' || false,
-      // SSL Configuration for Azure PostgreSQL
-      ssl: process.env.DB_SSL === 'true' || process.env.DB_SSL_MODE === 'require'
-        ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
-        : false,
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        // SSL Configuration para Azure PostgreSQL
+        const sslEnabled = configService.get<string>('DB_SSL') === 'true' ||
+                           configService.get<string>('DB_SSL_MODE') === 'require' ||
+                           configService.get<string>('AUTH_DB_SSL_MODE') === 'require';
+
+        const sslRejectUnauthorized = configService.get<string>('DB_SSL_REJECT_UNAUTHORIZED') !== 'false';
+
+        return {
+          type: 'postgres' as const,
+          host: configService.get<string>('AUTH_DB_HOST') || configService.get<string>('DB_HOST', 'localhost'),
+          port: parseInt(configService.get<string>('AUTH_DB_PORT', '5432'), 10),
+          username: configService.get<string>('AUTH_DB_USER') || configService.get<string>('DB_USERNAME', 'postgres'),
+          password: configService.get<string>('AUTH_DB_PASS') || configService.get<string>('DB_PASSWORD', 'admin'),
+          database: configService.get<string>('AUTH_DB_NAME') || configService.get<string>('AUTH_DB') || configService.get<string>('DB_NAME', 'auth'),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true' || false,
+          logging: configService.get<string>('NODE_ENV') === 'development',
+          // SSL Configuration (OBLIGATORIO en Azure)
+          ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,
+        };
+      },
+      inject: [ConfigService],
     }),
     JwtModule.registerAsync({
-      useFactory: (): JwtModuleOptions => ({
-        secret: process.env.JWT_SECRET,
-        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN as any },
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService): JwtModuleOptions => ({
+        secret: configService.get<string>('JWT_SECRET', 'default-secret'),
+        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN', '1h') },
       }),
+      inject: [ConfigService],
     }),
     DiscoveryModule,
     // Provide the repository for VerificationToken so AuthService can inject it

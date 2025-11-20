@@ -16,7 +16,6 @@ name: Deploy to Azure AKS
 #         type: choice
 #         options:
 #           - production
-#           - staging
 #           - development
 
 env:
@@ -37,11 +36,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔧 Convert repository name to lowercase
+      - name: Convert repository name to lowercase
         id: repo_name
         run: |
           echo "repository_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Azure Login
         uses: azure/login@v1
@@ -58,12 +56,36 @@ jobs:
         run: |
           kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create GitHub Container Registry Secret
+      - name: Create Secrets
         run: |
-          kubectl create secret docker-registry ghcr-secret \
-            --docker-server=${{ env.REGISTRY }} \
-            --docker-username=${{ github.actor }} \
-            --docker-password=${{ secrets.GHCR_PAT }} \
+          # PostgreSQL Secret
+          # IMPORTANTE: El password debe coincidir con el de Azure PostgreSQL
+          # CRÍTICO: En Azure el username debe incluir el servidor
+          kubectl create secret generic fuel-system-postgresql \
+            --from-literal=username='${{ secrets.POSTGRES_USERNAME }}@fuel-system-postgres' \
+            --from-literal=password='${{ secrets.POSTGRES_PASSWORD }}' \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # RabbitMQ Secret
+          kubectl create secret generic fuel-system-rabbitmq \
+            --from-literal=username=admin \
+            --from-literal=password='${{ secrets.RABBITMQ_PASSWORD }}' \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # JWT Secret
+          kubectl create secret generic fuel-system-jwt \
+            --from-literal=secret='${{ secrets.JWT_SECRET }}' \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # SMTP Secret
+          kubectl create secret generic fuel-system-smtp \
+            --from-literal=host=smtp.gmail.com \
+            --from-literal=port=587 \
+            --from-literal=user='${{ secrets.SMTP_USER }}' \
+            --from-literal=password='${{ secrets.SMTP_PASSWORD }}' \
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
@@ -72,95 +94,148 @@ jobs:
         with:
           version: 'v3.13.0'
 
-      - name: Add Bitnami Helm Repository
-        run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo update
-
       - name: Get image tag
         id: image-tag
         run: |
-          # Usar el SHA corto del commit como tag
-          echo "tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          echo "tag=latest" >> $GITHUB_OUTPUT
+
+      - name: Deploy Eureka Server (if not exists)
+        run: |
+          if ! kubectl get deployment eureka-server -n ${{ env.NAMESPACE }} &> /dev/null; then
+            echo "Deploying Eureka Server (1 replica)..."
+            kubectl apply -f - <<EOF
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: eureka-server
+            namespace: ${{ env.NAMESPACE }}
+            labels:
+              app: eureka-server
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: eureka-server
+            template:
+              metadata:
+                labels:
+                  app: eureka-server
+              spec:
+                containers:
+                - name: eureka-server
+                  image: steeltoeoss/eureka-server:latest
+                  ports:
+                  - containerPort: 8761
+                    name: http
+                  resources:
+                    requests:
+                      memory: "512Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "1Gi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /actuator/health
+                      port: 8761
+                    initialDelaySeconds: 60
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /actuator/health
+                      port: 8761
+                    initialDelaySeconds: 30
+                    periodSeconds: 5
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: eureka-server
+            namespace: ${{ env.NAMESPACE }}
+            labels:
+              app: eureka-server
+          spec:
+            type: ClusterIP
+            ports:
+            - port: 8761
+              targetPort: 8761
+              protocol: TCP
+              name: http
+            selector:
+              app: eureka-server
+          EOF
+            echo "Waiting for Eureka to be ready..."
+            kubectl wait --for=condition=ready pod -l app=eureka-server -n ${{ env.NAMESPACE }} --timeout=180s || true
+          else
+            echo "Eureka Server already exists, skipping..."
+          fi
 
       - name: Deploy with Helm
         run: |
           helm upgrade --install fuel-system ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} \
             --create-namespace \
+            --values ${{ env.HELM_CHART_PATH }}/values.yaml \
+            --values ./deploy/azure/values-azure.yaml \
             --set imageRegistry.url=${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system \
-            --set global.imagePullSecrets[0]=ghcr-secret \
             --set global.imageTag=${{ steps.image-tag.outputs.tag }} \
-            --set postgresql.external.enabled=true \
-            --set postgresql.external.host=${{ secrets.POSTGRES_HOST }} \
+            --set postgresql.external.hosts.auth=${{ secrets.POSTGRES_HOST }} \
+            --set postgresql.external.hosts.driver=${{ secrets.POSTGRES_HOST }} \
+            --set postgresql.external.hosts.users=${{ secrets.POSTGRES_HOST }} \
+            --set postgresql.external.hosts.vehicles=${{ secrets.POSTGRES_HOST }} \
+            --set postgresql.external.hosts.vehiclesShadow=${{ secrets.POSTGRES_HOST }} \
+            --set postgresql.external.hosts.routes=${{ secrets.POSTGRES_HOST }} \
             --set postgresql.external.username=${{ secrets.POSTGRES_USERNAME }} \
-            --set postgresql.external.password=${{ secrets.POSTGRES_PASSWORD }} \
-            --set postgresql.external.sslMode=require \
-            --set secrets.postgresql.username=${{ secrets.POSTGRES_USERNAME }} \
-            --set secrets.postgresql.password=${{ secrets.POSTGRES_PASSWORD }} \
-            --set secrets.rabbitmq.username=admin \
-            --set secrets.rabbitmq.password=${{ secrets.RABBITMQ_PASSWORD }} \
-            --set secrets.jwt.secret=${{ secrets.JWT_SECRET }} \
-            --set secrets.smtp.host=smtp.gmail.com \
-            --set secrets.smtp.port=587 \
-            --set secrets.smtp.user=${{ secrets.SMTP_USER }} \
-            --set secrets.smtp.password=${{ secrets.SMTP_PASSWORD }} \
-            --set ingress.hosts[0].host=${{ secrets.DOMAIN_NAME }} \
-            --set ingress.tls[0].hosts[0]=${{ secrets.DOMAIN_NAME }} \
-            --timeout 10m \
-            --wait
+            --set postgresql.external.password='${{ secrets.POSTGRES_PASSWORD }}' \
+            --timeout 15m \
+            --wait \
+            --debug
 
       - name: Verify Deployment
         run: |
+          echo "Checking pods status..."
           kubectl get pods -n ${{ env.NAMESPACE }}
+          
+          echo "Checking services..."
           kubectl get services -n ${{ env.NAMESPACE }}
-          kubectl get ingress -n ${{ env.NAMESPACE }}
-
-      - name: Run Database Migrations
-        run: |
-          # Esperar a que los pods estén listos
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=users-service -n ${{ env.NAMESPACE }} --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=vehicles-service -n ${{ env.NAMESPACE }} --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=driver-service -n ${{ env.NAMESPACE }} --timeout=300s || true
           
-          # Ejecutar migraciones de Prisma
-          echo "Running Prisma migrations for users-service..."
-          kubectl exec -n ${{ env.NAMESPACE }} deployment/fuel-system-users-service -- npx prisma migrate deploy || true
-          
-          echo "Running Prisma migrations for vehicles-service..."
-          kubectl exec -n ${{ env.NAMESPACE }} deployment/fuel-system-vehicles-service -- npx prisma migrate deploy || true
-          
-          # Ejecutar migraciones de TypeORM
-          echo "Running TypeORM migrations for driver-ms..."
-          kubectl exec -n ${{ env.NAMESPACE }} deployment/fuel-system-driver-service -- npm run typeorm:migrate || true
+          echo "Checking ingress..."
+          kubectl get ingress -n ${{ env.NAMESPACE }} || echo "No ingress found"
 
       - name: Get Application URL
         run: |
-          echo "Application deployed successfully!"
           echo "Getting LoadBalancer IP..."
-          kubectl get service fuel-system-api-gateway -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}' || echo "LoadBalancer IP not available yet"
+          INGRESS_IP=$(kubectl get service ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "Not available")
+          echo "Application URL: http://$INGRESS_IP"
+          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
 
       - name: Deployment Summary
         if: always()
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry:** GitHub Container Registry (GHCR)" >> $GITHUB_STEP_SUMMARY
-          echo "**Images from:** \`${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.repository_lc }}/fuel-system" >> $GITHUB_STEP_SUMMARY
           echo "**Image Tag:** \`${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**PostgreSQL:** \`${{ secrets.POSTGRES_HOST }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Eureka Replicas:** 1" >> $GITHUB_STEP_SUMMARY
+          echo "**Application URL:** http://${{ env.INGRESS_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pods Status" >> $GITHUB_STEP_SUMMARY
-          kubectl get pods -n ${{ env.NAMESPACE }} -o wide >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Services" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           kubectl get services -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Notify Deployment Status
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deployment to Azure AKS completed successfully!"
+            echo "Deployment to Azure AKS completed successfully!"
           else
-            echo "❌ Deployment to Azure AKS failed!"
+            echo "Deployment to Azure AKS failed!"
             exit 1
           fi

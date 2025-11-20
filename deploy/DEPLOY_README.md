@@ -2,7 +2,7 @@
 
 ## 📋 Resumen Ejecutivo
 
-Sistema completamente automatizado con **GitHub Actions** para build, push a ACR y deploy a AKS.
+Sistema completamente automatizado con **GitHub Actions** para build, push a GHCR y deploy a AKS.
 
 ## 🎯 Flujo Completo
 
@@ -13,10 +13,7 @@ Developer                GitHub Actions           Azure
    ├─────────────────────────►│                     │
    │                          │                     │
    │                          │ Build 9 imágenes    │
-   │                          │ contexto raíz (.)   │
-   │                          │                     │
-   │                          │ Push a ACR          │
-   │                          ├────────────────────►│
+   │                          │ Push a GHCR         │
    │                          │                     │
    │                          │ Deploy con Helm     │
    │                          ├────────────────────►│
@@ -33,39 +30,46 @@ Developer                GitHub Actions           Azure
 ```bash
 # Variables
 RESOURCE_GROUP="fuel-system-rg"
-ACR_NAME="fuelsystemacr"
+LOCATION="northcentralus"
 AKS_NAME="fuel-system-aks"
 POSTGRES_SERVER="fuel-system-postgres"
 
 # 1. Resource Group
-az group create --name $RESOURCE_GROUP --location eastus
+az group create --name $RESOURCE_GROUP --location $LOCATION
 
-# 2. Azure Container Registry
-az acr create \
-  --resource-group $RESOURCE_GROUP \
-  --name $ACR_NAME \
-  --sku Standard \
-  --admin-enabled true
-
-# 3. AKS Cluster
+# 2. AKS Cluster
 az aks create \
   --resource-group $RESOURCE_GROUP \
   --name $AKS_NAME \
   --node-count 3 \
   --node-vm-size Standard_D2s_v3 \
   --enable-managed-identity \
-  --generate-ssh-keys \
-  --attach-acr $ACR_NAME
+  --generate-ssh-keys
 
-# 4. PostgreSQL Flexible Server
+# 3. PostgreSQL Flexible Server con HA
 az postgres flexible-server create \
   --resource-group $RESOURCE_GROUP \
   --name $POSTGRES_SERVER \
-  --location eastus \
+  --location $LOCATION \
   --admin-user pgadmin \
-  --admin-password <PASSWORD_SEGURO> \
-  --sku-name Standard_D2s_v3 \
-  --version 16
+  --admin-password FuelSystem2024@Secure \
+  --version 17 \
+  --tier GeneralPurpose \
+  --sku-name Standard_D4ads_v5 \
+  --high-availability SameZone \
+  --storage-size 128 \
+  --backup-retention 7 \
+  --geo-redundant-backup Disabled \
+  --public-access 0.0.0.0-255.255.255.255
+
+# 4. Réplica de Lectura
+az postgres flexible-server replica create \
+  --replica-name fuel-system-postgres-read \
+  --resource-group $RESOURCE_GROUP \
+  --source-server $POSTGRES_SERVER \
+  --location $LOCATION \
+  --tier GeneralPurpose \
+  --sku-name Standard_D4ads_v5
 
 # 5. Firewall para Azure Services
 az postgres flexible-server firewall-rule create \
@@ -76,7 +80,7 @@ az postgres flexible-server firewall-rule create \
   --end-ip-address 0.0.0.0
 
 # 6. Crear bases de datos
-for DB in auth_db driver_db users_db vehicles_db vehicles_shadow_db; do
+for DB in auth_db driver_db users_db vehicles_db vehicles_shadow_db routes_db; do
   az postgres flexible-server db create \
     --resource-group $RESOURCE_GROUP \
     --server-name $POSTGRES_SERVER \
@@ -87,13 +91,6 @@ done
 ### 2. Obtener Credenciales
 
 ```bash
-# ACR
-az acr credential show --name $ACR_NAME
-# Guarda: username y password
-
-# ACR Login Server
-az acr show --name $ACR_NAME --query loginServer -o tsv
-
 # Service Principal para GitHub Actions
 az ad sp create-for-rbac \
   --name "fuel-system-github-actions" \
@@ -108,15 +105,13 @@ az ad sp create-for-rbac \
 Ve a: **GitHub Repo → Settings → Secrets → Actions → New repository secret**
 
 ```
-ACR_LOGIN_SERVER        # fuelsystemacr.azurecr.io
-ACR_USERNAME            # Del paso anterior
-ACR_PASSWORD            # Del paso anterior
 AZURE_CREDENTIALS       # JSON completo del service principal
 AKS_CLUSTER_NAME        # fuel-system-aks
 AKS_RESOURCE_GROUP      # fuel-system-rg
 POSTGRES_HOST           # fuel-system-postgres.postgres.database.azure.com
+POSTGRES_READ_HOST      # fuel-system-postgres-read.postgres.database.azure.com
 POSTGRES_USERNAME       # pgadmin
-POSTGRES_PASSWORD       # Tu password
+POSTGRES_PASSWORD       # FuelSystem2024@Secure
 JWT_SECRET              # openssl rand -base64 32
 SMTP_USER               # tu-email@gmail.com
 SMTP_PASSWORD           # App password de Gmail
@@ -126,7 +121,7 @@ DOMAIN_NAME (opcional)  # Para ingress
 
 ## 🚀 Despliegue
 
-### Opción 1: Automático (Solo Build a ACR - Actual)
+### Opción 1: Automático (Solo Build a GHCR - Actual)
 
 ```bash
 git add .
@@ -136,7 +131,7 @@ git push origin main
 
 **Resultado:**
 - ✅ Build de 9 imágenes Docker
-- ✅ Push a ACR con tags `latest` y `main-{sha}`
+- ✅ Push a GHCR con tags `latest` y `main-{sha}`
 - ❌ Deploy a AKS (deshabilitado temporalmente)
 
 ### Opción 2: Completo con Deploy (Futuro)
@@ -160,7 +155,7 @@ git push origin main
 
 **Resultado:**
 - ✅ Build de 9 imágenes
-- ✅ Push a ACR
+- ✅ Push a GHCR
 - ✅ Deploy automático a AKS
 - ✅ Migraciones de DB
 - ✅ Verificación de pods
@@ -199,20 +194,35 @@ kubectl get services -n fuel-system
 kubectl get service fuel-system-api-gateway -n fuel-system
 
 # Ver logs de un pod
-kubectl logs -f <pod-name> -n fuel-system
+kubectl logs <pod-name> -n fuel-system
 
-# Ver estado de autoscaling
-kubectl get hpa -n fuel-system
+# Verificar conexión a PostgreSQL desde un pod
+kubectl exec -it <pod-name> -n fuel-system -- sh
+# Dentro del pod:
+psql "host=fuel-system-postgres.postgres.database.azure.com port=5432 dbname=auth_db user=pgadmin password=FuelSystem2024@Secure sslmode=require"
 ```
 
-### Probar el API
+## 📝 Notas Importantes
+
+### Configuración de PostgreSQL
+
+- **Version**: PostgreSQL 17
+- **Tier**: GeneralPurpose
+- **SKU**: Standard_D4ads_v5 (4 vCores, 16 GB RAM)
+- **Storage**: 128 GB
+- **HA**: Same-Zone (failover automático)
+- **Réplica**: fuel-system-postgres-read (para queries SELECT)
+- **SSL**: Requerido (sslmode=require)
+- **Costo**: ~$638/mes (primario + réplica)
+
+### Connection Strings
 
 ```bash
-# Obtener IP
-GATEWAY_IP=$(kubectl get service fuel-system-api-gateway -n fuel-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+# Primario (escritura)
+postgresql://pgadmin:FuelSystem2024@Secure@fuel-system-postgres.postgres.database.azure.com:5432/auth_db?sslmode=require
 
-# Health check
-curl http://$GATEWAY_IP:8080/health
+# Réplica (lectura)
+postgresql://pgadmin:FuelSystem2024@Secure@fuel-system-postgres-read.postgres.database.azure.com:5432/auth_db?sslmode=require
 ```
 
 ## 🔥 Troubleshooting
@@ -302,4 +312,3 @@ helm rollback fuel-system <revision> -n fuel-system
 ---
 
 **¡El sistema está listo para despliegue!** 🚀
-

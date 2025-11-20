@@ -1,0 +1,96 @@
+## Global parameters
+global:
+  storageClass: "managed-csi"
+  security:
+    allowInsecureImages: true
+
+## RabbitMQ Authentication
+auth:
+  username: admin
+  password: "FuelRabbit2024!Secure"
+  erlangCookie: "secreterlangcookie123456789012"
+
+## Image - Usar imagen legacy gratuita
+image:
+  registry: docker.io
+  repository: bitnamilegacy/rabbitmq
+  tag: 3.13.7-debian-12-r4
+
+## Clustering
+replicaCount: 3
+
+## Persistence
+persistence:
+  enabled: true
+  storageClass: "managed-csi"
+  accessMode: ReadWriteOnce
+  size: 50Gi
+
+## Volume Permissions - Requerido para imagen legacy
+volumePermissions:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/os-shell
+    tag: 12-debian-12-r50
+
+## Resources
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+## Service Configuration
+service:
+  type: ClusterIP
+  port: 5672
+  managerPort: 15672
+
+## Metrics
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+## Plugins
+plugins: "rabbitmq_management rabbitmq_peer_discovery_k8s"
+
+## Community plugins
+communityPlugins: ""
+
+## Clustering configuration
+clustering:
+  enabled: true
+  addressType: hostname
+  rebalance: false
+
+## Load balancer
+loadBalancer:
+  enabled: true
+  type: ClusterIP
+
+## Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - rabbitmq
+          topologyKey: kubernetes.io/hostname
+
+## Network Policy
+networkPolicy:
+  enabled: false
+
+## Pod Disruption Budget
+pdb:
+  create: true
+  minAvailable: 2

@@ -32,8 +32,13 @@ spec:
           - |
             set -e
             echo "🔄 Waiting for auth database to be ready..."
+            {{- $sslMode := .Values.postgresql.external.sslMode | default "disable" }}
             for i in $(seq 1 30); do
+              {{- if eq $sslMode "require" }}
+              if PGPASSWORD="${AUTH_DB_PASS}" psql "sslmode=require host=${AUTH_DB_HOST} port=${AUTH_DB_PORT} user=${AUTH_DB_USER} dbname=${AUTH_DB_NAME}" -c '\q' 2>/dev/null; then
+              {{- else }}
               if PGPASSWORD="${AUTH_DB_PASS}" psql -h "${AUTH_DB_HOST}" -p "${AUTH_DB_PORT}" -U "${AUTH_DB_USER}" -d "${AUTH_DB_NAME}" -c '\q' 2>/dev/null; then
+              {{- end }}
                 echo "✅ Auth database is ready!"
                 exit 0
               fi
@@ -197,6 +202,12 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: AUTH_DB_NAME
+        # Alias para compatibilidad
+        - name: AUTH_DB
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_NAME
 
         # Variables sin prefijo (para compatibilidad con TypeORM)
         # 🔑 CRÍTICO: Usar AUTH_DB_HOST del ConfigMap, no POSTGRESQL_HOST
@@ -238,6 +249,20 @@ spec:
           value: "false"
         - name: DB_LOGGING
           value: "false"
+
+        # ========== SSL Configuration (OBLIGATORIO en Azure) ==========
+        - name: DB_SSL
+          value: {{ if eq .Values.postgresql.external.sslMode "require" }}"true"{{ else }}"false"{{ end }}
+        - name: DB_SSL_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: AUTH_DB_SSL_MODE
+        - name: DB_SSL_REJECT_UNAUTHORIZED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" . }}-config
+              key: POSTGRESQL_SSL_REJECT_UNAUTHORIZED
 
         resources:
           {{- toYaml .Values.authService.resources | nindent 10 }}

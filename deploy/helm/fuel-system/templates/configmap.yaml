@@ -71,6 +71,10 @@ data:
   {{- end }}
   POSTGRESQL_PORT: {{ .Values.postgresql.external.port | default "5432" | quote }}
   
+  # SSL Configuration (OBLIGATORIO en Azure)
+  POSTGRESQL_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  POSTGRESQL_SSL_REJECT_UNAUTHORIZED: {{ .Values.postgresql.external.sslRejectUnauthorized | default "false" | quote }}
+
   # PostgreSQL - Database specific hosts (para local con múltiples instancias)
   {{- if .Values.postgresql.external.enabled }}
   {{- if .Values.postgresql.external.hosts }}
@@ -99,6 +103,13 @@ data:
   USERS_DB_NAME: {{ .Values.postgresql.external.databases.users | default "users_db" | quote }}
   VEHICLES_DB_NAME: {{ .Values.postgresql.external.databases.vehicles | default "vehicles_db" | quote }}
   ROUTES_DB_NAME: {{ .Values.postgresql.external.databases.routes | default "routes_db" | quote }}
+
+  # SSL Mode por base de datos (todas usan el mismo)
+  AUTH_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  DRIVER_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  USERS_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  VEHICLES_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  ROUTES_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
 
   # TypeORM Configuration (para driver-ms y routes-srv)
   DRIVER_DB_SYNCHRONIZE: "false"

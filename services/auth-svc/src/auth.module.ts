@@ -45,10 +45,15 @@ import { VerificationToken } from './entities/verification-token.entity';
     }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService): JwtModuleOptions => ({
-        secret: configService.get<string>('JWT_SECRET', 'default-secret'),
-        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN', '1h') },
-      }),
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN', '1h');
+        return {
+          secret: configService.get<string>('JWT_SECRET', 'default-secret'),
+          signOptions: {
+            expiresIn: expiresIn as any, // Cast explícito para TypeScript
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     DiscoveryModule,

@@ -35,7 +35,7 @@ $KUBERNETES_VERSION = "1.33.2"
 
 # Configuración de Desarrollo
 $AKS_NODE_COUNT_DEV = 1
-$AKS_NODE_SIZE_DEV = "Standard_B2s"  # 2 vCPU, 4GB RAM
+$AKS_NODE_SIZE_DEV = "Standard_B2as_v2"  # 2 vCPU, 4GB RAM
 $AKS_MIN_NODES_DEV = 1
 $AKS_MAX_NODES_DEV = 2
 
@@ -81,7 +81,7 @@ export KUBERNETES_VERSION="1.33.2"
 
 # Configuración de Desarrollo
 export AKS_NODE_COUNT_DEV=1
-export AKS_NODE_SIZE_DEV="Standard_B2s"
+export AKS_NODE_SIZE_DEV="Standard_B2as_v2"
 export AKS_MIN_NODES_DEV=1
 export AKS_MAX_NODES_DEV=2
 
@@ -188,7 +188,7 @@ az aks create \
   --name $AKS_NAME \
   --location $LOCATION \
   --node-count 1 \
-  --node-vm-size Standard_B2s \
+  --node-vm-size Standard_B2as_v2 \
   --kubernetes-version 1.33.2 \
   --enable-managed-identity \
   --enable-cluster-autoscaler \

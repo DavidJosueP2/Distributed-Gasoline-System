@@ -6,7 +6,7 @@ import { AuthController } from './auth.controller';
 import { DiscoveryModule } from './discovery/discovery.module';
 import { RolesGuard } from './common/auth/guards/jwt.roles.guard';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VerificationToken } from './entities/verification-token.entity';
 
@@ -17,22 +17,44 @@ import { VerificationToken } from './entities/verification-token.entity';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
-    // Prefer a full DATABASE URL if provided (works well with docker-compose and local mapped ports)
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.AUTH_DB_HOST,
-      port: process.env.AUTH_DB_PORT ? Number.parseInt(process.env.AUTH_DB_PORT, 10) : 5432,
-      username: process.env.AUTH_DB_USER,
-      password: process.env.AUTH_DB_PASS,
-      database: process.env.AUTH_DB,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true, // solo para desarrollo
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        // SSL Configuration para Azure PostgreSQL
+        const sslEnabled = configService.get<string>('DB_SSL') === 'true' ||
+                           configService.get<string>('DB_SSL_MODE') === 'require' ||
+                           configService.get<string>('AUTH_DB_SSL_MODE') === 'require';
+
+        const sslRejectUnauthorized = configService.get<string>('DB_SSL_REJECT_UNAUTHORIZED') !== 'false';
+
+        return {
+          type: 'postgres' as const,
+          host: configService.get<string>('AUTH_DB_HOST') || configService.get<string>('DB_HOST', 'localhost'),
+          port: parseInt(configService.get<string>('AUTH_DB_PORT', '5432'), 10),
+          username: configService.get<string>('AUTH_DB_USER') || configService.get<string>('DB_USERNAME', 'postgres'),
+          password: configService.get<string>('AUTH_DB_PASS') || configService.get<string>('DB_PASSWORD', 'admin'),
+          database: configService.get<string>('AUTH_DB_NAME') || configService.get<string>('AUTH_DB') || configService.get<string>('DB_NAME', 'auth'),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true' || false,
+          logging: configService.get<string>('NODE_ENV') === 'development',
+          // SSL Configuration (OBLIGATORIO en Azure)
+          ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,
+        };
+      },
+      inject: [ConfigService],
     }),
     JwtModule.registerAsync({
-      useFactory: (): JwtModuleOptions => ({
-        secret: process.env.JWT_SECRET,
-        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN as any },
-      }),
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN', '1h');
+        return {
+          secret: configService.get<string>('JWT_SECRET', 'default-secret'),
+          signOptions: {
+            expiresIn: expiresIn as any, // Cast explícito para TypeScript
+          },
+        };
+      },
+      inject: [ConfigService],
     }),
     DiscoveryModule,
     // Provide the repository for VerificationToken so AuthService can inject it

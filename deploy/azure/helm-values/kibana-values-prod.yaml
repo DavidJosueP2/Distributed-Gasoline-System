@@ -1,0 +1,77 @@
+# Kibana Configuration for Production Environment
+# Version: 7.17.3
+
+## Elasticsearch connection
+elasticsearchHosts: "http://elasticsearch-master:9200"
+
+## Image configuration
+imageTag: "7.17.3"
+imagePullPolicy: "IfNotPresent"
+
+## Protocol - HTTP without TLS
+protocol: "http"
+
+## Replicas - High availability
+replicas: 2
+
+## Resources - Production grade
+resources:
+  requests:
+    cpu: "200m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 5601
+
+## Environment variables
+env:
+  - name: ELASTICSEARCH_HOSTS
+    value: "http://elasticsearch-master:9200"
+  - name: NODE_OPTIONS
+    value: "--max-old-space-size=256"
+
+## Health checks
+healthCheckPath: "/app/kibana"
+
+## Kibana configuration
+kibanaConfig:
+  kibana.yml: |
+    server.host: "0.0.0.0"
+    server.port: 5601
+    server.name: "kibana-fuel-system"
+    elasticsearch.hosts: ["http://elasticsearch-master:9200"]
+    elasticsearch.ssl.verificationMode: none
+    logging.verbose: false
+
+## Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+## Security context
+securityContext:
+  runAsUser: 1000
+  runAsNonRoot: true
+
+## Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+## Affinity - Spread across nodes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - kibana
+          topologyKey: kubernetes.io/hostname

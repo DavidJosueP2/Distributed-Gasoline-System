@@ -20,7 +20,7 @@ export const getTypeOrmConfig = (
   return {
     type: 'postgres',
     host: configService.get<string>('DRIVER_DB_HOST') || configService.get<string>('DB_HOST', 'localhost'),
-    port: configService.get<number>('DRIVER_DB_PORT') || configService.get<number>('DB_PORT') || configService.get<number>('POSTGRES_PORT', 5438),
+    port: parseInt(configService.get<string>('DRIVER_DB_PORT') || configService.get<string>('DB_PORT') || configService.get<string>('POSTGRES_PORT', '5438'), 10),
     username: configService.get<string>('DRIVER_DB_USER') || configService.get<string>('DB_USERNAME', 'postgres'),
     password: configService.get<string>('DRIVER_DB_PASS') || configService.get<string>('DB_PASSWORD', 'admin'),
     database: configService.get<string>('DRIVER_DB_NAME') || configService.get<string>('DB_NAME', 'drivers'),

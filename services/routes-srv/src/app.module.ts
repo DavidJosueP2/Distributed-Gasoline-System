@@ -18,14 +18,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
         return {
           type: 'postgres' as const,
-          host: configService.get('ROUTES_DB_HOST') || configService.get('DB_HOST', 'localhost'),
-          port: configService.get('ROUTES_DB_PORT') || configService.get('DB_PORT', 5500),
-          username: configService.get('ROUTES_DB_USER') || configService.get('DB_USERNAME', 'postgres'),
-          password: configService.get('ROUTES_DB_PASS') || configService.get('DB_PASSWORD', 'admin'),
-          database: configService.get('ROUTES_DB_NAME') || configService.get('DB_NAME', 'routes'),
+          host: configService.get<string>('ROUTES_DB_HOST') || configService.get<string>('DB_HOST', 'localhost'),
+          port: parseInt(configService.get<string>('ROUTES_DB_PORT') || configService.get<string>('DB_PORT', '5500'), 10),
+          username: configService.get<string>('ROUTES_DB_USER') || configService.get<string>('DB_USERNAME', 'postgres'),
+          password: configService.get<string>('ROUTES_DB_PASS') || configService.get<string>('DB_PASSWORD', 'admin'),
+          database: configService.get<string>('ROUTES_DB_NAME') || configService.get<string>('DB_NAME', 'routes'),
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: configService.get('ROUTES_DB_SYNCHRONIZE') === 'true' || false,
-          logging: configService.get('ROUTES_DB_LOGGING') === 'true' || configService.get('NODE_ENV') === 'development',
+          synchronize: configService.get<string>('ROUTES_DB_SYNCHRONIZE') === 'true' || false,
+          logging: configService.get<string>('ROUTES_DB_LOGGING') === 'true' || configService.get<string>('NODE_ENV') === 'development',
           // SSL Configuration (OBLIGATORIO en Azure)
           ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,
         };

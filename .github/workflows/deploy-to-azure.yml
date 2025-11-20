@@ -1,22 +1,22 @@
 name: Deploy to Azure AKS
 
-on:
-  workflow_run:
-    workflows: ["Build and Push Docker Images"]
-    types:
-      - completed
-    branches:
-      - main
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - development
+# on:
+#   workflow_run:
+#     workflows: ["Build and Push Docker Images"]
+#     types:
+#       - completed
+#     branches:
+#       - main
+#   workflow_dispatch:
+#     inputs:
+#       environment:
+#         description: 'Environment to deploy'
+#         required: true
+#         default: 'production'
+#         type: choice
+#         options:
+#           - production
+#           - development
 
 env:
   AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}

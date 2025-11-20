@@ -35,7 +35,7 @@ $LOCATION = "northcentralus"
 # Variables para PostgreSQL con HA (Producción)
 $POSTGRES_SERVER = "fuel-system-postgres"
 $POSTGRES_ADMIN_USER = "pgadmin"
-$POSTGRES_ADMIN_PASSWORD = "FuelSystem2024@Secure"  # Contraseña en uso
+$POSTGRES_ADMIN_PASSWORD = "FuelSystem2024!Secure"  # Contraseña en uso
 $POSTGRES_VERSION = "17"
 $POSTGRES_SKU = "Standard_D4ads_v5"  # 4 vCores, 16 GB RAM
 $POSTGRES_TIER = "GeneralPurpose"  # Tier de producción
@@ -65,7 +65,7 @@ export LOCATION="northcentralus"
 # Variables para PostgreSQL con HA (Producción)
 export POSTGRES_SERVER="fuel-system-postgres"
 export POSTGRES_ADMIN_USER="pgadmin"
-export POSTGRES_ADMIN_PASSWORD="FuelSystem2024@Secure"  # Contraseña en uso
+export POSTGRES_ADMIN_PASSWORD="FuelSystem2024!Secure"  # Contraseña en uso
 export POSTGRES_VERSION="17"
 export POSTGRES_SKU="Standard_D4ads_v5"  # 4 vCores, 16 GB RAM
 export POSTGRES_TIER="GeneralPurpose"  # Tier de producción
@@ -422,7 +422,7 @@ brew install postgresql@17
 sudo apt-get install postgresql-client-17
 
 # Conectar a la base de datos
-psql "host=fuel-system-postgres.postgres.database.azure.com port=5432 dbname=auth_db user=pgadmin password=FuelSystem2024@Secure sslmode=require"
+psql "host=fuel-system-postgres.postgres.database.azure.com port=5432 dbname=auth_db user=pgadmin password=FuelSystem2024!Secure sslmode=require"
 
 # Si la conexión es exitosa, verás:
 # auth_db=>
@@ -441,7 +441,7 @@ SELECT * FROM pg_stat_replication;
 
 ```bash
 # Conectar a la réplica de lectura
-psql "host=fuel-system-postgres-read.postgres.database.azure.com port=5432 dbname=auth_db user=pgadmin password=FuelSystem2024@Secure sslmode=require"
+psql "host=fuel-system-postgres-read.postgres.database.azure.com port=5432 dbname=auth_db user=pgadmin password=FuelSystem2024!Secure sslmode=require"
 
 # En la réplica, SOLO puedes ejecutar consultas SELECT
 # Intentar INSERT/UPDATE/DELETE dará error
@@ -464,7 +464,7 @@ Actualiza `test-postgres-connection.ps1`:
 $POSTGRES_PRIMARY_HOST = "fuel-system-postgres.postgres.database.azure.com"
 $POSTGRES_READ_HOST = "fuel-system-postgres-read.postgres.database.azure.com"
 $POSTGRES_USER = "pgadmin"
-$POSTGRES_PASSWORD = "FuelSystem2024@Secure"
+$POSTGRES_PASSWORD = "FuelSystem2024!Secure"
 $DATABASES = @("auth_db", "driver_db", "users_db", "vehicles_db", "vehicles_shadow_db", "routes_db")
 
 Write-Host "🔍 Testing PostgreSQL connections (Primary + Read Replica)..." -ForegroundColor Cyan
@@ -524,7 +524,7 @@ Write-Host "`n✅ Testing complete!" -ForegroundColor Cyan
 DB_HOST=fuel-system-postgres.postgres.database.azure.com
 DB_PORT=5432
 DB_USERNAME=pgadmin
-DB_PASSWORD=FuelSystem2024@Secure
+DB_PASSWORD=FuelSystem2024!Secure
 DB_NAME=auth_db  # Cambiar según el servicio
 DB_SSL_MODE=require
 
@@ -532,13 +532,13 @@ DB_SSL_MODE=require
 DB_READ_HOST=fuel-system-postgres-read.postgres.database.azure.com
 DB_READ_PORT=5432
 DB_READ_USERNAME=pgadmin
-DB_READ_PASSWORD=FuelSystem2024@Secure
+DB_READ_PASSWORD=FuelSystem2024!Secure
 
 # Connection String Completo (Primario)
-postgresql://pgadmin:FuelSystem2024@Secure@fuel-system-postgres.postgres.database.azure.com:5432/auth_db?sslmode=require
+postgresql://pgadmin:FuelSystem2024!Secure@fuel-system-postgres.postgres.database.azure.com:5432/auth_db?sslmode=require
 
 # Connection String Completo (Réplica)
-postgresql://pgadmin:FuelSystem2024@Secure@fuel-system-postgres-read.postgres.database.azure.com:5432/auth_db?sslmode=require
+postgresql://pgadmin:FuelSystem2024!Secure@fuel-system-postgres-read.postgres.database.azure.com:5432/auth_db?sslmode=require
 ```
 
 ### Agregar a GitHub Secrets
@@ -549,7 +549,7 @@ Ve a GitHub: **Settings → Secrets → Actions**
 POSTGRES_HOST=fuel-system-postgres.postgres.database.azure.com
 POSTGRES_READ_HOST=fuel-system-postgres-read.postgres.database.azure.com
 POSTGRES_USERNAME=pgadmin
-POSTGRES_PASSWORD=FuelSystem2024@Secure
+POSTGRES_PASSWORD=FuelSystem2024!Secure
 ```
 
 ---
@@ -593,7 +593,7 @@ az postgres flexible-server show \
 
 ```bash
 # Conectar a la base de datos
-psql "host=fuel-system-postgres.postgres.database.azure.com port=5432 dbname=auth_db user=pgadmin password=FuelSystem2024@Secure sslmode=require"
+psql "host=fuel-system-postgres.postgres.database.azure.com port=5432 dbname=auth_db user=pgadmin password=FuelSystem2024!Secure sslmode=require"
 
 -- Ver estadísticas de la base de datos
 SELECT * FROM pg_stat_database WHERE datname = 'auth_db';
@@ -694,7 +694,7 @@ $RESOURCE_GROUP = "fuel-system-rg"
 $LOCATION = "northcentralus"
 $POSTGRES_SERVER = "fuel-system-postgres"
 $POSTGRES_ADMIN_USER = "pgadmin"
-$POSTGRES_ADMIN_PASSWORD = "FuelSystem2024@Secure"  # Contraseña actual
+$POSTGRES_ADMIN_PASSWORD = "FuelSystem2024!Secure"  # Contraseña actual
 $POSTGRES_VERSION = "17"
 $POSTGRES_SKU = "Standard_D4ads_v5"  # GeneralPurpose - Producción
 $POSTGRES_TIER = "GeneralPurpose"

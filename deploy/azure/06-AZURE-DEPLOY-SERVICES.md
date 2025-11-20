@@ -1,460 +1,131 @@
-# 🚀 Fase 6: Despliegue de Microservicios en AKS
+# Fase 6: Despliegue de Microservicios en AKS
 
-> **Tiempo estimado**: 30 minutos  
+> **Tiempo estimado**: 20 minutos (manual) o 10 minutos (CI/CD)  
 > **Prerequisitos**: Fases 1-5 completadas
 
 ---
 
-## 📋 Objetivos de esta Fase
+## IMPORTANTE: Dos Métodos de Despliegue
 
-Al finalizar esta fase, tendrás:
+Antes de continuar, lee la **[Guía Unificada de Despliegue](./DEPLOY-GUIDE.md)** que explica:
 
-- ✅ Eureka Server desplegado en AKS
-- ✅ Archivo `values-azure.yaml` configurado para producción
-- ✅ 9 microservicios desplegados con Helm
-- ✅ Secrets de producción configurados
-- ✅ Init Containers ejecutando migraciones automáticamente
-- ✅ Todos los servicios registrados en Eureka
-- ✅ API Gateway accesible públicamente
+- Diferencia entre despliegue **Manual** vs **CI/CD**
+- Cómo funciona Helm con los archivos de valores
+- Estructura de archivos y configuración
+- Troubleshooting común
+
+**Elige tu método:**
+
+- **Método 1: Manual** - Recomendado para primera vez
+- **Método 2: CI/CD** - Recomendado después de validar manual
 
 ---
 
-## 1. Crear Archivo de Valores para Azure
+## Método 1: Despliegue Manual
 
-Crea el archivo `deploy/azure/values-azure.yaml`:
+### Paso 1: Verificar Pre-requisitos
 
-```yaml
-# ==============================================
-# VALUES PARA AZURE AKS - PRODUCCIÓN
-# ==============================================
+```bash
+# Verificar contexto de kubectl
+kubectl config current-context
 
-# Global configuration
-global:
-  imageRegistry: ""
-  imagePullSecrets: []
-  storageClass: "managed-csi"
-  imageTag: "latest"  # Cambiar a tu versión específica: v1.0.0
-  nodeEnv: "production"
+# Debe mostrar tu cluster de AKS
+# Output esperado: fuel-system-aks
 
-# Image registry configuration (GHCR - GitHub Container Registry)
-imageRegistry:
-  url: "ghcr.io/davidjosuep2/distributed-gasoline-system/fuel-system"
-  # ⚠️ NOTA: No necesitas username/password porque las imágenes son públicas
+# Verificar que RabbitMQ y Elasticsearch están corriendo
+kubectl get pods -n fuel-system
 
-# PostgreSQL Configuration - Azure Database for PostgreSQL Flexible Server
-# Configuración actual: GeneralPurpose tier, Standard_D4ads_v5, PostgreSQL 17
-postgresql:
-  enabled: false
-  external:
-    enabled: true
-    hosts:
-      auth: "fuel-system-postgres.postgres.database.azure.com"
-      driver: "fuel-system-postgres.postgres.database.azure.com"
-      users: "fuel-system-postgres.postgres.database.azure.com"
-      vehicles: "fuel-system-postgres.postgres.database.azure.com"
-      vehiclesShadow: "fuel-system-postgres.postgres.database.azure.com"
-      routes: "fuel-system-postgres.postgres.database.azure.com"
-    # Read replica para optimizar consultas SELECT
-    readHosts:
-      auth: "fuel-system-postgres-read.postgres.database.azure.com"
-      driver: "fuel-system-postgres-read.postgres.database.azure.com"
-      users: "fuel-system-postgres-read.postgres.database.azure.com"
-      vehicles: "fuel-system-postgres-read.postgres.database.azure.com"
-      routes: "fuel-system-postgres-read.postgres.database.azure.com"
-    port: 5432
-    username: "pgadmin"
-    password: "FuelSystem2024@Secure"  # ⚠️ Se sobreescribe con secret
-    sslMode: "require"  # IMPORTANTE: En Azure es obligatorio
-    databases:
-      auth: "auth_db"
-      driver: "driver_db"
-      users: "users_db"
-      vehicles: "vehicles_db"
-      vehiclesShadow: "vehicles_shadow_db"
-      routes: "routes_db"
-
-# RabbitMQ Configuration - Desplegado en AKS
-rabbitmq:
-  enabled: false
-  external:
-    enabled: true
-    host: "rabbitmq.fuel-system.svc.cluster.local"
-    port: 5672
-    username: "admin"
-    password: "FuelRabbit2024!Secure"  # ⚠️ Se sobreescribe con secret
-    managementPort: 15672
-
-# Elasticsearch Configuration - Desplegado en AKS
-elasticsearch:
-  enabled: false
-  external:
-    enabled: true
-    host: "elasticsearch-master.fuel-system.svc.cluster.local"
-    port: 9200
-    scheme: "http"
-
-# Eureka Server - Desplegado manualmente
-eurekaServer:
-  enabled: false
-  external:
-    enabled: true
-    host: "eureka-server"
-    port: 8761
-    url: "http://eureka-server:8761/eureka"
-
-# ==============================================
-# SECRETS CONFIGURATION
-# ==============================================
-secrets:
-  postgresql:
-    username: "pgadmin"
-    password: "FuelSystem2024@Secure"  # ⚠️ CAMBIAR en producción o usar Azure Key Vault
-  rabbitmq:
-    username: "admin"
-    password: "FuelRabbit2024!Secure"  # ⚠️ CAMBIAR en producción
-  jwt:
-    secret: "your-super-secret-jwt-key-change-in-production-32chars-min"  # ⚠️ CAMBIAR
-  smtp:
-    host: "smtp.gmail.com"
-    port: 587
-    user: "tu-email@gmail.com"  # ⚠️ CAMBIAR
-    password: "tu-app-password"  # ⚠️ CAMBIAR
-
-# ==============================================
-# API GATEWAY
-# ==============================================
-apiGateway:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "api-gateway"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP  # Usamos Ingress para exposición
-    port: 8080
-    targetPort: 8080
-  env:
-    NODE_ENV: "production"
-    PORT: "8080"
-    GATEWAY_HTTP_PORT: "8080"
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-
-# ==============================================
-# AUTH SERVICE
-# ==============================================
-authService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "auth-svc"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50052
-    targetPort: 50052
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50052"
-    AUTH_GRPC_PORT: "50052"
-    DB_NAME: "auth_db"
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
-# ==============================================
-# DRIVER SERVICE
-# ==============================================
-driverService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "driver-ms"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50062
-    targetPort: 50062
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50062"
-    DRIVER_GRPC_PORT: "50062"
-    DRIVER_HTTP_PORT: "3100"
-    DB_NAME: "driver_db"
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
-# ==============================================
-# USERS SERVICE
-# ==============================================
-usersService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "users-srv"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50057
-    targetPort: 50057
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50057"
-    USERS_GRPC_PORT: "50057"
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
-# ==============================================
-# VEHICLES SERVICE
-# ==============================================
-vehiclesService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "vehicles-svc"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50055
-    targetPort: 50055
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50055"
-    VEHICLES_GRPC_PORT: "50055"
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
-# ==============================================
-# ROUTES SERVICE
-# ==============================================
-routesService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "routes-srv"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50056
-    targetPort: 50056
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50056"
-    ROUTES_GRPC_PORT: "50056"
-    DB_NAME: "routes_db"
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
-# ==============================================
-# FUEL SERVICE
-# ==============================================
-fuelService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "fuel-svc"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50054
-    targetPort: 50054
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50054"
-    FUEL_GRPC_PORT: "50054"
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "256Mi"
-      cpu: "250m"
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
-# ==============================================
-# EMAIL SERVICE
-# ==============================================
-emailService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "email-svc"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50053
-    targetPort: 50053
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50053"
-    EMAIL_GRPC_PORT: "50053"
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "256Mi"
-      cpu: "250m"
-  autoscaling:
-    enabled: false  # Email no necesita autoscaling agresivo
-
-# ==============================================
-# LOGGER SERVICE
-# ==============================================
-loggerService:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: "logger-svc"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 50058
-    targetPort: 50058
-  env:
-    NODE_ENV: "production"
-    GRPC_PORT: "50058"
-    LOGGER_GRPC_PORT: "50058"
-    LOGGER_HTTP_PORT: "3200"
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "200m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: false
-
-# ==============================================
-# PUBLISHER SERVICE
-# ==============================================
-publisherService:
-  enabled: true
-  replicaCount: 1
-  image:
-    repository: "publisher-rabbit-srv"
-    tag: "latest"
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 4100
-    targetPort: 4100
-  env:
-    NODE_ENV: "production"
-    PORT: "4100"
-    OUTBOX_PUBLISHER_PORT: "4100"
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "256Mi"
-      cpu: "250m"
-  autoscaling:
-    enabled: false
-
-# ==============================================
-# INGRESS CONFIGURATION
-# ==============================================
-ingress:
-  enabled: true
-  className: "nginx"
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-  hosts:
-    - host: ""  # Sin host = acceso por IP
-      paths:
-        - path: /
-          pathType: Prefix
-          backend:
-            service:
-              name: api-gateway
-              port: 8080
-  tls: []  # Configurar en Fase 7 con cert-manager
+# Debes ver:
+# rabbitmq-0 (si es desarrollo) o rabbitmq-0,1,2 (si es producción)
+# elasticsearch-master-0,1,2
 ```
 
----
+### Paso 2: Crear Namespace
 
-## 2. Desplegar Eureka Server
+```bash
+kubectl create namespace fuel-system --dry-run=client -o yaml | kubectl apply -f -
+```
 
-Crea `deploy/azure/eureka-deployment-azure.yaml`:
+### Paso 3: Crear Secrets de Producción
+
+**NOTA:** Estos son los valores de ejemplo que estás usando para pruebas. En producción real, usa valores seguros y diferentes.
+
+```bash
+# PostgreSQL Secret
+# IMPORTANTE: El password debe coincidir con el de Azure PostgreSQL
+# CRÍTICO: En Azure el username debe incluir el servidor: usuario@servidor
+kubectl create secret generic fuel-system-postgresql \
+  --from-literal=username='pgadmin@fuel-system-postgres' \
+  --from-literal=password='FuelSystem2024!Secure' \
+  --namespace=fuel-system
+
+# RabbitMQ Secret
+kubectl create secret generic fuel-system-rabbitmq \
+  --from-literal=username=admin \
+  --from-literal=password='RabbitDev2024' \
+  --namespace=fuel-system
+
+# JWT Secret
+# Este es un ejemplo de 64 caracteres, puedes generar uno nuevo con:
+# opensssl rand -base64 32
+kubectl create secret generic fuel-system-jwt \
+  --from-literal=secret='my-super-secret-jwt-key-minimum-32-characters-long-for-security' \
+  --namespace=fuel-system
+
+# SMTP Secret (ejemplo con Gmail)
+# Nota: Para Gmail, usa una "App Password" no tu password normal
+kubectl create secret generic fuel-system-smtp \
+  --from-literal=host='smtp.gmail.com' \
+  --from-literal=port='587' \
+  --from-literal=user='fuel-system-test@gmail.com' \
+  --from-literal=password='tu-app-password-de-gmail' \
+  --namespace=fuel-system
+
+# Verificar que todos los secrets se crearon correctamente
+kubectl get secrets -n fuel-system
+```
+
+### Paso 4: Verificar values-azure.yaml
+
+El archivo `deploy/azure/values-azure.yaml` ya está configurado con valores de ejemplo:
 
 ```yaml
+postgresql:
+  external:
+    hosts:
+      # FQDN de tu servidor PostgreSQL en Azure
+      # Cambia si tu servidor tiene un nombre diferente
+      auth: "fuel-system-postgres.postgres.database.azure.com"
+      driver: "fuel-system-postgres.postgres.database.azure.com"
+      # ... (todos usan el mismo servidor)
+    
+    # Read replicas (opcional, si las configuraste)
+    readHosts:
+      auth: "fuel-system-postgres-read.postgres.database.azure.com"
+      # ...
+    
+    username: "pgadmin"
+    password: "FuelSystem2024!Secure"  # Debe coincidir con el secret
+    sslMode: "require"  # OBLIGATORIO en Azure
+
+secrets:
+  postgresql:
+    password: "FuelSystem2024!Secure"
+  rabbitmq:
+    password: "RabbitDev2024"
+  jwt:
+    secret: "my-super-secret-jwt-key-minimum-32-characters-long-for-security"
+```
+
+**Si tu servidor PostgreSQL tiene un nombre diferente**, edita el archivo y cambia los valores de `hosts`.
+
+### Paso 5: Desplegar Eureka Server
+
+**NOTA:** Eureka se despliega con **1 réplica** para simplificar la configuración.
+
+```bash
+# Crear deployment de Eureka con 1 réplica
+kubectl apply -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -463,7 +134,7 @@ metadata:
   labels:
     app: eureka-server
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: eureka-server
@@ -478,9 +149,6 @@ spec:
         ports:
         - containerPort: 8761
           name: http
-        env:
-        - name: JAVA_OPTS
-          value: "-Xms512m -Xmx1024m"
         resources:
           requests:
             memory: "512Mi"
@@ -498,7 +166,7 @@ spec:
           httpGet:
             path: /actuator/health
             port: 8761
-          initialDelaySeconds: 45
+          initialDelaySeconds: 30
           periodSeconds: 5
 ---
 apiVersion: v1
@@ -517,317 +185,444 @@ spec:
     name: http
   selector:
     app: eureka-server
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: eureka-server
-  namespace: fuel-system
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: eureka-server
-  minReplicas: 2
-  maxReplicas: 4
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-```
+EOF
 
-### Desplegar Eureka
+# Esperar a que esté listo (puede tomar 1-2 minutos)
+kubectl wait --for=condition=ready pod -l app=eureka-server -n fuel-system --timeout=180s
 
-```bash
-# Aplicar el deployment
-kubectl apply -f deploy/azure/eureka-deployment-azure.yaml
-
-# Verificar
+# Verificar que está corriendo
 kubectl get pods -n fuel-system -l app=eureka-server
 
 # Ver logs
-kubectl logs -f deployment/eureka-server -n fuel-system
-
-# Esperar a que esté Ready (puede tardar 1-2 minutos)
-kubectl wait --for=condition=ready pod -l app=eureka-server -n fuel-system --timeout=180s
+kubectl logs -n fuel-system -l app=eureka-server --tail=50
 ```
 
----
-
-## 3. Actualizar Secrets con Valores de Producción
-
-### Opción A: Actualizar values-azure.yaml (No Recomendado)
-
-Edita directamente el archivo `values-azure.yaml` con tus credenciales reales.
-
-### Opción B: Crear Secrets Manualmente (Recomendado)
+### Paso 6: Desplegar Microservicios con Helm
 
 ```bash
-# PostgreSQL
-kubectl create secret generic fuel-system-postgresql \
-  --from-literal=username=pgadmin \
-  --from-literal=password='FuelSystem2024!Secure' \
-  --namespace=fuel-system \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# RabbitMQ
-kubectl create secret generic fuel-system-rabbitmq \
-  --from-literal=username=admin \
-  --from-literal=password='FuelRabbit2024!Secure' \
-  --namespace=fuel-system \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# JWT
-JWT_SECRET=$(openssl rand -base64 32)
-kubectl create secret generic fuel-system-jwt \
-  --from-literal=secret="$JWT_SECRET" \
-  --namespace=fuel-system \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# SMTP
-kubectl create secret generic fuel-system-smtp \
-  --from-literal=host='smtp.gmail.com' \
-  --from-literal=port='587' \
-  --from-literal=user='tu-email@gmail.com' \
-  --from-literal=password='tu-app-password' \
-  --namespace=fuel-system \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# Verificar secrets
-kubectl get secrets -n fuel-system
-```
-
----
-
-## 4. Desplegar Microservicios con Helm
-
-```bash
-# Ir a la carpeta del chart
-cd deploy/helm/fuel-system
-
-# Dry-run para verificar configuración
-helm install fuel-system . \
+# Desde la raíz del proyecto
+# Desplegar con Helm
+helm upgrade --install fuel-system ./deploy/helm/fuel-system \
   --namespace fuel-system \
-  --values values.yaml \
-  --values ../../azure/values-azure.yaml \
-  --dry-run --debug
-
-# Si todo se ve bien, instalar
-helm install fuel-system . \
-  --namespace fuel-system \
-  --values values.yaml \
-  --values ../../azure/values-azure.yaml \
+  --create-namespace \
+  --values ./deploy/helm/fuel-system/values.yaml \
+  --values ./deploy/azure/values-azure.yaml \
   --wait \
-  --timeout 15m
+  --timeout 15m \
+  --debug
 
-# Ver el progreso
+# Monitorear pods mientras se despliegan
 kubectl get pods -n fuel-system -w
 ```
 
-**Nota**: El despliegue puede tardar 10-15 minutos debido a:
-- Init Containers ejecutando migraciones
-- Pull de imágenes desde ACR
-- Health checks esperando a que los servicios estén listos
+**Lo que hace este comando:**
 
----
+1. Lee `values.yaml` (configuración base)
+2. Lee `values-azure.yaml` (sobrescribe con valores de Azure)
+3. Crea ConfigMaps con variables de entorno
+4. Crea Secrets (si no existen)
+5. Despliega cada microservicio con sus init containers
+6. Los init containers ejecutan migraciones de base de datos
+7. Espera hasta que todos los pods estén en estado Running
 
-## 5. Verificar Despliegue
-
-### Ver Todos los Pods
+### Paso 7: Verificar Despliegue
 
 ```bash
-# Ver estado de todos los pods
+# Ver todos los pods (deben estar en Running)
 kubectl get pods -n fuel-system
 
-# Output esperado (todos en Running):
-# NAME                                    READY   STATUS    RESTARTS   AGE
-# eureka-server-xxx-xxx                   1/1     Running   0          5m
-# fuel-system-api-gateway-xxx-xxx         1/1     Running   0          3m
-# fuel-system-auth-service-xxx-xxx        1/1     Running   0          3m
-# fuel-system-driver-service-xxx-xxx      1/1     Running   0          3m
-# fuel-system-users-service-xxx-xxx       1/1     Running   0          3m
-# fuel-system-vehicles-service-xxx-xxx    1/1     Running   0          3m
-# fuel-system-routes-service-xxx-xxx      1/1     Running   0          3m
-# fuel-system-fuel-service-xxx-xxx        1/1     Running   0          3m
-# fuel-system-email-service-xxx-xxx       1/1     Running   0          3m
-# fuel-system-logger-service-xxx-xxx      1/1     Running   0          3m
-# rabbitmq-0                              1/1     Running   0          20m
-# rabbitmq-1                              1/1     Running   0          19m
-# rabbitmq-2                              1/1     Running   0          18m
-# elasticsearch-master-0                  1/1     Running   0          15m
-# elasticsearch-master-1                  1/1     Running   0          14m
-# elasticsearch-master-2                  1/1     Running   0          13m
+# Output esperado:
+# NAME                                            READY   STATUS    RESTARTS   AGE
+# eureka-server-xxx                               1/1     Running   0          5m
+# fuel-system-api-gateway-xxx                     1/1     Running   0          3m
+# fuel-system-auth-service-xxx                    1/1     Running   0          3m
+# fuel-system-driver-service-xxx                  1/1     Running   0          3m
+# fuel-system-users-service-xxx                   1/1     Running   0          3m
+# fuel-system-vehicles-service-xxx                1/1     Running   0          3m
+# fuel-system-routes-service-xxx                  1/1     Running   0          3m
+# fuel-system-fuel-service-xxx                    1/1     Running   0          3m
+# fuel-system-email-service-xxx                   1/1     Running   0          3m
+# fuel-system-logger-service-xxx                  1/1     Running   0          3m
+# fuel-system-publisher-service-xxx               1/1     Running   0          3m
+# rabbitmq-0                                      1/1     Running   0          20m
+# elasticsearch-master-0                          1/1     Running   0          20m
+
+# Ver servicios
+kubectl get svc -n fuel-system
+
+# Ver logs de un microservicio
+kubectl logs -f deployment/fuel-system-api-gateway -n fuel-system
+
+# Ver logs de init container (migraciones)
+kubectl logs deployment/fuel-system-users-service -c prisma-migrate -n fuel-system
 ```
 
-### Ver Logs de Init Containers (Migraciones)
-
-```bash
-# Ver logs del init container de driver-service
-kubectl logs fuel-system-driver-service-xxx-xxx -c typeorm-migrate -n fuel-system
-
-# Ver logs del init container de users-service
-kubectl logs fuel-system-users-service-xxx-xxx -c prisma-migrate -n fuel-system
-
-# Ver logs del init container de vehicles-service
-kubectl logs fuel-system-vehicles-service-xxx-xxx -c prisma-migrate -n fuel-system
-```
-
-### Verificar Eureka Dashboard
+### Paso 8: Verificar Eureka Dashboard
 
 ```bash
 # Port-forward a Eureka
 kubectl port-forward svc/eureka-server -n fuel-system 8761:8761
 
 # Abrir en navegador: http://localhost:8761
-# Deberías ver todos los microservicios registrados
+# Debes ver todos los microservicios registrados
 ```
 
----
-
-## 6. Verificar Conectividad
-
-### Test API Gateway
+### Paso 9: Obtener IP Pública y Probar API
 
 ```bash
-# Obtener IP del Ingress
-INGRESS_IP=$(kubectl get service ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+# Obtener IP pública del Ingress
+export INGRESS_IP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-echo "Ingress IP: $INGRESS_IP"
+echo "API Gateway: http://$INGRESS_IP"
 
-# Test health endpoint
+# Probar health endpoint
 curl http://$INGRESS_IP/health
 
-# Test login
+# Probar login con usuario de prueba
 curl -X POST http://$INGRESS_IP/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"alice_admin","password":"admin123"}'
 
-# Debería devolver un token JWT
+# Si funciona, recibirás un token JWT
 ```
 
 ---
 
-## 7. Script de Despliegue Completo
+## Método 2: Despliegue con CI/CD (GitHub Actions)
 
-Guarda como `deploy/azure/deploy-to-azure.ps1`:
+### Paso 1: Configurar GitHub Secrets
 
-```powershell
-# Variables
-$NAMESPACE = "fuel-system"
-$CHART_PATH = "deploy/helm/fuel-system"
+Ve a tu repositorio → Settings → Secrets and variables → Actions
 
-Write-Host "🚀 Desplegando Fuel System a Azure AKS..." -ForegroundColor Cyan
+Crea estos secrets con los **valores de ejemplo** (para pruebas):
 
-# 1. Verificar contexto
-Write-Host "`n1. Verificando contexto de kubectl..." -ForegroundColor Yellow
-$currentContext = kubectl config current-context
-Write-Host "Context actual: $currentContext" -ForegroundColor Gray
+| Secret Name | Valor de Ejemplo |
+|-------------|------------------|
+| `AKS_CLUSTER_NAME` | `fuel-system-aks` |
+| `AKS_RESOURCE_GROUP` | `fuel-system-rg` |
+| `AZURE_CREDENTIALS` | JSON del Service Principal (ver Fase 1) |
+| `POSTGRES_HOST` | `fuel-system-postgres.postgres.database.azure.com` |
+| `POSTGRES_USERNAME` | `pgadmin` |
+| `POSTGRES_PASSWORD` | `FuelSystem2024!Secure` |
+| `RABBITMQ_PASSWORD` | `RabbitDev2024` |
+| `JWT_SECRET` | `my-super-secret-jwt-key-minimum-32-characters-long-for-security` |
+| `SMTP_USER` | `fuel-system-test@gmail.com` |
+| `SMTP_PASSWORD` | Tu app password de Gmail |
 
-# 2. Crear namespace si no existe
-Write-Host "`n2. Verificando namespace..." -ForegroundColor Yellow
-kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+**IMPORTANTE:** En producción real, usa valores diferentes y seguros.
 
-# 3. Desplegar Eureka
-Write-Host "`n3. Desplegando Eureka Server..." -ForegroundColor Yellow
-kubectl apply -f deploy/azure/eureka-deployment-azure.yaml
-kubectl wait --for=condition=ready pod -l app=eureka-server -n $NAMESPACE --timeout=180s
+### Paso 2: Verificar Workflow
 
-# 4. Crear secrets
-Write-Host "`n4. Creando secrets..." -ForegroundColor Yellow
-# (Aquí irían los comandos de creación de secrets)
+El archivo `.github/workflows/deploy-to-azure.yml` ya está configurado y hace lo siguiente:
 
-# 5. Desplegar con Helm
-Write-Host "`n5. Desplegando microservicios con Helm..." -ForegroundColor Yellow
-helm upgrade --install fuel-system $CHART_PATH `
-  --namespace $NAMESPACE `
-  --values $CHART_PATH/values.yaml `
-  --values deploy/azure/values-azure.yaml `
-  --wait `
-  --timeout 15m
+1. Crea namespace `fuel-system`
+2. Crea todos los secrets automáticamente
+3. Despliega Eureka Server (1 réplica)
+4. Despliega microservicios con Helm
+5. Verifica el estado
+6. Muestra la URL pública
 
-# 6. Verificar despliegue
-Write-Host "`n6. Verificando despliegue..." -ForegroundColor Yellow
-kubectl get pods -n $NAMESPACE
+### Paso 3: Hacer Deploy
 
-# 7. Obtener IP del Ingress
-Write-Host "`n7. Obteniendo IP pública..." -ForegroundColor Yellow
-$INGRESS_IP = kubectl get service ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+**Opción A: Push a main (automático)**
 
-Write-Host "`n✅ Despliegue completado!" -ForegroundColor Green
-Write-Host "`nAcceso al sistema:" -ForegroundColor Cyan
-Write-Host "API Gateway: http://$INGRESS_IP"
-Write-Host "Eureka Dashboard: http://$INGRESS_IP/eureka"
-Write-Host "`nPara ver logs:" -ForegroundColor Yellow
-Write-Host "kubectl logs -f deployment/fuel-system-api-gateway -n $NAMESPACE"
+```bash
+git add .
+git commit -m "Deploy to Azure AKS"
+git push origin main
+
+# El workflow se ejecuta automáticamente después de que
+# "Build and Push Docker Images" termine exitosamente
+```
+
+**Opción B: Trigger manual**
+
+1. Ve a GitHub → Actions
+2. Selecciona "Deploy to Azure AKS"
+3. Click en "Run workflow"
+4. Selecciona branch "main"
+5. Environment: "production"
+6. Click "Run workflow"
+
+### Paso 4: Monitorear
+
+Ve a GitHub → Actions → Verás "Deploy to Azure AKS" ejecutándose
+
+El workflow muestra:
+- Logs de cada paso
+- Estado de pods
+- URL pública del API Gateway
+- Resumen del despliegue
+
+---
+
+## Verificación Final
+
+Una vez desplegado (cualquier método), verifica:
+
+```bash
+# 1. Todos los pods en Running
+kubectl get pods -n fuel-system
+
+# 2. Eureka Dashboard (debe mostrar 1 instancia de Eureka y todos los servicios)
+kubectl port-forward svc/eureka-server -n fuel-system 8761:8761
+# Abrir: http://localhost:8761
+
+# 3. ConfigMap con configuración correcta
+kubectl get configmap fuel-system-config -n fuel-system -o yaml | grep -A 5 POSTGRESQL
+
+# Debe mostrar:
+# POSTGRESQL_HOST: fuel-system-postgres.postgres.database.azure.com
+
+# 4. Secrets creados
+kubectl get secrets -n fuel-system
+
+# Debe mostrar:
+# fuel-system-postgresql
+# fuel-system-rabbitmq
+# fuel-system-jwt
+# fuel-system-smtp
+
+# 5. API Gateway funcionando
+INGRESS_IP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl http://$INGRESS_IP/health
+
+# 6. Verificar conexión a PostgreSQL desde un pod
+kubectl exec -it deployment/fuel-system-auth-service -n fuel-system -- sh
+# Dentro del pod:
+env | grep DB
+exit
 ```
 
 ---
 
-## 8. Troubleshooting
+## Troubleshooting
 
 ### Pods en CrashLoopBackOff
 
 ```bash
 # Ver logs del pod
-kubectl logs <pod-name> -n fuel-system
+kubectl logs POD_NAME -n fuel-system
 
-# Ver logs del contenedor anterior (si crasheó)
-kubectl logs <pod-name> -n fuel-system --previous
+# Ver logs del init container (migraciones)
+kubectl logs POD_NAME -c typeorm-migrate -n fuel-system
+kubectl logs POD_NAME -c prisma-migrate -n fuel-system
 
-# Ver eventos
-kubectl describe pod <pod-name> -n fuel-system
+# Ver eventos del pod
+kubectl describe pod POD_NAME -n fuel-system
+
+# Errores comunes:
+# - "password authentication failed": Password incorrecto en secret
+# - "could not connect to server": FQDN de PostgreSQL incorrecto
+# - "SSL required": sslMode debe ser "require" en Azure
 ```
 
-### Init Container falla
+### Error de autenticación a PostgreSQL
 
 ```bash
-# Ver logs del init container
-kubectl logs <pod-name> -c <init-container-name> -n fuel-system
+# Verificar que el secret tiene el password correcto
+kubectl get secret fuel-system-postgresql -n fuel-system -o jsonpath='{.data.password}' | base64 --decode
+echo ""
 
-# Ejemplos:
-kubectl logs fuel-system-driver-service-xxx -c typeorm-migrate -n fuel-system
-kubectl logs fuel-system-users-service-xxx -c prisma-migrate -n fuel-system
+# Debe mostrar: FuelSystem2024!Secure
+
+# Si es incorrecto, actualizarlo:
+kubectl delete secret fuel-system-postgresql -n fuel-system
+kubectl create secret generic fuel-system-postgresql \
+  --from-literal=username='pgadmin@fuel-system-postgres' \
+  --from-literal=password='FuelSystem2024!Secure' \
+  --namespace=fuel-system
+
+# Reiniciar pods
+kubectl rollout restart deployment -n fuel-system
+```
+
+### FQDN de PostgreSQL incorrecto
+
+```bash
+# Verificar el FQDN en ConfigMap
+kubectl get configmap fuel-system-config -n fuel-system -o yaml | grep DB_HOST
+
+# Si es incorrecto, editar values-azure.yaml y volver a desplegar
+helm upgrade fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values ./deploy/helm/fuel-system/values.yaml \
+  --values ./deploy/azure/values-azure.yaml \
+  --debug
 ```
 
 ### Servicios no se registran en Eureka
 
 ```bash
-# Verificar variables de entorno
-kubectl exec <pod-name> -n fuel-system -- env | grep EUREKA
+# Verificar que Eureka está corriendo
+kubectl get pods -n fuel-system -l app=eureka-server
 
-# Verificar que Eureka está accesible
-kubectl exec <pod-name> -n fuel-system -- curl http://eureka-server:8761
+# Ver logs de Eureka
+kubectl logs -n fuel-system -l app=eureka-server --tail=100
+
+# Verificar ConfigMap
+kubectl get configmap fuel-system-config -n fuel-system -o yaml | grep EUREKA
+
+# Debe mostrar:
+# EUREKA_HOST: eureka-server
+# EUREKA_PORT: "8761"
+# DISCOVERY_MODE: "eureka"
+
+# Reiniciar microservicios
+kubectl rollout restart deployment -n fuel-system
+```
+
+### ImagePullBackOff
+
+```bash
+# Verificar que la imagen existe y es pública
+docker pull ghcr.io/davidjosuep2/distributed-gasoline-system/fuel-system/api-gateway:latest
+
+# Ver detalles del error
+kubectl describe pod POD_NAME -n fuel-system
+
+# Verificar que el imageRegistry.url es correcto
+kubectl get deployment fuel-system-api-gateway -n fuel-system -o yaml | grep image:
 ```
 
 ---
 
-## ✅ Fase 6 Completada
+## Comandos Útiles
 
-Si llegaste hasta aquí, ¡felicitaciones! Tienes:
+```bash
+# Ver todo en el namespace
+kubectl get all -n fuel-system
 
-- ✅ Eureka Server funcionando con 2 réplicas
-- ✅ 9 microservicios desplegados y funcionando
-- ✅ Migraciones ejecutadas automáticamente
-- ✅ Todos los servicios registrados en Eureka
-- ✅ API Gateway accesible públicamente
-- ✅ Sistema funcional end-to-end
+# Logs en tiempo real de un servicio
+kubectl logs -f deployment/fuel-system-api-gateway -n fuel-system
+
+# Logs de todos los pods de un servicio
+kubectl logs -n fuel-system -l app.kubernetes.io/component=api-gateway --tail=100
+
+# Ejecutar comando en un pod
+kubectl exec -it deployment/fuel-system-api-gateway -n fuel-system -- sh
+
+# Port-forward a un servicio
+kubectl port-forward svc/fuel-system-api-gateway -n fuel-system 8080:8080
+
+# Reiniciar un deployment
+kubectl rollout restart deployment/fuel-system-api-gateway -n fuel-system
+
+# Reiniciar todos los deployments
+kubectl rollout restart deployment -n fuel-system
+
+# Ver uso de recursos
+kubectl top nodes
+kubectl top pods -n fuel-system
+
+# Ver eventos recientes
+kubectl get events -n fuel-system --sort-by='.lastTimestamp' | tail -20
+
+# Describir un recurso
+kubectl describe deployment fuel-system-api-gateway -n fuel-system
+kubectl describe pod POD_NAME -n fuel-system
+kubectl describe svc fuel-system-api-gateway -n fuel-system
+```
 
 ---
 
-## 📍 Próximo Paso
+## Actualizar Despliegue
 
-Continúa con: **[Fase 7: Networking y Seguridad](./07-AZURE-NETWORKING-SECURITY.md)**
+### Después de cambios en código
+
+```bash
+# Las imágenes se rebuildan automáticamente con GitHub Actions
+# cuando haces push a main
+
+# Método Manual - Actualizar con las nuevas imágenes:
+helm upgrade fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values ./deploy/helm/fuel-system/values.yaml \
+  --values ./deploy/azure/values-azure.yaml \
+  --set global.imageTag=latest \
+  --debug
+
+# O forzar recreación de pods:
+kubectl rollout restart deployment -n fuel-system
+
+# Método CI/CD - Solo push:
+git push origin main
+# El workflow se encarga de todo automáticamente
+```
+
+### Cambiar configuración (variables de entorno)
+
+```bash
+# 1. Editar values-azure.yaml o values.yaml
+# 2. Actualizar con Helm:
+helm upgrade fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values ./deploy/helm/fuel-system/values.yaml \
+  --values ./deploy/azure/values-azure.yaml \
+  --debug
+
+# Los pods se reiniciarán automáticamente con la nueva configuración
+```
+
+### Cambiar secrets
+
+```bash
+# 1. Eliminar el secret existente
+kubectl delete secret fuel-system-postgresql -n fuel-system
+
+# 2. Crear nuevo secret con valores actualizados
+kubectl create secret generic fuel-system-postgresql \
+  --from-literal=username='pgadmin@fuel-system-postgres' \
+  --from-literal=password='NuevoPassword' \
+  --namespace=fuel-system
+
+# 3. Reiniciar pods para que tomen el nuevo secret
+kubectl rollout restart deployment -n fuel-system
+```
+
+---
+
+## Valores de Ejemplo Usados
+
+Para referencia, estos son los valores de ejemplo que estás usando en tus pruebas:
+
+| Recurso | Valor |
+|---------|-------|
+| **PostgreSQL FQDN** | `fuel-system-postgres.postgres.database.azure.com` |
+| **PostgreSQL Read Replica** | `fuel-system-postgres-read.postgres.database.azure.com` |
+| **PostgreSQL Username** | `pgadmin@fuel-system-postgres` (formato: usuario@servidor) |
+| **PostgreSQL Password** | `FuelSystem2024!Secure` |
+| **PostgreSQL SSL Mode** | `require` (OBLIGATORIO en Azure) |
+| **PostgreSQL SSL Reject Unauthorized** | `false` (Azure usa certificados autofirmados) |
+| **RabbitMQ Username** | `admin` |
+| **RabbitMQ Password** | `RabbitDev2024` |
+| **JWT Secret** | `my-super-secret-jwt-key-minimum-32-characters-long-for-security` |
+| **Eureka Replicas** | `1` |
+
+**IMPORTANTE:** En producción real, usa valores diferentes, más seguros y guárdalos en un gestor de secrets como Azure Key Vault.
+
+---
+
+## Despliegue Completado
+
+Si llegaste hasta aquí exitosamente, tienes:
+
+- Cluster AKS funcionando
+- PostgreSQL en Azure (`fuel-system-postgres.postgres.database.azure.com`)
+- RabbitMQ y Elasticsearch en AKS
+- Eureka Server activo (1 réplica)
+- 10 microservicios desplegados y registrados en Eureka
+- API Gateway accesible públicamente
+- Sistema completo funcional con IP estática
+
+---
+
+## Siguiente Fase
+
+Continuar con [Fase 7: Networking y Seguridad](./07-AZURE-NETWORKING-SECURITY.md)
 
 En la Fase 7 configurarás:
 - Dominio personalizado
 - SSL/TLS con Let's Encrypt
 - Network Policies
-- Azure Monitor
-- Alertas y logging avanzado
-
----
-
-**¡Excelente trabajo! El sistema está funcionando en producción! 🎉**
+- Monitoreo con Azure Monitor

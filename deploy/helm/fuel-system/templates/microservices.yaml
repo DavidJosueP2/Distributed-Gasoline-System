@@ -123,8 +123,13 @@ spec:
           - |
             set -e
             echo "🔄 Waiting for database to be ready..."
+            {{- $sslMode := $.Values.postgresql.external.sslMode | default "disable" }}
             for i in $(seq 1 30); do
+              {{- if eq $sslMode "require" }}
+              if PGPASSWORD="${DB_PASS}" psql "sslmode=require host=${DB_HOST} port=${DB_PORT} user=${DB_USER} dbname=${DB_NAME}" -c '\q' 2>/dev/null; then
+              {{- else }}
               if PGPASSWORD="${DB_PASS}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c '\q' 2>/dev/null; then
+              {{- end }}
                 echo "✅ Database is ready!"
                 break
               fi
@@ -136,11 +141,15 @@ spec:
             # Driver Service: init.sql en raíz + migrations/ + seed.sql
             echo "🔄 Ejecutando init.sql para crear tablas..."
             if [ -f /app/init.sql ]; then
+              {{- if eq $sslMode "require" }}
+              PGPASSWORD="${DB_PASS}" psql "sslmode=require host=${DB_HOST} port=${DB_PORT} user=${DB_USER} dbname=${DB_NAME}" \
+              {{- else }}
               PGPASSWORD="${DB_PASS}" psql \
                 -h "${DB_HOST}" \
                 -p "${DB_PORT}" \
                 -U "${DB_USER}" \
                 -d "${DB_NAME}" \
+              {{- end }}
                 -v ON_ERROR_STOP=1 \
                 -f /app/init.sql
               echo "✅ init.sql ejecutado correctamente"
@@ -154,11 +163,15 @@ spec:
               for migration in /app/migrations/*.sql; do
                 if [ -f "$migration" ]; then
                   echo "Aplicando: $migration"
+                  {{- if eq $sslMode "require" }}
+                  PGPASSWORD="${DB_PASS}" psql "sslmode=require host=${DB_HOST} port=${DB_PORT} user=${DB_USER} dbname=${DB_NAME}" \
+                  {{- else }}
                   PGPASSWORD="${DB_PASS}" psql \
                     -h "${DB_HOST}" \
                     -p "${DB_PORT}" \
                     -U "${DB_USER}" \
                     -d "${DB_NAME}" \
+                  {{- end }}
                     -f "$migration" || echo "⚠️ Error en $migration (puede ser normal si ya está aplicada)"
                 fi
               done
@@ -552,6 +565,15 @@ spec:
           value: "false"
         - name: ROUTES_DB_LOGGING
           value: "false"
+        # SSL Configuration (condicional según sslMode)
+        - name: DB_SSL
+          value: {{ if eq $.Values.postgresql.external.sslMode "require" }}"true"{{ else }}"false"{{ end }}
+        - name: DB_SSL_MODE
+          value: {{ $.Values.postgresql.external.sslMode | default "disable" | quote }}
+        - name: ROUTES_DB_SSL_MODE
+          value: {{ $.Values.postgresql.external.sslMode | default "disable" | quote }}
+        - name: DB_SSL_REJECT_UNAUTHORIZED
+          value: {{ $.Values.postgresql.external.sslRejectUnauthorized | default "false" | quote }}
         {{- else if eq $config.name "publisher-service" }}
         - name: PORT
           value: {{ $config.config.env.PORT | quote }}

@@ -3,7 +3,8 @@
 -- ============================================================
 
 -- ===== Extensiones
-CREATE EXTENSION IF NOT EXISTS citext;
+-- OJO: citext no está permitido en Azure Flexible Server
+-- CREATE EXTENSION IF NOT EXISTS citext;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ===== Enums (nombres tal como Prisma los define)
@@ -23,7 +24,7 @@ CREATE TYPE "OperationalStatus" AS ENUM ('ACTIVE', 'MAINTENANCE', 'RETIRED', 'ON
 END IF;
 END $$;
 
--- ===== Helper: trigger para updated_at automático (opcional con Prisma, útil a nivel BD)
+-- ===== Helper: trigger para updated_at automático
 CREATE OR REPLACE FUNCTION trg_touch_updated_at()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -51,10 +52,10 @@ CREATE TABLE IF NOT EXISTS vehicle_models (
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_vehicle_models_brand_family ON vehicle_models(brand, family);
-CREATE INDEX IF NOT EXISTS idx_vm_status_year ON vehicle_models(status, year_from);
-CREATE INDEX IF NOT EXISTS idx_vm_machine_type ON vehicle_models(machine_type, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_vm_status_year              ON vehicle_models(status, year_from);
+CREATE INDEX IF NOT EXISTS idx_vm_machine_type             ON vehicle_models(machine_type, deleted_at);
 
--- Unique soft (idéntico a @@unique([... , deletedAt]) de Prisma)
+-- Unique soft
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -115,7 +116,7 @@ DROP CONSTRAINT IF EXISTS model_license_requirements_model_id_fkey,
        FOREIGN KEY (model_id) REFERENCES vehicle_models(model_id)
        ON DELETE CASCADE ON UPDATE CASCADE;
 
--- Unique soft (idéntico a @@unique([... , deletedAt]) de Prisma)
+-- Unique soft
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -137,10 +138,12 @@ CREATE TRIGGER trg_mlr_touch
 CREATE TABLE IF NOT EXISTS vehicle_units (
                                              vehicle_id         BIGSERIAL           PRIMARY KEY,
                                              model_id           BIGINT              NOT NULL,
-                                             plate              CITEXT              NOT NULL,
-                                             serial_vin         CITEXT,
-                                             operational_status "OperationalStatus" NOT NULL DEFAULT 'ACTIVE',
-                                             tank_capacity_l    DECIMAL(10,2)       NOT NULL,
+    -- antes: plate CITEXT NOT NULL
+                                             plate              VARCHAR(255)        NOT NULL,
+    -- antes: serial_vin CITEXT
+    serial_vin         VARCHAR(255),
+    operational_status "OperationalStatus" NOT NULL DEFAULT 'ACTIVE',
+    tank_capacity_l    DECIMAL(10,2)       NOT NULL,
     odometer_km        DECIMAL(12,1)       NOT NULL DEFAULT 0,
     version            BIGINT              NOT NULL DEFAULT 0,
     created_at         TIMESTAMPTZ         NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -215,7 +218,7 @@ DROP CONSTRAINT IF EXISTS unit_license_requirements_vehicle_id_fkey,
        FOREIGN KEY (vehicle_id) REFERENCES vehicle_units(vehicle_id)
        ON DELETE CASCADE ON UPDATE CASCADE;
 
--- Unique soft (idéntico a @@unique([... , deletedAt]) de Prisma)
+-- Unique soft
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -235,10 +238,11 @@ CREATE TRIGGER trg_ulr_touch
 --  3) idempotency_keys
 -- ============================================================
 CREATE TABLE IF NOT EXISTS idempotency_keys (
-                                                key            CITEXT      PRIMARY KEY,
-                                                resource_type  VARCHAR(40) NOT NULL,
-    resource_id    BIGINT      NOT NULL,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    -- antes: key CITEXT PRIMARY KEY
+                                                key            VARCHAR(255)  PRIMARY KEY,
+    resource_type  VARCHAR(40)   NOT NULL,
+    resource_id    BIGINT        NOT NULL,
+    created_at     TIMESTAMPTZ   NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
 -- ============================================================
@@ -287,8 +291,8 @@ SELECT
     COALESCE(ucs.calibration_k, 1.0) * COALESCE(ucs.baseline_override_l_per_100km, mes.baseline_l_per_100km)
         AS effective_l_per_100km
 FROM vehicle_units vu
-         JOIN vehicle_models vm          ON vm.model_id = vu.model_id AND vm.deleted_at IS NULL
-         JOIN model_engine_specs mes     ON mes.model_id = vm.model_id AND mes.deleted_at IS NULL
+         JOIN vehicle_models        vm  ON vm.model_id = vu.model_id AND vm.deleted_at IS NULL
+         JOIN model_engine_specs    mes ON mes.model_id = vm.model_id AND mes.deleted_at IS NULL
          LEFT JOIN unit_consumption_specs ucs ON ucs.vehicle_id = vu.vehicle_id
 WHERE vu.deleted_at IS NULL;
 

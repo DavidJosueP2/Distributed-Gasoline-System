@@ -134,7 +134,7 @@ apiGateway:
   # SSL/TLS Configuration (disabled by default, enabled in values-azure.yaml)
   ssl:
     enabled: false
-    port: 443
+    port: 8443
     servicePort: 443
     secretName: "api-gateway-tls"
 

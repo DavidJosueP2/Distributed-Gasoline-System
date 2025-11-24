@@ -111,8 +111,16 @@ apiGateway:
   replicaCount: 1
   image:
     pullPolicy: Always     # Always pull the latest commit-tagged image
+  service:
+    type: LoadBalancer     # Expose via Azure Load Balancer
   autoscaling:
     enabled: false
+  # ========== SSL/TLS Configuration (HTTPS) =========
+  ssl:
+    enabled: true          # Enable HTTPS in Azure
+    port: 443              # HTTPS port inside container
+    servicePort: 443       # HTTPS port exposed by Service
+    secretName: "fuel-system-tls" # TLS secret created in Azure
 
 authService:
   enabled: true

@@ -249,6 +249,11 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-config
               key: DRIVER_DB_NAME
+        - name: DRIVER_DB_SSL_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DRIVER_DB_SSL_MODE
         {{- else if eq $config.name "routes-service" }}
         # Variables para Routes Service
         - name: DB_HOST
@@ -456,6 +461,11 @@ spec:
               key: password
         - name: DRIVER_DB_NAME
           value: {{ $config.config.env.DB_NAME | quote }}
+        - name: DRIVER_DB_SSL_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: DRIVER_DB_SSL_MODE
         - name: DRIVER_DB_SYNCHRONIZE
           value: "false"
         - name: DRIVER_DB_LOGGING
@@ -561,15 +571,6 @@ spec:
               key: password
         - name: ROUTES_DB_NAME
           value: {{ $config.config.env.DB_NAME | quote }}
-        - name: ROUTES_DB_SYNCHRONIZE
-          value: "false"
-        - name: ROUTES_DB_LOGGING
-          value: "false"
-        # SSL Configuration (condicional según sslMode)
-        - name: DB_SSL
-          value: {{ if eq $.Values.postgresql.external.sslMode "require" }}"true"{{ else }}"false"{{ end }}
-        - name: DB_SSL_MODE
-          value: {{ $.Values.postgresql.external.sslMode | default "disable" | quote }}
         - name: ROUTES_DB_SSL_MODE
           value: {{ $.Values.postgresql.external.sslMode | default "disable" | quote }}
         - name: DB_SSL_REJECT_UNAUTHORIZED

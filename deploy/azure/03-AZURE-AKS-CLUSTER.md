@@ -188,7 +188,7 @@ az aks create \
   --name $AKS_NAME \
   --location $LOCATION \
   --node-count 1 \
-  --node-vm-size Standard_B2as_v2 \
+  --node-vm-size Standard_B2ms \
   --kubernetes-version 1.33.2 \
   --enable-managed-identity \
   --enable-cluster-autoscaler \

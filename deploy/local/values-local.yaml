@@ -115,6 +115,9 @@ apiGateway:
       cpu: "250m"
   autoscaling:
     enabled: false
+  # ========== SSL/TLS Configuration (Disabled in Local) ==========
+  ssl:
+    enabled: false         # Disable HTTPS in local environment
 
 # Auth Service
 authService:

@@ -29,11 +29,31 @@ spec:
         - name: http
           containerPort: {{ .Values.apiGateway.service.targetPort }}
           protocol: TCP
+        {{- if .Values.apiGateway.ssl.enabled }}
+        - name: https
+          containerPort: {{ .Values.apiGateway.ssl.port | default 443 }}
+          protocol: TCP
+        {{- end }}
         env:
         - name: NODE_ENV
           value: {{ .Values.apiGateway.env.NODE_ENV | quote }}
         - name: PORT
           value: {{ .Values.apiGateway.env.PORT | quote }}
+
+        # ========== SSL/TLS Configuration (Production Only) ==========
+        {{- if .Values.apiGateway.ssl.enabled }}
+        - name: SSL_ENABLED
+          value: "true"
+        - name: SSL_PORT
+          value: {{ .Values.apiGateway.ssl.port | default 443 | quote }}
+        - name: SSL_CERT_PATH
+          value: "/etc/ssl/certs/tls.crt"
+        - name: SSL_KEY_PATH
+          value: "/etc/ssl/certs/tls.key"
+        {{- else }}
+        - name: SSL_ENABLED
+          value: "false"
+        {{- end }}
 
         # ========== CRÍTICO: Variables de Service Discovery ==========
         - name: DISCOVERY_MODE
@@ -61,8 +81,6 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: EUREKA_WAIT_TIMEOUT_MS
-
-        # Gateway Specific Variables
         - name: GATEWAY_APP_NAME
           valueFrom:
             configMapKeyRef:
@@ -78,8 +96,6 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: GRPC_CALL_TIMEOUT_MS
-
-        # Variables de archivos .proto
         - name: PROTO_ROOT
           valueFrom:
             configMapKeyRef:
@@ -98,20 +114,40 @@ spec:
         - name: JWT_EXPIRES_IN
           value: "1h"
 
+        {{- if .Values.apiGateway.ssl.enabled }}
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        {{- end }}
+
         livenessProbe:
           httpGet:
             path: /health
             port: http
+            scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
             port: http
+            scheme: HTTP
           initialDelaySeconds: 20
           periodSeconds: 5
         resources:
           {{- toYaml .Values.apiGateway.resources | nindent 10 }}
+      {{- if .Values.apiGateway.ssl.enabled }}
+      volumes:
+      - name: ssl-certs
+        secret:
+          secretName: {{ .Values.apiGateway.ssl.secretName | default "api-gateway-tls" }}
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -130,6 +166,15 @@ spec:
     {{- if and (eq .Values.apiGateway.service.type "NodePort") .Values.apiGateway.service.nodePort }}
     nodePort: {{ .Values.apiGateway.service.nodePort }}
     {{- end }}
+  {{- if .Values.apiGateway.ssl.enabled }}
+  - port: {{ .Values.apiGateway.ssl.servicePort | default 443 }}
+    targetPort: https
+    protocol: TCP
+    name: https
+    {{- if and (eq .Values.apiGateway.service.type "NodePort") .Values.apiGateway.ssl.nodePort }}
+    nodePort: {{ .Values.apiGateway.ssl.nodePort }}
+    {{- end }}
+  {{- end }}
   selector:
     {{- include "fuel-system.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: api-gateway

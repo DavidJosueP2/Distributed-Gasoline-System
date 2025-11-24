@@ -92,8 +92,8 @@ eurekaServer:
     port: 8761
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -120,8 +120,8 @@ apiGateway:
     GATEWAY_HTTP_PORT: 8080
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -131,6 +131,12 @@ apiGateway:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
+  # SSL/TLS Configuration (disabled by default, enabled in values-azure.yaml)
+  ssl:
+    enabled: false
+    port: 443
+    servicePort: 443
+    secretName: "api-gateway-tls"
 
 # Auth Service
 authService:
@@ -153,8 +159,8 @@ authService:
     enabled: false
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -184,8 +190,8 @@ driverService:
     DB_NAME: driver_db
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -213,8 +219,8 @@ usersService:
     USERS_GRPC_PORT: 50057
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -239,11 +245,11 @@ vehiclesService:
   env:
     NODE_ENV: production
     GRPC_PORT: 50055
-    VEHICLES_GRPC_PORT: 50055
+    VEHICLES_GRPC_PORT: 55
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -271,8 +277,8 @@ emailService:
     EMAIL_GRPC_PORT: 50053
   resources:
     requests:
-      memory: 128Mi
-      cpu: 100m
+      memory: 64Mi
+      cpu: 50m
     limits:
       memory: 256Mi
       cpu: 200m
@@ -295,8 +301,8 @@ helloService:
     HELLO_GRPC_PORT: 50051
   resources:
     requests:
-      memory: 128Mi
-      cpu: 100m
+      memory: 64Mi
+      cpu: 50m
     limits:
       memory: 256Mi
       cpu: 200m
@@ -320,8 +326,8 @@ loggerService:
     LOGGER_HTTP_PORT: 3200
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -345,8 +351,8 @@ publisherService:
     OUTBOX_PUBLISHER_PORT: 4100
   resources:
     requests:
-      memory: 128Mi
-      cpu: 100m
+      memory: 64Mi
+      cpu: 50m
     limits:
       memory: 256Mi
       cpu: 200m
@@ -369,8 +375,8 @@ routesService:
     DB_NAME: routes_db
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -398,8 +404,8 @@ fuelService:
     FUEL_GRPC_PORT: 50054
   resources:
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 128Mi
+      cpu: 100m
     limits:
       memory: 512Mi
       cpu: 500m
@@ -433,15 +439,12 @@ secrets:
 # ==============================================
 
 ingress:
-  enabled: true
+  enabled: false  # Deshabilitado - usando LoadBalancer directo del API Gateway
   className: nginx
-  # Usar regla sin host para acceso directo por IP (útil en Azure AKS sin dominio)
-  # En local se sobreescribe en values-local.yaml
-  useDefaultBackend: false  # true = acceso por IP, false = acceso por dominio
+  useDefaultBackend: false
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-  # Configuración para acceso SIN dominio (por IP directa)
   paths:
     - path: /
       pathType: Prefix
@@ -449,9 +452,8 @@ ingress:
         service:
           name: api-gateway
           port: 8080
-  # Configuración para acceso CON dominio
   hosts:
-    - host: fuel-system.example.com  # Actualizar con tu dominio
+    - host: fuel-system.example.com
       paths:
         - path: /
           pathType: Prefix

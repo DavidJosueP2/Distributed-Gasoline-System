@@ -13,12 +13,24 @@ imageRegistry:
   url: "ghcr.io/davidjosuep2/distributed-gasoline-system/fuel-system"
 
 # =====================================================
+# FRONTEND URL (Azure Container Apps)
+# =====================================================
+# Esta URL se usa en:
+# - Email Service: Para generar links de verificación y recuperación de contraseña
+# - API Gateway CORS: Se agrega automáticamente a los orígenes permitidos
+frontendUrl: "https://gasolyne-system-frontend.nicemeadow-78bbf7dc.westus3.azurecontainerapps.io"
+
+# =====================================================
 # POSTGRESQL (Azure Database for PostgreSQL - External)
 # =====================================================
 postgresql:
   enabled: false               # Disable internal PostgreSQL chart
   external:
     enabled: true
+    # ========== WRITE HOST (Primary Server) ==========
+    # Este servidor maneja TODAS las escrituras y lecturas críticas
+    # Si falla, el standby hace failover automáticamente (HA Same-Zone)
+    # FQDN permanece igual durante failover
     hosts:                     # All databases live under the same Azure server
       auth: "fuel-system-postgres.postgres.database.azure.com"
       driver: "fuel-system-postgres.postgres.database.azure.com"
@@ -27,7 +39,12 @@ postgresql:
       vehiclesShadow: "fuel-system-postgres.postgres.database.azure.com"
       routes: "fuel-system-postgres.postgres.database.azure.com"
 
-    readHosts:                 # Azure read replicas (optional)
+    # ========== READ HOSTS (Read Replicas - SOLO LECTURA) ==========
+    # Estas réplicas son INDEPENDIENTES del HA
+    # Se usan para distribuir carga de lecturas pesadas (reportes, listados)
+    # NO hacen failover, son para performance
+    # Si la réplica falla, el sistema sigue funcionando con el primario
+    readHosts:
       auth: "fuel-system-postgres-read.postgres.database.azure.com"
       driver: "fuel-system-postgres-read.postgres.database.azure.com"
       users: "fuel-system-postgres-read.postgres.database.azure.com"
@@ -118,7 +135,7 @@ apiGateway:
   # ========== SSL/TLS Configuration (HTTPS) =========
   ssl:
     enabled: true          # Enable HTTPS in Azure
-    port: 443              # HTTPS port inside container
+    port: 8443              # HTTPS port inside container
     servicePort: 443       # HTTPS port exposed by Service
     secretName: "fuel-system-tls" # TLS secret created in Azure
 

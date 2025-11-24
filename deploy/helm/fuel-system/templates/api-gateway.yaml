@@ -31,7 +31,7 @@ spec:
           protocol: TCP
         {{- if .Values.apiGateway.ssl.enabled }}
         - name: https
-          containerPort: {{ .Values.apiGateway.ssl.port | default 443 }}
+          containerPort: {{ .Values.apiGateway.ssl.port | default 8443 }}
           protocol: TCP
         {{- end }}
         env:
@@ -45,7 +45,7 @@ spec:
         - name: SSL_ENABLED
           value: "true"
         - name: SSL_PORT
-          value: {{ .Values.apiGateway.ssl.port | default 443 | quote }}
+          value: {{ .Values.apiGateway.ssl.port | default 8443 | quote }}
         - name: SSL_CERT_PATH
           value: "/etc/ssl/certs/tls.crt"
         - name: SSL_KEY_PATH

@@ -71,7 +71,13 @@ data:
   {{- end }}
   POSTGRESQL_PORT: {{ .Values.postgresql.external.port | default "5432" | quote }}
   
-  # PostgreSQL - Database specific hosts (para local con múltiples instancias)
+  # SSL Configuration (OBLIGATORIO en Azure)
+  POSTGRESQL_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  POSTGRESQL_SSL_REJECT_UNAUTHORIZED: {{ .Values.postgresql.external.sslRejectUnauthorized | default "false" | quote }}
+
+  # ========== PostgreSQL WRITE Hosts (Primary - con HA Failover) ==========
+  # Estos servidores manejan ESCRITURAS y lecturas críticas
+  # El HA Same-Zone hace failover automático si el primario falla
   {{- if .Values.postgresql.external.enabled }}
   {{- if .Values.postgresql.external.hosts }}
   AUTH_DB_HOST: {{ .Values.postgresql.external.hosts.auth | default "auth-db-postgresql" | quote }}
@@ -88,6 +94,27 @@ data:
   {{- end }}
   {{- end }}
 
+  # ========== PostgreSQL READ Hosts (Read Replicas - SOLO LECTURA) ==========
+  # Estas réplicas se usan para consultas pesadas (listados, reportes)
+  # NO manejan escrituras, son independientes del HA
+  # Si la réplica falla, el sistema usa el primario automáticamente
+  {{- if .Values.postgresql.external.enabled }}
+  {{- if .Values.postgresql.external.readHosts }}
+  AUTH_DB_READ_HOST: {{ .Values.postgresql.external.readHosts.auth | default .Values.postgresql.external.hosts.auth | quote }}
+  DRIVER_DB_READ_HOST: {{ .Values.postgresql.external.readHosts.driver | default .Values.postgresql.external.hosts.driver | quote }}
+  USERS_DB_READ_HOST: {{ .Values.postgresql.external.readHosts.users | default .Values.postgresql.external.hosts.users | quote }}
+  VEHICLES_DB_READ_HOST: {{ .Values.postgresql.external.readHosts.vehicles | default .Values.postgresql.external.hosts.vehicles | quote }}
+  ROUTES_DB_READ_HOST: {{ .Values.postgresql.external.readHosts.routes | default .Values.postgresql.external.hosts.routes | quote }}
+  {{- else }}
+  # Fallback: Si no hay readHosts, usar el primario para todo
+  AUTH_DB_READ_HOST: {{ .Values.postgresql.external.hosts.auth | default "auth-db-postgresql" | quote }}
+  DRIVER_DB_READ_HOST: {{ .Values.postgresql.external.hosts.driver | default "driver-db-postgresql" | quote }}
+  USERS_DB_READ_HOST: {{ .Values.postgresql.external.hosts.users | default "users-db-postgresql" | quote }}
+  VEHICLES_DB_READ_HOST: {{ .Values.postgresql.external.hosts.vehicles | default "vehicles-db-postgresql" | quote }}
+  ROUTES_DB_READ_HOST: {{ .Values.postgresql.external.hosts.routes | default "routes-db-postgresql" | quote }}
+  {{- end }}
+  {{- end }}
+
   AUTH_DB_PORT: "5432"
   DRIVER_DB_PORT: "5432"
   USERS_DB_PORT: "5432"
@@ -99,6 +126,13 @@ data:
   USERS_DB_NAME: {{ .Values.postgresql.external.databases.users | default "users_db" | quote }}
   VEHICLES_DB_NAME: {{ .Values.postgresql.external.databases.vehicles | default "vehicles_db" | quote }}
   ROUTES_DB_NAME: {{ .Values.postgresql.external.databases.routes | default "routes_db" | quote }}
+
+  # SSL Mode por base de datos (todas usan el mismo)
+  AUTH_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  DRIVER_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  USERS_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  VEHICLES_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
+  ROUTES_DB_SSL_MODE: {{ .Values.postgresql.external.sslMode | default "require" | quote }}
 
   # TypeORM Configuration (para driver-ms y routes-srv)
   DRIVER_DB_SYNCHRONIZE: "false"
@@ -138,4 +172,5 @@ data:
   ELASTICSEARCH_NODE: "http://{{ .Values.elasticsearch.external.host | default "elasticsearch-master" }}:{{ .Values.elasticsearch.external.port | default "9200" }}"
 
   # ========== Email/SMTP Configuration (non-sensitive defaults) ==========
-  FRONTEND_URL: "http://localhost:5174"
+  # Frontend URL - usado por email-svc para generar links de verificación y recuperación
+  FRONTEND_URL: {{ .Values.frontendUrl | default "http://localhost:5174" | quote }}

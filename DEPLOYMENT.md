@@ -178,19 +178,21 @@ az group create \
 **⚠️ Este es un SERVICIO ADMINISTRADO, NO un contenedor en Kubernetes**
 
 ```bash
+# 4. PostgreSQL Flexible Server con HA
 az postgres flexible-server create \
-  --name fuel-system-postgres \
-  --resource-group fuel-system-rg \
-  --location eastus \
+  --resource-group $RESOURCE_GROUP \
+  --name $POSTGRES_SERVER \
+  --location $LOCATION \
   --admin-user pgadmin \
-  --admin-password "TuPasswordSeguro123!" \
-  --sku-name Standard_B2s \
-  --tier Burstable \
-  --version 14 \
-  --storage-size 32 \
-  --public-access 0.0.0.0-255.255.255.255 \
+  --admin-password FuelSystem2024@Secure \
+  --version 17 \
+  --tier GeneralPurpose \
+  --sku-name Standard_D4ads_v5 \
+  --high-availability SameZone \
+  --storage-size 128 \
   --backup-retention 7 \
-  --high-availability Disabled
+  --geo-redundant-backup Disabled \
+  --public-access 0.0.0.0-255.255.255.255
 ```
 
 **Para producción:** Cambiar `--sku-name Standard_D4s_v3` y `--high-availability ZoneRedundant`

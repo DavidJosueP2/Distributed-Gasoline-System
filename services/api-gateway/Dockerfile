@@ -46,8 +46,9 @@ RUN addgroup -g 1001 -S nodejs && \
 
 USER nestjs
 
-# Exponer puerto HTTP
+# Exponer puertos HTTP y HTTPS
 EXPOSE 8080
+EXPOSE 8443
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \

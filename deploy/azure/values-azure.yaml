@@ -1,0 +1,222 @@
+# =====================================================
+# FUEL SYSTEM - Azure AKS Production Values
+# =====================================================
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []         # Not needed because GHCR images are public
+  storageClass: "managed-csi"  # Default Azure-managed storage class
+  imageTag: "latest"
+  nodeEnv: "production"
+
+imageRegistry:
+  url: "ghcr.io/davidjosuep2/distributed-gasoline-system/fuel-system"
+
+# =====================================================
+# FRONTEND URL (Azure Container Apps)
+# =====================================================
+# Esta URL se usa en:
+# - Email Service: Para generar links de verificación y recuperación de contraseña
+# - API Gateway CORS: Se agrega automáticamente a los orígenes permitidos
+frontendUrl: "https://gasolyne-system-frontend.nicemeadow-78bbf7dc.westus3.azurecontainerapps.io"
+
+# =====================================================
+# POSTGRESQL (Azure Database for PostgreSQL - External)
+# =====================================================
+postgresql:
+  enabled: false               # Disable internal PostgreSQL chart
+  external:
+    enabled: true
+    # ========== WRITE HOST (Primary Server) ==========
+    # Este servidor maneja TODAS las escrituras y lecturas críticas
+    # Si falla, el standby hace failover automáticamente (HA Same-Zone)
+    # FQDN permanece igual durante failover
+    hosts:                     # All databases live under the same Azure server
+      auth: "fuel-system-postgres.postgres.database.azure.com"
+      driver: "fuel-system-postgres.postgres.database.azure.com"
+      users: "fuel-system-postgres.postgres.database.azure.com"
+      vehicles: "fuel-system-postgres.postgres.database.azure.com"
+      vehiclesShadow: "fuel-system-postgres.postgres.database.azure.com"
+      routes: "fuel-system-postgres.postgres.database.azure.com"
+
+    # ========== READ HOSTS (Read Replicas - SOLO LECTURA) ==========
+    # Estas réplicas son INDEPENDIENTES del HA
+    # Se usan para distribuir carga de lecturas pesadas (reportes, listados)
+    # NO hacen failover, son para performance
+    # Si la réplica falla, el sistema sigue funcionando con el primario
+    readHosts:
+      auth: "fuel-system-postgres-read.postgres.database.azure.com"
+      driver: "fuel-system-postgres-read.postgres.database.azure.com"
+      users: "fuel-system-postgres-read.postgres.database.azure.com"
+      vehicles: "fuel-system-postgres-read.postgres.database.azure.com"
+      routes: "fuel-system-postgres-read.postgres.database.azure.com"
+
+    port: 5432
+
+    username: "pgadmin"
+    password: "FuelSystem2024!Secure"
+
+    sslMode: "require"         # Azure requires SSL
+    sslRejectUnauthorized: "false"
+
+    databases:
+      auth: "auth_db"
+      driver: "driver_db"
+      users: "users_db"
+      vehicles: "vehicles_db"
+      vehiclesShadow: "vehicles_shadow_db"
+      routes: "routes_db"
+
+# =====================================================
+# RABBITMQ (External)
+# =====================================================
+rabbitmq:
+  enabled: false
+  external:
+    enabled: true
+    host: "rabbitmq.fuel-system.svc.cluster.local"
+    port: 5672
+    managementPort: 15672
+    username: "admin"
+    password: "RabbitDev2024"
+
+# =====================================================
+# ELASTICSEARCH (External)
+# =====================================================
+elasticsearch:
+  enabled: false
+  external:
+    enabled: true
+    host: "elasticsearch-master.fuel-system.svc.cluster.local"
+    port: 9200
+    scheme: "http"
+
+# =====================================================
+# EUREKA SERVER (External)
+# =====================================================
+eurekaServer:
+  enabled: false
+  external:
+    enabled: true
+    host: "eureka-server"
+    port: 8761
+
+# =====================================================
+# SECRETS (Default placeholders)
+# =====================================================
+secrets:
+  postgresql:
+    username: "pgadmin"
+    password: "FuelSystem2024!Secure"
+  rabbitmq:
+    username: "admin"
+    password: "RabbitDev2024"
+  jwt:
+    secret: "my-super-secret-jwt-key-minimum-32-characters-long-for-security"
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587
+    user: "fuel-system-test@gmail.com"
+    password: "app-password-here"
+
+# =====================================================
+# MICROSERVICES (Single replica to reduce memory usage)
+# =====================================================
+
+apiGateway:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always     # Always pull the latest commit-tagged image
+  service:
+    type: LoadBalancer     # Expose via Azure Load Balancer
+  autoscaling:
+    enabled: false
+  # ========== SSL/TLS Configuration (HTTPS) =========
+  ssl:
+    enabled: true          # Enable HTTPS in Azure
+    port: 8443              # HTTPS port inside container
+    servicePort: 443       # HTTPS port exposed by Service
+    secretName: "fuel-system-tls" # TLS secret created in Azure
+
+authService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+  autoscaling:
+    enabled: false
+
+driverService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+  autoscaling:
+    enabled: false
+
+usersService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+  autoscaling:
+    enabled: false
+
+vehiclesService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+  autoscaling:
+    enabled: false
+
+routesService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+  autoscaling:
+    enabled: false
+
+fuelService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+  autoscaling:
+    enabled: false
+
+emailService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+
+loggerService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+
+publisherService:
+  enabled: true
+  replicaCount: 1
+  image:
+    pullPolicy: Always
+
+# =====================================================
+# INGRESS (Public exposure)
+# =====================================================
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: ""               # Empty = exposed via public IP
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []

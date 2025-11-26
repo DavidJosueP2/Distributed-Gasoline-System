@@ -30,6 +30,7 @@ export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 
 export interface UserRepository {
   findById(id: number): Promise<User | null>;
+  findByIdIncludingInactive(id: number): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
   findByPhone(phone: string): Promise<User | null>;
   findByUserName(username: string): Promise<User | null>;

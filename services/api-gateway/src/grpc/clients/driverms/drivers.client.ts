@@ -85,9 +85,11 @@ export interface UpdateDriverRequest {
 export interface DriversServiceClient {
     Create(data: CreateDriverRequest, metadata?: any): Observable<Driver>;
     FindAll(data: {}, metadata?: any): Observable<DriversList>;
+    FindAllInactive(data: {}, metadata?: any): Observable<DriversList>;
     FindOne(data: { id: number }, metadata?: any): Observable<Driver>;
     Update(data: UpdateDriverRequest, metadata?: any): Observable<Driver>;
     Remove(data: { id: number }, metadata?: any): Observable<{ success: boolean }>;
+    Undelete(data: { id: number }, metadata?: any): Observable<Driver>;
     CanDrive(data: { driver_id: number; license_type_id: number }, metadata?: any): Observable<CanDriveResponse>;
 }
 

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DeepPartial } from 'typeorm';
+import { Repository, DeepPartial, IsNull, Not } from 'typeorm';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { Driver, DriverAvailability } from './entities/driver.entity';
@@ -82,11 +82,21 @@ export class DriversService {
 
   async findAll(): Promise<Driver[]> {
     return await this.driverRepository.find({
+      where: { deleted_at: IsNull() },
+      relations: ['licenses', 'licenses.license_type'],
+    });
+  }
+
+  async findAllInactive(): Promise<Driver[]> {
+    return await this.driverRepository.find({
+      where: { deleted_at: Not(IsNull()) },
       relations: ['licenses', 'licenses.license_type'],
     });
   }
 
   // Cambiar a any pero convertir antes de usar
+  // Este método busca conductores activos e inactivos (sin filtrar por deleted_at)
+  // para permitir ver detalles de conductores eliminados
   async findOne(id: any): Promise<Driver> {
     const convertedId = this.convertGrpcId(id);
     
@@ -106,7 +116,7 @@ export class DriversService {
   async findByUserId(userId: any): Promise<Driver> {
     const convertedUserId = this.convertGrpcId(userId);
     const driver = await this.driverRepository.findOne({
-      where: { user_id: convertedUserId },
+      where: { user_id: convertedUserId, deleted_at: IsNull() },
       relations: ['licenses', 'licenses.license_type'],
     });
 
@@ -204,13 +214,66 @@ private mapProtoAvailabilityToString(
 }
 
   // Cambiar a any pero convertir antes de usar
-  async remove(id: any): Promise<void> {
+  async remove(id: any, metadata?: any): Promise<void> {
     const convertedId = this.convertGrpcId(id);
-    const result = await this.driverRepository.delete(convertedId);
+    
+    // Buscar el conductor para obtener el user_id
+    const driver = await this.driverRepository.findOne({
+      where: { driver_id: convertedId, deleted_at: IsNull() },
+    });
 
-    if (result.affected === 0) {
+    if (!driver) {
       throw new NotFoundException(`Driver with ID ${convertedId} not found`);
     }
+
+    // Eliminación lógica del conductor
+    await this.driverRepository.update(convertedId, {
+      deleted_at: new Date(),
+    });
+
+    // Eliminación lógica del usuario asociado
+    try {
+      await this.usersGrpcClient.deleteUser(driver.user_id, metadata);
+      this.logger.log(`User ${driver.user_id} logically deleted along with driver ${convertedId}`);
+    } catch (error) {
+      this.logger.error(`Failed to delete user ${driver.user_id} for driver ${convertedId}:`, error);
+      // No lanzamos el error para que la eliminación del conductor se complete
+      // pero registramos el error para debugging
+    }
+  }
+
+  // Restaurar conductor eliminado lógicamente
+  async undelete(id: any, metadata?: any): Promise<Driver> {
+    const convertedId = this.convertGrpcId(id);
+    
+    const driver = await this.driverRepository.findOne({
+      where: { driver_id: convertedId },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver with ID ${convertedId} not found`);
+    }
+
+    if (!driver.deleted_at) {
+      throw new BadRequestException(`Driver with ID ${convertedId} is not deleted`);
+    }
+
+    // Restaurar el conductor
+    await this.driverRepository.update(convertedId, {
+      deleted_at: null as any,
+    });
+
+    // Restaurar el usuario asociado
+    try {
+      await this.usersGrpcClient.undeleteUser(driver.user_id, metadata);
+      this.logger.log(`User ${driver.user_id} restored along with driver ${convertedId}`);
+    } catch (error) {
+      this.logger.error(`Failed to restore user ${driver.user_id} for driver ${convertedId}:`, error);
+      // No lanzamos el error para que la restauración del conductor se complete
+    }
+
+    // Retornar el conductor restaurado
+    return await this.findOne(convertedId);
   }
 
   // Cambiar a any pero convertir antes de usar
@@ -227,9 +290,9 @@ private mapProtoAvailabilityToString(
   const convertedLicenseTypeId = this.convertGrpcId(licenseTypeId);
   
   const driver = await this.driverRepository.findOne({
-    where: { driver_id: convertedDriverId },
-    relations: ['licenses', 'licenses.license_type'],
-  });
+      where: { driver_id: convertedDriverId, deleted_at: IsNull() },
+      relations: ['licenses', 'licenses.license_type'],
+    });
 
   if (!driver) {
     return {

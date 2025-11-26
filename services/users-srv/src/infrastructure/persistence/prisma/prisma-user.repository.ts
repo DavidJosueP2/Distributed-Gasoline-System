@@ -124,6 +124,15 @@ async findByUserNameExceptSelf(username: string, userId: number): Promise<User |
     return PrismaUserMapper.toDomain(record as any);
   }
 
+  async findByIdIncludingInactive(id: number): Promise<User | null> {
+    const record = await this.prisma.user.findUnique({
+      where: { id: toBigInt(id) },
+      include: INCLUDE_ROLES,
+    });
+    if (!record) return null;
+    return PrismaUserMapper.toDomain(record as any);
+  }
+
   async findAllInactiveUsers(): Promise<User[]> {
     const records = await this.prisma.user.findMany({
       where: {

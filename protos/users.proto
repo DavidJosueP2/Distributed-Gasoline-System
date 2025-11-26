@@ -4,6 +4,7 @@ package users;
 
 service UserService {
   rpc GetUser (UserIdRequest) returns (UserResponse);
+  rpc GetUserIncludingInactive (UserIdRequest) returns (UserResponse);
   rpc GetUserByEmail (GetUserByEmailRequest) returns (GetUserByEmailResponse);
   rpc GetAllUsers (Empty) returns (UserList);
   rpc GetAllSupervisors (Empty) returns (UserList);

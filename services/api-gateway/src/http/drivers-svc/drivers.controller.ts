@@ -46,7 +46,18 @@ export class DriversHttpController {
     if (incomingUserId === undefined || incomingUserId === null || Number(incomingUserId) <= 0) {
       throw new BadRequestException('userId inválido');
     }
-    const payload = DriversHttpMapper.toCreateDriver(dto);
+    
+    // Asegurar que el userId validado se pase al mapper
+    const validatedUserId = Number(incomingUserId);
+    const validatedDto = {
+      ...dto,
+      userId: validatedUserId,
+    };
+    
+    const payload = DriversHttpMapper.toCreateDriver(validatedDto);
+    console.log('🔍 API Gateway - validatedUserId:', validatedUserId);
+    console.log('🔍 API Gateway - payload to gRPC:', JSON.stringify(payload, null, 2));
+    
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Create(payload, req._grpcMetadata)),
       map((driver) => DriversHttpMapper.toDriverResponse(driver)),
@@ -64,6 +75,15 @@ export class DriversHttpController {
         console.log('🔍 FIRST TOTAL VALUE:', response?.total);
         return DriversHttpMapper.toDriversListResponse(response);
       }),
+    );
+  }
+
+  @Get('inactive')
+  @GrpcTimeout(3000)
+  findAllInactive(@Req() req: any): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((s) => s.FindAllInactive({}, req._grpcMetadata)),
+      map((response) => DriversHttpMapper.toDriversListResponse(response)),
     );
   }
 
@@ -111,6 +131,18 @@ export class DriversHttpController {
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Remove({ id }, req._grpcMetadata)),
       map((response) => DriversHttpMapper.toRemoveDriverResponse(response)),
+    );
+  }
+
+  @Post(':id/undelete')
+  @GrpcTimeout(2000)
+  undelete(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((s) => s.Undelete({ id }, req._grpcMetadata)),
+      map((driver) => DriversHttpMapper.toDriverResponse(driver)),
     );
   }
 

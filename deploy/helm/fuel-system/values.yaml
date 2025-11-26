@@ -155,6 +155,7 @@ authService:
     GRPC_PORT: 50052
     AUTH_GRPC_PORT: 50052
     DB_NAME: auth_db
+    DB_SYNCHRONIZE: "false"
   database:
     enabled: false
   resources:

@@ -53,6 +53,7 @@ export interface UpdateUserRequest {
 
 export interface UserServiceClient {
     GetUser(data: { userId: LongLike }, metadata?: any): Observable<UserResponse>;
+    GetUserIncludingInactive(data: { userId: LongLike }, metadata?: any): Observable<UserResponse>;
     GetAllUsers(data: object, metadata?: any): Observable<UserList>;
     GetAllInactiveUsers(data: object, metadata?: any): Observable<UserList>;
     CreateUser(data: CreateUserRequest, metadata?: any): Observable<UserResponse>;

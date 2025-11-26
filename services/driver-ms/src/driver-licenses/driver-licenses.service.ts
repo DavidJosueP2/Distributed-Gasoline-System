@@ -162,6 +162,43 @@ export class DriverLicensesService {
   return await this.driverLicenseRepo.save(license);
 }
 
+  // 4. POST /drivers/:driverId/licenses/:licenseId/reactivate
+  async reactivateLicense(driverId: number, licenseId: number) {
+    console.log('🔍 Reactivating license:', { driverId, licenseId });
+    
+    const license = await this.driverLicenseRepo.findOne({
+      where: { driver_license_id: licenseId, driver_id: driverId },
+    });
+
+    if (!license) {
+      throw new NotFoundException('License not found for this driver');
+    }
+
+    // Solo se puede reactivar una licencia suspendida
+    if (license.status !== 'SUSPENDED') {
+      throw new ConflictException(
+        `Cannot reactivate license with status ${license.status}. Only SUSPENDED licenses can be reactivated.`
+      );
+    }
+
+    // Verificar que la licencia no esté vencida
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiresAt = new Date(license.expires_at);
+    expiresAt.setHours(0, 0, 0, 0);
+    
+    if (expiresAt < today) {
+      // No se puede reactivar una licencia vencida
+      throw new ConflictException(
+        'Cannot reactivate expired license. The license has expired and needs to be renewed.'
+      );
+    }
+
+    console.log('✅ License found and can be reactivated:', license);
+    license.status = 'VALID';
+    return await this.driverLicenseRepo.save(license);
+  }
+
   // 4. GET /drivers/:driverId/active-licenses
   async findActiveLicenses(driverId: number) {
     const today = new Date();
@@ -186,5 +223,73 @@ export class DriverLicensesService {
       throw new NotFoundException('License not found');
     }
     return license;
+  }
+
+  // 5. PUT /drivers/:driverId/licenses/:licenseId
+  async updateLicense(driverId: number, licenseId: number, updateDto: UpdateDriverLicenseDto) {
+    const license = await this.driverLicenseRepo.findOne({
+      where: { driver_license_id: licenseId, driver_id: driverId },
+      relations: ['license_type'],
+    });
+
+    if (!license) {
+      throw new NotFoundException('License not found for this driver');
+    }
+
+    // Validar que el número de licencia sea único si se está actualizando
+    if (updateDto.number && updateDto.number !== license.number) {
+      const existingLicense = await this.driverLicenseRepo.findOne({
+        where: { number: updateDto.number },
+      });
+      if (existingLicense && existingLicense.driver_license_id !== licenseId) {
+        throw new ConflictException('License number already exists');
+      }
+      license.number = updateDto.number;
+    }
+
+    // Actualizar tipo de licencia si se proporciona
+    if (updateDto.license_type_id !== undefined && updateDto.license_type_id !== license.license_type_id) {
+      // Verificar que no haya otra licencia del mismo tipo para este conductor
+      const existingType = await this.driverLicenseRepo.findOne({
+        where: { driver_id: driverId, license_type_id: updateDto.license_type_id },
+      });
+      if (existingType && existingType.driver_license_id !== licenseId) {
+        throw new ConflictException(
+          `Driver ${driverId} already has a license with type ${updateDto.license_type_id}`,
+        );
+      }
+      license.license_type_id = updateDto.license_type_id;
+    }
+
+    // Actualizar fechas si se proporcionan
+    if (updateDto.issued_at) {
+      const issuedAt = new Date(updateDto.issued_at);
+      if (Number.isNaN(issuedAt.getTime())) {
+        throw new ConflictException('Invalid issued_at date');
+      }
+      license.issued_at = issuedAt;
+    }
+
+    if (updateDto.expires_at) {
+      const expiresAt = new Date(updateDto.expires_at);
+      if (Number.isNaN(expiresAt.getTime())) {
+        throw new ConflictException('Invalid expires_at date');
+      }
+      license.expires_at = expiresAt;
+    }
+
+    // Validar que expires_at sea mayor que issued_at
+    const issuedAt = license.issued_at;
+    const expiresAt = license.expires_at;
+    if (expiresAt < issuedAt) {
+      throw new ConflictException('expires_at must be after issued_at');
+    }
+
+    // Actualizar estado si se proporciona
+    if (updateDto.status) {
+      license.status = updateDto.status;
+    }
+
+    return await this.driverLicenseRepo.save(license);
   }
 }

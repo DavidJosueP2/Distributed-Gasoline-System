@@ -41,6 +41,9 @@ export class Driver {
   @UpdateDateColumn({ type: 'timestamptz', default: () => 'NOW()' })
   updated_at: Date;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
+
   @OneToMany(() => DriverLicense, (driverLicense) => driverLicense.driver)
   licenses: DriverLicense[];
 }

@@ -38,10 +38,11 @@ COPY protos ./protos
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
-# Instalar postgresql-client para ejecutar init.sql
-RUN apk add --no-cache postgresql-client
+# Instalar postgresql-client para ejecutar init.sql y tzdata para timezone
+RUN apk add --no-cache postgresql-client tzdata
 
 # Variables de entorno
+ENV TZ=America/Guayaquil
 ENV NODE_ENV=production
 
 # Copiar package.json

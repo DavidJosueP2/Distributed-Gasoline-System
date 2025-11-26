@@ -7,7 +7,7 @@ export const getTypeOrmConfig = (
   // Asegurar que synchronize esté SIEMPRE en false
   const synchronize = configService.get<boolean>('DRIVER_DB_SYNCHRONIZE', false);
   
-  // Solo ejecutar migrations si está explícitamente habilitado
+  // Solo ejecutar migrations si está explícitamente habilitado (útil para desarrollo)
   const migrationsRun = configService.get<boolean>('DRIVER_DB_RUN_MIGRATIONS', false);
 
   // SSL Configuration para Azure PostgreSQL
@@ -29,7 +29,7 @@ export const getTypeOrmConfig = (
     // Logging SQL deshabilitado para evitar logs gigantes de queries
     logging: false, // configService.get<boolean>('DRIVER_DB_LOGGING', false),
     migrations: [__dirname + '/../migrations/*{.ts,.js}'],
-    migrationsRun: false, // Deshabilitar auto-ejecución de migrations
+    migrationsRun: false, // Deshabilitar auto-ejecución de migrations, migrationsRuns
     // SSL Configuration (OBLIGATORIO en Azure)
     ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,
     extra: {

@@ -716,11 +716,16 @@ spec:
             secretKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-smtp
               key: user
-        - name: SMTP_PASSWORD
+        - name: SMTP_PASS
           valueFrom:
             secretKeyRef:
               name: {{ include "fuel-system.fullname" $ }}-smtp
               key: password
+        - name: FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "fuel-system.fullname" $ }}-config
+              key: FRONTEND_URL
         {{- end }}
         resources:
           {{- toYaml $config.config.resources | nindent 10 }}

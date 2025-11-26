@@ -44,6 +44,24 @@ export class DriversGrpcController {
     }
   }
 
+  @GrpcMethod('DriversService', 'FindAllInactive')
+  async findAllInactive() {
+    try {
+      const items = await this.service.findAllInactive();
+      console.log('✅ FindAllInactive Drivers - Count:', items.length);
+
+      const response = {
+        drivers: items.map((item) => DriversGrpcMapper.mapDriverToProto(item)),
+        total: DriversGrpcMapper.createLongObject(items.length),
+      };
+
+      return response;
+    } catch (error) {
+      console.error('❌ FindAllInactive Drivers - Error:', error);
+      throw new RpcException(error.message || 'Error fetching inactive drivers');
+    }
+  }
+
   @GrpcMethod('DriversService', 'FindOne')
   async findOne(data: any) {
     try {
@@ -101,17 +119,32 @@ export class DriversGrpcController {
   }
 
   @GrpcMethod('DriversService', 'Remove')
-  async remove(data: any) {
+  async remove(data: any, metadata: any) {
     try {
       console.log('📨 Remove Driver - Data:', JSON.stringify(data, null, 2));
 
       const driverId = DriversGrpcMapper.extractDriverId(data);
-      await this.service.remove(driverId);
+      await this.service.remove(driverId, metadata);
 
       return { success: true };
     } catch (error) {
       console.error('❌ Remove Driver - Error:', error);
       throw new RpcException(error.message || 'Error removing driver');
+    }
+  }
+
+  @GrpcMethod('DriversService', 'Undelete')
+  async undelete(data: any, metadata: any) {
+    try {
+      console.log('📨 Undelete Driver - Data:', JSON.stringify(data, null, 2));
+
+      const driverId = DriversGrpcMapper.extractDriverId(data);
+      const driver = await this.service.undelete(driverId, metadata);
+
+      return DriversGrpcMapper.mapDriverToProto(driver);
+    } catch (error) {
+      console.error('❌ Undelete Driver - Error:', error);
+      throw new RpcException(error.message || 'Error restoring driver');
     }
   }
 

@@ -30,8 +30,14 @@ export interface UserResponse {
   roles: RoleResponse[];
 }
 
+export interface BooleanResponse {
+  success: boolean;
+}
+
 export interface IUserService {
   getUser(request: UserIdRequest, metadata?: any): Observable<UserResponse>;
+  DeleteUser(request: UserIdRequest, metadata?: any): Observable<BooleanResponse>;
+  UnDeleteUser(request: UserIdRequest, metadata?: any): Observable<BooleanResponse>;
 }
 
 // Alias de tipos para IDs primitivos
@@ -154,6 +160,96 @@ export class UsersGrpcClient implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         `Failed to get user ${this.stringifyId(userId)}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async deleteUser(
+    userId: PrimitiveId | { low: number; high?: number },
+    metadata?: unknown,
+  ): Promise<{ success: boolean }> {
+    this.logger.log(`Deleting user via gRPC: ${this.stringifyId(userId)}`);
+
+    try {
+      await this.ensureClient(true);
+
+      let outgoingId: PrimitiveId = userId as PrimitiveId;
+      if (typeof userId === 'object' && userId !== null && 'low' in userId) {
+        outgoingId = Number(userId.low);
+      } else if (
+        typeof userId !== 'string' &&
+        typeof userId !== 'number' &&
+        typeof userId !== 'bigint'
+      ) {
+        outgoingId = Number(userId);
+      }
+
+      const call$ = metadata
+        ? this.userService!.DeleteUser({ userId: outgoingId }, metadata)
+        : this.userService!.DeleteUser({ userId: outgoingId });
+
+      const response = await firstValueFrom<BooleanResponse>(
+        call$.pipe(
+          timeout(this.timeoutMs),
+          catchError((error: unknown) => {
+            this.logger.error('Error deleting user via gRPC', error);
+            return throwError(() =>
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          }),
+        ),
+      );
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Failed to delete user ${this.stringifyId(userId)}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async undeleteUser(
+    userId: PrimitiveId | { low: number; high?: number },
+    metadata?: unknown,
+  ): Promise<{ success: boolean }> {
+    this.logger.log(`Restoring user via gRPC: ${this.stringifyId(userId)}`);
+
+    try {
+      await this.ensureClient(true);
+
+      let outgoingId: PrimitiveId = userId as PrimitiveId;
+      if (typeof userId === 'object' && userId !== null && 'low' in userId) {
+        outgoingId = Number(userId.low);
+      } else if (
+        typeof userId !== 'string' &&
+        typeof userId !== 'number' &&
+        typeof userId !== 'bigint'
+      ) {
+        outgoingId = Number(userId);
+      }
+
+      const call$ = metadata
+        ? this.userService!.UnDeleteUser({ userId: outgoingId }, metadata)
+        : this.userService!.UnDeleteUser({ userId: outgoingId });
+
+      const response = await firstValueFrom<BooleanResponse>(
+        call$.pipe(
+          timeout(this.timeoutMs),
+          catchError((error: unknown) => {
+            this.logger.error('Error restoring user via gRPC', error);
+            return throwError(() =>
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          }),
+        ),
+      );
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Failed to restore user ${this.stringifyId(userId)}`,
         error,
       );
       throw error;

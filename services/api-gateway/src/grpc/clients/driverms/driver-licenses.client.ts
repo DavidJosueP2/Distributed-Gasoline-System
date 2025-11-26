@@ -52,6 +52,14 @@ export interface DriverLicensesServiceClient {
     metadata?: any
   ): Observable<DriverLicense>;
 
+  Reactivate(
+    data: { 
+      driver_id: number; 
+      license_id: number;
+    }, 
+    metadata?: any
+  ): Observable<DriverLicense>;
+
   FindActiveByDriver(
     data: { driver_id: number }, 
     metadata?: any

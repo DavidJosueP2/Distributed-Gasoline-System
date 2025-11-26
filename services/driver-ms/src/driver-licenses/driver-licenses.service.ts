@@ -162,6 +162,43 @@ export class DriverLicensesService {
   return await this.driverLicenseRepo.save(license);
 }
 
+  // 4. POST /drivers/:driverId/licenses/:licenseId/reactivate
+  async reactivateLicense(driverId: number, licenseId: number) {
+    console.log('🔍 Reactivating license:', { driverId, licenseId });
+    
+    const license = await this.driverLicenseRepo.findOne({
+      where: { driver_license_id: licenseId, driver_id: driverId },
+    });
+
+    if (!license) {
+      throw new NotFoundException('License not found for this driver');
+    }
+
+    // Solo se puede reactivar una licencia suspendida
+    if (license.status !== 'SUSPENDED') {
+      throw new ConflictException(
+        `Cannot reactivate license with status ${license.status}. Only SUSPENDED licenses can be reactivated.`
+      );
+    }
+
+    // Verificar que la licencia no esté vencida
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiresAt = new Date(license.expires_at);
+    expiresAt.setHours(0, 0, 0, 0);
+    
+    if (expiresAt < today) {
+      // No se puede reactivar una licencia vencida
+      throw new ConflictException(
+        'Cannot reactivate expired license. The license has expired and needs to be renewed.'
+      );
+    }
+
+    console.log('✅ License found and can be reactivated:', license);
+    license.status = 'VALID';
+    return await this.driverLicenseRepo.save(license);
+  }
+
   // 4. GET /drivers/:driverId/active-licenses
   async findActiveLicenses(driverId: number) {
     const today = new Date();

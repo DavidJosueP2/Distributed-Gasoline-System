@@ -78,6 +78,15 @@ export class DriversHttpController {
     );
   }
 
+  @Get('inactive')
+  @GrpcTimeout(3000)
+  findAllInactive(@Req() req: any): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((s) => s.FindAllInactive({}, req._grpcMetadata)),
+      map((response) => DriversHttpMapper.toDriversListResponse(response)),
+    );
+  }
+
   @Get(':id')
   @GrpcTimeout(2000)
   findOne(
@@ -122,6 +131,18 @@ export class DriversHttpController {
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Remove({ id }, req._grpcMetadata)),
       map((response) => DriversHttpMapper.toRemoveDriverResponse(response)),
+    );
+  }
+
+  @Post(':id/undelete')
+  @GrpcTimeout(2000)
+  undelete(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ): Observable<any> {
+    return from(this.svc(req)).pipe(
+      switchMap((s) => s.Undelete({ id }, req._grpcMetadata)),
+      map((driver) => DriversHttpMapper.toDriverResponse(driver)),
     );
   }
 

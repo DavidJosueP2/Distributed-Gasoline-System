@@ -40,34 +40,107 @@ function fromLicenseStatusEnum(val: any): string {
 export class DriverLicensesHttpMapper {
   /**
    * Convierte HTTP body (camelCase) a gRPC CreateDriverLicenseRequest (snake_case)
+   * IMPORTANTE: Enviar ambas variantes (snake_case y camelCase) porque proto-loader
+   * transforma automáticamente snake_case a camelCase y puede perder valores
    */
   static toCreateDriverLicense(src: any) {
+    const driverId = src.driverId ?? src.driver_id;
+    const licenseTypeId = src.licenseTypeId ?? src.license_type_id;
+    
+    if (!driverId || driverId <= 0) {
+      throw new Error(`Invalid driverId: ${JSON.stringify(driverId)}`);
+    }
+    
+    if (!licenseTypeId || licenseTypeId <= 0) {
+      throw new Error(`Invalid licenseTypeId: ${JSON.stringify(licenseTypeId)}`);
+    }
+    
+    const convertedDriverId = convertGrpcLong(driverId);
+    const convertedLicenseTypeId = convertGrpcLong(licenseTypeId);
+    
+    // Enviar ambas variantes para compatibilidad con proto-loader
     return {
-      driver_id: convertGrpcLong(src.driverId || src.driver_id),
-      license_type_id: convertGrpcLong(src.licenseTypeId || src.license_type_id),
+      driver_id: convertedDriverId,      // snake_case (proto original)
+      driverId: convertedDriverId,       // camelCase (proto-loader)
+      license_type_id: convertedLicenseTypeId,  // snake_case (proto original)
+      licenseTypeId: convertedLicenseTypeId,    // camelCase (proto-loader)
       number: src.number,
       issued_at: src.issuedAt || src.issued_at,
+      issuedAt: src.issuedAt || src.issued_at,
       expires_at: src.expiresAt || src.expires_at,
+      expiresAt: src.expiresAt || src.expires_at,
       status: src.status !== undefined ? Number(src.status) : undefined,
     };
   }
 
   /**
    * Convierte HTTP params a gRPC SuspendLicenseRequest (snake_case)
+   * IMPORTANTE: Enviar ambas variantes (snake_case y camelCase) porque proto-loader
+   * transforma automáticamente snake_case a camelCase y puede perder valores
    */
   static toSuspendLicenseRequest(driverId: string | number, licenseId: string | number) {
+    const convertedDriverId = convertGrpcLong(driverId);
+    const convertedLicenseId = convertGrpcLong(licenseId);
+    
+    if (!convertedDriverId || convertedDriverId <= 0) {
+      throw new Error(`Invalid driverId: ${JSON.stringify(driverId)}`);
+    }
+    
+    if (!convertedLicenseId || convertedLicenseId <= 0) {
+      throw new Error(`Invalid licenseId: ${JSON.stringify(licenseId)}`);
+    }
+    
+    // Enviar ambas variantes para compatibilidad con proto-loader
     return {
-      driver_id: convertGrpcLong(driverId),
-      license_id: convertGrpcLong(licenseId),
+      driver_id: convertedDriverId,      // snake_case (proto original)
+      driverId: convertedDriverId,       // camelCase (proto-loader)
+      license_id: convertedLicenseId,    // snake_case (proto original)
+      licenseId: convertedLicenseId,     // camelCase (proto-loader)
+    };
+  }
+
+  /**
+   * Convierte HTTP params a gRPC ReactivateLicenseRequest (snake_case)
+   * IMPORTANTE: Enviar ambas variantes (snake_case y camelCase) porque proto-loader
+   * transforma automáticamente snake_case a camelCase y puede perder valores
+   */
+  static toReactivateLicenseRequest(driverId: string | number, licenseId: string | number) {
+    const convertedDriverId = convertGrpcLong(driverId);
+    const convertedLicenseId = convertGrpcLong(licenseId);
+    
+    if (!convertedDriverId || convertedDriverId <= 0) {
+      throw new Error(`Invalid driverId: ${JSON.stringify(driverId)}`);
+    }
+    
+    if (!convertedLicenseId || convertedLicenseId <= 0) {
+      throw new Error(`Invalid licenseId: ${JSON.stringify(licenseId)}`);
+    }
+    
+    // Enviar ambas variantes para compatibilidad con proto-loader
+    return {
+      driver_id: convertedDriverId,      // snake_case (proto original)
+      driverId: convertedDriverId,       // camelCase (proto-loader)
+      license_id: convertedLicenseId,    // snake_case (proto original)
+      licenseId: convertedLicenseId,     // camelCase (proto-loader)
     };
   }
 
   /**
    * Convierte HTTP params a gRPC FindByDriverRequest (snake_case)
+   * IMPORTANTE: Enviar ambas variantes (snake_case y camelCase) porque proto-loader
+   * transforma automáticamente snake_case a camelCase y puede perder valores
    */
   static toFindByDriverRequest(driverId: string | number) {
+    const convertedDriverId = convertGrpcLong(driverId);
+    
+    if (!convertedDriverId || convertedDriverId <= 0) {
+      throw new Error(`Invalid driverId: ${JSON.stringify(driverId)}`);
+    }
+    
+    // Enviar ambas variantes para compatibilidad con proto-loader
     return {
-      driver_id: convertGrpcLong(driverId),
+      driver_id: convertedDriverId,      // snake_case (proto original)
+      driverId: convertedDriverId,       // camelCase (proto-loader)
     };
   }
 

@@ -43,6 +43,16 @@ export class DriverLicensesController {
     return await this.driverLicensesService.suspendLicense(driverId, licenseId);
   }
 
+  // 4. POST /drivers/:driverId/licenses/:licenseId/reactivate
+  @Post(':licenseId/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivate(
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseId', ParseIntPipe) licenseId: number,
+  ) {
+    return await this.driverLicensesService.reactivateLicense(driverId, licenseId);
+  }
+
   // 4. GET /drivers/:driverId/active-licenses
   @Get('active-licenses')
   async findActiveLicenses(@Param('driverId', ParseIntPipe) driverId: number) {

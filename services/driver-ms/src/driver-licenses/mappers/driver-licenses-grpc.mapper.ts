@@ -17,12 +17,45 @@ export class DriverLicensesGrpcMapper {
 
   // Mapper para crear DTO desde datos gRPC
   static mapCreateDataToDto(data: any): CreateDriverLicenseGrpcDto {
+    console.log('🔍 DriverLicensesGrpcMapper.mapCreateDataToDto - Input data:', JSON.stringify(data, null, 2));
+    
+    // Buscar driver_id en ambos formatos (snake_case primero, luego camelCase)
+    // El proto-loader puede transformar snake_case a camelCase, pero debemos priorizar snake_case
+    const driverIdField = data.driver_id !== undefined ? data.driver_id : data.driverId;
+    const licenseTypeIdField = data.license_type_id !== undefined ? data.license_type_id : data.licenseTypeId;
+    const issuedAtField = data.issued_at !== undefined ? data.issued_at : data.issuedAt;
+    const expiresAtField = data.expires_at !== undefined ? data.expires_at : data.expiresAt;
+    
+    console.log('🔍 Extracted fields:', {
+      driverIdField,
+      licenseTypeIdField,
+      issuedAtField,
+      expiresAtField,
+      'data.driver_id': data.driver_id,
+      'data.driverId': data.driverId,
+      'data.license_type_id': data.license_type_id,
+      'data.licenseTypeId': data.licenseTypeId,
+    });
+    
+    const driverId = this.convertGrpcId(driverIdField);
+    const licenseTypeId = this.convertGrpcId(licenseTypeIdField);
+    
+    console.log('🔍 Converted IDs:', { driverId, licenseTypeId });
+    
+    if (!driverId || driverId <= 0) {
+      throw new RpcException(`Invalid driver_id: ${JSON.stringify(driverIdField)} (type: ${typeof driverIdField}) converted to ${driverId}. Available fields: ${JSON.stringify(Object.keys(data))}`);
+    }
+    
+    if (!licenseTypeId || licenseTypeId <= 0) {
+      throw new RpcException(`Invalid license_type_id: ${JSON.stringify(licenseTypeIdField)} (type: ${typeof licenseTypeIdField}) converted to ${licenseTypeId}. Available fields: ${JSON.stringify(Object.keys(data))}`);
+    }
+    
     return {
-      driver_id: this.convertGrpcId(data.driverId),
-      license_type_id: this.convertGrpcId(data.licenseTypeId),
+      driver_id: driverId,
+      license_type_id: licenseTypeId,
       number: data.number,
-      issued_at: data.issuedAt,
-      expires_at: data.expiresAt,
+      issued_at: issuedAtField,
+      expires_at: expiresAtField,
       status: data.status ? this.mapProtoStatusToString(data.status) : undefined,
       version: data.version ? data.version : 0
     };
@@ -56,15 +89,62 @@ export class DriverLicensesGrpcMapper {
 
   // Mapper para datos de suspend
   static mapSuspendData(data: any): { driverId: number; licenseId: number } {
+    console.log('🔍 DriverLicensesGrpcMapper.mapSuspendData - Input data:', JSON.stringify(data, null, 2));
+    
+    // Buscar en ambos formatos (snake_case primero, luego camelCase)
+    const driverIdField = data.driver_id !== undefined ? data.driver_id : data.driverId;
+    const licenseIdField = data.license_id !== undefined ? data.license_id : data.licenseId;
+    
+    console.log('🔍 Extracted fields:', {
+      driverIdField,
+      licenseIdField,
+      'data.driver_id': data.driver_id,
+      'data.driverId': data.driverId,
+      'data.license_id': data.license_id,
+      'data.licenseId': data.licenseId,
+    });
+    
+    const driverId = this.convertGrpcId(driverIdField);
+    const licenseId = this.convertGrpcId(licenseIdField);
+    
+    console.log('🔍 Converted IDs:', { driverId, licenseId });
+    
+    if (!driverId || driverId <= 0) {
+      throw new RpcException(`Invalid driver_id: ${JSON.stringify(driverIdField)} (type: ${typeof driverIdField}) converted to ${driverId}. Available fields: ${JSON.stringify(Object.keys(data))}`);
+    }
+    
+    if (!licenseId || licenseId <= 0) {
+      throw new RpcException(`Invalid license_id: ${JSON.stringify(licenseIdField)} (type: ${typeof licenseIdField}) converted to ${licenseId}. Available fields: ${JSON.stringify(Object.keys(data))}`);
+    }
+    
     return {
-      driverId: this.convertGrpcId(data.driverId),
-      licenseId: this.convertGrpcId(data.licenseId)
+      driverId,
+      licenseId
     };
   }
 
   // Mapper para datos de findByDriver
   static mapFindByDriverData(data: any): number {
-    return this.convertGrpcId(data.driverId);
+    console.log('🔍 DriverLicensesGrpcMapper.mapFindByDriverData - Input data:', JSON.stringify(data, null, 2));
+    
+    // Buscar en ambos formatos (snake_case primero, luego camelCase)
+    const driverIdField = data.driver_id !== undefined ? data.driver_id : data.driverId;
+    
+    console.log('🔍 Extracted driverIdField:', {
+      driverIdField,
+      'data.driver_id': data.driver_id,
+      'data.driverId': data.driverId,
+    });
+    
+    const driverId = this.convertGrpcId(driverIdField);
+    
+    console.log('🔍 Converted driverId:', driverId);
+    
+    if (!driverId || driverId <= 0) {
+      throw new RpcException(`Invalid driver_id: ${JSON.stringify(driverIdField)} (type: ${typeof driverIdField}) converted to ${driverId}. Available fields: ${JSON.stringify(Object.keys(data))}`);
+    }
+    
+    return driverId;
   }
 
   // Mapeo de estados

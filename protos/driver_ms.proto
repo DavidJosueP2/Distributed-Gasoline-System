@@ -148,10 +148,12 @@ message MatchingLicense {
 service DriversService {
   rpc Create (CreateDriverRequest) returns (Driver);
   rpc FindAll (FindAllDriversRequest) returns (DriversList);
+  rpc FindAllInactive (FindAllDriversRequest) returns (DriversList);
   rpc FindOne (FindOneDriverRequest) returns (Driver);
   rpc FindByUserId (FindByUserIdRequest) returns (Driver);
   rpc Update (UpdateDriverRequest) returns (Driver);
   rpc Remove (RemoveDriverRequest) returns (RemoveDriverResponse);
+  rpc Undelete (RemoveDriverRequest) returns (Driver);
   rpc CanDrive (CanDriveRequest) returns (CanDriveResponse);
 }
 
@@ -257,6 +259,11 @@ message SuspendLicenseRequest {
   int64 license_id = 2; // driver_license_id
 }
 
+message ReactivateLicenseRequest {
+  int64 driver_id = 1;
+  int64 license_id = 2; // driver_license_id
+}
+
 message DriverLicenseList {
   repeated DriverLicense items = 1;
 }
@@ -265,5 +272,6 @@ service DriverLicensesService {
   rpc Create (CreateDriverLicenseRequest) returns (DriverLicense);
   rpc FindByDriver (FindByDriverRequest) returns (DriverLicenseList);
   rpc Suspend (SuspendLicenseRequest) returns (DriverLicense);
+  rpc Reactivate (ReactivateLicenseRequest) returns (DriverLicense);
   rpc FindActiveByDriver (FindByDriverRequest) returns (DriverLicenseList);
 }

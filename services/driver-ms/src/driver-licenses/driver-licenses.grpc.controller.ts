@@ -53,6 +53,21 @@ export class DriverLicensesGrpcController {
     }
   }
 
+  @GrpcMethod('DriverLicensesService', 'Reactivate')
+  async reactivate(data: any) {
+    try {
+      console.log('📨 Reactivate License - Data:', JSON.stringify(data, null, 2));
+
+      const { driverId, licenseId } = DriverLicensesGrpcMapper.mapSuspendData(data);
+      const license = await this.service.reactivateLicense(driverId, licenseId);
+      
+      return DriverLicensesGrpcMapper.mapDriverLicenseToProto(license);
+    } catch (error) {
+      console.error('❌ Reactivate License - Error:', error);
+      throw new RpcException(error.message || 'Error reactivating license');
+    }
+  }
+
   @GrpcMethod('DriverLicensesService', 'FindActiveByDriver')
   async findActiveByDriver(data: any) {
     try {

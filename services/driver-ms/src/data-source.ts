@@ -9,14 +9,15 @@ dotenv.config({ path: rootEnvPath });
 // También intentar cargar un .env local si existe
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
-// Usar las mismas variables de entorno que usa la aplicación
-const host = process.env.POSTGRES_HOST || 'localhost';
-const port = process.env.DRIVER_DB_PORT 
+// Usar las mismas variables de entorno que usa la aplicación (typeorm.config.ts)
+// Prioridad: Variables específicas del servicio (DRIVER_DB_*) > Variables genéricas (POSTGRES_*)
+const host = process.env.DRIVER_DB_HOST || process.env.POSTGRES_HOST || 'localhost';
+const port = process.env.DRIVER_DB_PORT
   ? parseInt(process.env.DRIVER_DB_PORT, 10) 
   : (process.env.POSTGRES_PORT ? parseInt(process.env.POSTGRES_PORT, 10) : 5432);
-const username = process.env.POSTGRES_USER || 'postgres';
-const password = process.env.POSTGRES_PASSWORD || 'root';
-const database = process.env.DRIVER_DB || 'driver';
+const username = process.env.DRIVER_DB_USER || process.env.POSTGRES_USER || 'postgres';
+const password = process.env.DRIVER_DB_PASS || process.env.POSTGRES_PASSWORD || 'root';
+const database = process.env.DRIVER_DB_NAME || process.env.DRIVER_DB || 'driver';
 
 console.log('🔧 DataSource Configuration:');
 console.log(`   Host: ${host}`);

@@ -62,6 +62,12 @@ export class DriversHttpController {
     return { message: `Driver with ID ${id} deleted successfully` };
   }
 
+  @Post(':id/undelete')
+  async undelete(@Param('id', ParseIntPipe) id: number): Promise<DriverResponse> {
+    const driver = await this.service.undelete(id);
+    return this.transformService.transformToFullResponse(driver);
+  }
+
   @Get(':id/can-drive')
   async canDrive(
     @Param('id', ParseIntPipe) id: number,

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   ParseIntPipe,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { DriverLicensesService } from './driver-licenses.service';
 import { CreateDriverLicenseHttpDto } from './dto/create-driver-license.dto';
+import { UpdateDriverLicenseDto } from './dto/update-driver-license.dto';
 import { SuspendLicenseDto } from './dto/suspend-license.dto';
 
 @Controller('drivers/:driverId/licenses')
@@ -41,6 +43,26 @@ export class DriverLicensesController {
     @Body() suspendDto: SuspendLicenseDto,
   ) {
     return await this.driverLicensesService.suspendLicense(driverId, licenseId);
+  }
+
+  // 4. POST /drivers/:driverId/licenses/:licenseId/reactivate
+  @Post(':licenseId/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivate(
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseId', ParseIntPipe) licenseId: number,
+  ) {
+    return await this.driverLicensesService.reactivateLicense(driverId, licenseId);
+  }
+
+  // 5. PUT /drivers/:driverId/licenses/:licenseId
+  @Put(':licenseId')
+  async update(
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseId', ParseIntPipe) licenseId: number,
+    @Body() updateDto: UpdateDriverLicenseDto,
+  ) {
+    return await this.driverLicensesService.updateLicense(driverId, licenseId, updateDto);
   }
 
   // 4. GET /drivers/:driverId/active-licenses

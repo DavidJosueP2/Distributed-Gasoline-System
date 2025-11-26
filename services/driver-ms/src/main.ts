@@ -6,19 +6,7 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 import { registerInEureka } from './discovery/eureka-register';
 
-// ✅ Define un módulo raíz que cargue las variables desde ../../../.env
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ['../../../.env'], // .env dos directorios atrás
-    }),
-    AppModule,
-  ],
-})
-class RootModule {}
+// Ya no necesitamos este módulo raíz, AppModule maneja su propio .env
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -37,7 +25,7 @@ async function bootstrap() {
 
   try {
     // Create HTTP app
-    const httpApp = await NestFactory.create(RootModule);
+    const httpApp = await NestFactory.create(AppModule);
     httpApp.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -59,7 +47,7 @@ async function bootstrap() {
 
     // Create gRPC microservice
     const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(
-      RootModule,
+      AppModule,
       {
         transport: Transport.GRPC,
         options: {

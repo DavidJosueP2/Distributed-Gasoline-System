@@ -34,6 +34,22 @@ function fromLicenseStatusEnum(val: any): string {
 }
 
 /**
+ * Helper para convertir string a enum numérico de gRPC
+ */
+function toLicenseStatusEnum(val: string | number): number {
+  if (typeof val === 'number') {
+    return val;
+  }
+  const upper = String(val).toUpperCase();
+  switch (upper) {
+    case 'VALID': return 1;
+    case 'EXPIRED': return 2;
+    case 'SUSPENDED': return 3;
+    default: return 1; // VALID por defecto
+  }
+}
+
+/**
  * Mapper para transformar HTTP body a DriverLicensesService requests (gRPC)
  * Basado en driver-licenses.grpc.controller.ts y driver-licenses-grpc.mapper.ts del microservicio driver-ms
  */
@@ -123,6 +139,71 @@ export class DriverLicensesHttpMapper {
       license_id: convertedLicenseId,    // snake_case (proto original)
       licenseId: convertedLicenseId,     // camelCase (proto-loader)
     };
+  }
+
+  /**
+   * Convierte HTTP body a gRPC UpdateDriverLicenseRequest (snake_case)
+   * IMPORTANTE: Enviar ambas variantes (snake_case y camelCase) porque proto-loader
+   * transforma automáticamente snake_case a camelCase y puede perder valores
+   */
+  static toUpdateDriverLicenseRequest(
+    driverId: string | number,
+    licenseId: string | number,
+    src: any
+  ) {
+    const convertedDriverId = convertGrpcLong(driverId);
+    const convertedLicenseId = convertGrpcLong(licenseId);
+    
+    if (!convertedDriverId || convertedDriverId <= 0) {
+      throw new Error(`Invalid driverId: ${JSON.stringify(driverId)}`);
+    }
+    
+    if (!convertedLicenseId || convertedLicenseId <= 0) {
+      throw new Error(`Invalid licenseId: ${JSON.stringify(licenseId)}`);
+    }
+
+    const result: any = {
+      driver_id: convertedDriverId,
+      driverId: convertedDriverId,
+      license_id: convertedLicenseId,
+      licenseId: convertedLicenseId,
+    };
+
+    // Agregar campos opcionales si están presentes
+    if (src.licenseTypeId !== undefined || src.license_type_id !== undefined) {
+      const licenseTypeId = convertGrpcLong(src.licenseTypeId ?? src.license_type_id);
+      if (licenseTypeId > 0) {
+        result.license_type_id = licenseTypeId;
+        result.licenseTypeId = licenseTypeId;
+      }
+    }
+
+    if (src.number !== undefined && src.number !== null && src.number !== '') {
+      result.number = src.number;
+    }
+
+    if (src.issuedAt !== undefined || src.issued_at !== undefined) {
+      const issuedAt = src.issuedAt ?? src.issued_at;
+      if (issuedAt) {
+        result.issued_at = issuedAt;
+        result.issuedAt = issuedAt;
+      }
+    }
+
+    if (src.expiresAt !== undefined || src.expires_at !== undefined) {
+      const expiresAt = src.expiresAt ?? src.expires_at;
+      if (expiresAt) {
+        result.expires_at = expiresAt;
+        result.expiresAt = expiresAt;
+      }
+    }
+
+    if (src.status !== undefined && src.status !== null && src.status !== '') {
+      const statusValue = typeof src.status === 'number' ? src.status : toLicenseStatusEnum(src.status);
+      result.status = statusValue;
+    }
+
+    return result;
   }
 
   /**

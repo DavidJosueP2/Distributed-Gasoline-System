@@ -123,6 +123,65 @@ export class DriverLicensesGrpcMapper {
     };
   }
 
+  // Mapper para datos de reactivate (similar a suspend)
+  static mapReactivateData(data: any): { driverId: number; licenseId: number } {
+    return this.mapSuspendData(data); // Misma estructura que suspend
+  }
+
+  // Mapper para datos de update
+  static mapUpdateData(data: any): { driverId: number; licenseId: number; updateDto: any } {
+    console.log('🔍 DriverLicensesGrpcMapper.mapUpdateData - Input data:', JSON.stringify(data, null, 2));
+    
+    // Buscar en ambos formatos (snake_case primero, luego camelCase)
+    const driverIdField = data.driver_id !== undefined ? data.driver_id : data.driverId;
+    const licenseIdField = data.license_id !== undefined ? data.license_id : data.licenseId;
+    
+    const driverId = this.convertGrpcId(driverIdField);
+    const licenseId = this.convertGrpcId(licenseIdField);
+    
+    if (!driverId || driverId <= 0) {
+      throw new RpcException(`Invalid driver_id: ${JSON.stringify(driverIdField)} converted to ${driverId}`);
+    }
+    
+    if (!licenseId || licenseId <= 0) {
+      throw new RpcException(`Invalid license_id: ${JSON.stringify(licenseIdField)} converted to ${licenseId}`);
+    }
+
+    const licenseTypeIdField = data.license_type_id ?? data.licenseTypeId;
+    const updateDto: any = {};
+
+    if (licenseTypeIdField !== undefined && licenseTypeIdField !== null) {
+      const licenseTypeId = this.convertGrpcId(licenseTypeIdField);
+      if (licenseTypeId > 0) {
+        updateDto.license_type_id = licenseTypeId;
+      }
+    }
+
+    if (data.number !== undefined && data.number !== null && data.number !== '') {
+      updateDto.number = data.number;
+    }
+
+    if (data.issued_at !== undefined && data.issued_at !== null && data.issued_at !== '') {
+      updateDto.issued_at = data.issued_at;
+    }
+
+    if (data.expires_at !== undefined && data.expires_at !== null && data.expires_at !== '') {
+      updateDto.expires_at = data.expires_at;
+    }
+
+    if (data.status !== undefined && data.status !== null && data.status !== '') {
+      updateDto.status = this.mapProtoStatusToString(
+        typeof data.status === 'number' ? data.status : Number(data.status)
+      );
+    }
+    
+    return {
+      driverId,
+      licenseId,
+      updateDto
+    };
+  }
+
   // Mapper para datos de findByDriver
   static mapFindByDriverData(data: any): number {
     console.log('🔍 DriverLicensesGrpcMapper.mapFindByDriverData - Input data:', JSON.stringify(data, null, 2));

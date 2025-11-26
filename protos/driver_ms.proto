@@ -264,6 +264,16 @@ message ReactivateLicenseRequest {
   int64 license_id = 2; // driver_license_id
 }
 
+message UpdateDriverLicenseRequest {
+  int64 driver_id = 1;
+  int64 license_id = 2; // driver_license_id
+  optional int64 license_type_id = 3;
+  optional string number = 4;
+  optional string issued_at = 5;
+  optional string expires_at = 6;
+  optional string status = 7;
+}
+
 message DriverLicenseList {
   repeated DriverLicense items = 1;
 }
@@ -273,5 +283,6 @@ service DriverLicensesService {
   rpc FindByDriver (FindByDriverRequest) returns (DriverLicenseList);
   rpc Suspend (SuspendLicenseRequest) returns (DriverLicense);
   rpc Reactivate (ReactivateLicenseRequest) returns (DriverLicense);
+  rpc Update (UpdateDriverLicenseRequest) returns (DriverLicense);
   rpc FindActiveByDriver (FindByDriverRequest) returns (DriverLicenseList);
 }

@@ -36,6 +36,7 @@ export interface BooleanResponse {
 
 export interface IUserService {
   getUser(request: UserIdRequest, metadata?: any): Observable<UserResponse>;
+  getUserIncludingInactive(request: UserIdRequest, metadata?: any): Observable<UserResponse>;
   DeleteUser(request: UserIdRequest, metadata?: any): Observable<BooleanResponse>;
   UnDeleteUser(request: UserIdRequest, metadata?: any): Observable<BooleanResponse>;
 }
@@ -160,6 +161,51 @@ export class UsersGrpcClient implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         `Failed to get user ${this.stringifyId(userId)}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async getUserIncludingInactive(
+    userId: PrimitiveId | { low: number; high?: number },
+    metadata?: unknown,
+  ): Promise<UserResponse> {
+    this.logger.log(`Getting user (including inactive) via gRPC: ${this.stringifyId(userId)}`);
+
+    try {
+      await this.ensureClient(true);
+
+      let outgoingId: PrimitiveId = userId as PrimitiveId;
+      if (typeof userId === 'object' && userId !== null && 'low' in userId) {
+        outgoingId = Number(userId.low);
+      } else if (
+        typeof userId !== 'string' &&
+        typeof userId !== 'number' &&
+        typeof userId !== 'bigint'
+      ) {
+        outgoingId = Number(userId);
+      }
+
+      const call$ = metadata
+        ? this.userService!.getUserIncludingInactive({ userId: outgoingId }, metadata)
+        : this.userService!.getUserIncludingInactive({ userId: outgoingId });
+
+      const response = await firstValueFrom<UserResponse>(
+        call$.pipe(
+          timeout(this.timeoutMs),
+          catchError((error: unknown) => {
+            this.logger.error('Error getting user (including inactive) via gRPC', error);
+            return throwError(() =>
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          }),
+        ),
+      );
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get user (including inactive) ${this.stringifyId(userId)}`,
         error,
       );
       throw error;

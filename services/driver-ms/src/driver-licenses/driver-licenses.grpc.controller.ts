@@ -58,13 +58,28 @@ export class DriverLicensesGrpcController {
     try {
       console.log('📨 Reactivate License - Data:', JSON.stringify(data, null, 2));
 
-      const { driverId, licenseId } = DriverLicensesGrpcMapper.mapSuspendData(data);
+      const { driverId, licenseId } = DriverLicensesGrpcMapper.mapReactivateData(data);
       const license = await this.service.reactivateLicense(driverId, licenseId);
       
       return DriverLicensesGrpcMapper.mapDriverLicenseToProto(license);
     } catch (error) {
       console.error('❌ Reactivate License - Error:', error);
       throw new RpcException(error.message || 'Error reactivating license');
+    }
+  }
+
+  @GrpcMethod('DriverLicensesService', 'Update')
+  async update(data: any) {
+    try {
+      console.log('📨 Update Driver License - Data:', JSON.stringify(data, null, 2));
+
+      const { driverId, licenseId, updateDto } = DriverLicensesGrpcMapper.mapUpdateData(data);
+      const license = await this.service.updateLicense(driverId, licenseId, updateDto);
+      
+      return DriverLicensesGrpcMapper.mapDriverLicenseToProto(license);
+    } catch (error) {
+      console.error('❌ Update Driver License - Error:', error);
+      throw new RpcException(error.message || 'Error updating driver license');
     }
   }
 

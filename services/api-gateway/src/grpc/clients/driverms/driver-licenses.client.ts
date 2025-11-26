@@ -60,6 +60,19 @@ export interface DriverLicensesServiceClient {
     metadata?: any
   ): Observable<DriverLicense>;
 
+  Update(
+    data: {
+      driver_id: number;
+      license_id: number;
+      license_type_id?: number;
+      number?: string;
+      issued_at?: string;
+      expires_at?: string;
+      status?: LicenseStatus;
+    },
+    metadata?: any
+  ): Observable<DriverLicense>;
+
   FindActiveByDriver(
     data: { driver_id: number }, 
     metadata?: any

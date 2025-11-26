@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Param,
   Body,
   Req,
@@ -96,6 +97,28 @@ export class DriverLicensesHttpController {
     const payload = DriverLicensesHttpMapper.toReactivateLicenseRequest(driverId, licenseId);
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Reactivate(payload, req._grpcMetadata)),
+      map((license) => DriverLicensesHttpMapper.toDriverLicenseResponse(license)),
+    );
+  }
+
+  @Put(':driverId/licenses/:licenseId')
+  @GrpcTimeout(3000)
+  updateLicense(
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseId', ParseIntPipe) licenseId: number,
+    @Body()
+    dto: {
+      licenseTypeId?: number;
+      number?: string;
+      issuedAt?: string;
+      expiresAt?: string;
+      status?: string;
+    },
+    @Req() req: any,
+  ): Observable<any> {
+    const payload = DriverLicensesHttpMapper.toUpdateDriverLicenseRequest(driverId, licenseId, dto);
+    return from(this.svc(req)).pipe(
+      switchMap((s) => s.Update(payload, req._grpcMetadata)),
       map((license) => DriverLicensesHttpMapper.toDriverLicenseResponse(license)),
     );
   }

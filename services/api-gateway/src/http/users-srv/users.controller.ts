@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -94,12 +95,18 @@ export class UsersController {
   @Get(':id')
   getOne(
     @Param('id') id: string,
+    @Query('includeInactive') includeInactive?: string,
     @Req() req: RequestWithGrpc,
   ): Observable<UserResponse> {
+    const shouldIncludeInactive = includeInactive === 'true' || includeInactive === '1';
+    
     return from(this.svc(req)).pipe(
-      switchMap((svc) =>
-        svc.GetUser({ userId: id }, req._grpcMetadata).pipe(map(normalizeUser)),
-      ),
+      switchMap((svc) => {
+        const method = shouldIncludeInactive && svc.GetUserIncludingInactive
+          ? svc.GetUserIncludingInactive({ userId: id }, req._grpcMetadata)
+          : svc.GetUser({ userId: id }, req._grpcMetadata);
+        return method.pipe(map(normalizeUser));
+      }),
     );
   }
 

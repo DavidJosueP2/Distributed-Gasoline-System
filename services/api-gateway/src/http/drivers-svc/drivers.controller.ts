@@ -46,7 +46,18 @@ export class DriversHttpController {
     if (incomingUserId === undefined || incomingUserId === null || Number(incomingUserId) <= 0) {
       throw new BadRequestException('userId inválido');
     }
-    const payload = DriversHttpMapper.toCreateDriver(dto);
+    
+    // Asegurar que el userId validado se pase al mapper
+    const validatedUserId = Number(incomingUserId);
+    const validatedDto = {
+      ...dto,
+      userId: validatedUserId,
+    };
+    
+    const payload = DriversHttpMapper.toCreateDriver(validatedDto);
+    console.log('🔍 API Gateway - validatedUserId:', validatedUserId);
+    console.log('🔍 API Gateway - payload to gRPC:', JSON.stringify(payload, null, 2));
+    
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Create(payload, req._grpcMetadata)),
       map((driver) => DriversHttpMapper.toDriverResponse(driver)),

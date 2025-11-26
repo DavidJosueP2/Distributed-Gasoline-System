@@ -28,7 +28,11 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
+# Instalar tzdata para timezone
+RUN apk add --no-cache tzdata
+
 # Variables de entorno
+ENV TZ=America/Guayaquil
 ENV NODE_ENV=production
 
 # Copiar dependencias de producción

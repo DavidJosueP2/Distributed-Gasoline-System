@@ -31,10 +31,11 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
-# Instalar curl para healthchecks
-RUN apk add --no-cache curl
+# Instalar curl para healthchecks y tzdata para timezone
+RUN apk add --no-cache curl tzdata
 
 # Variables de entorno
+ENV TZ=America/Guayaquil
 ENV NODE_ENV=production
 
 # Copiar dependencias de producción

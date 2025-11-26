@@ -60,10 +60,11 @@ COPY protos/users.proto ./protos/users.proto
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
-# Instalar OpenSSL para Prisma
-RUN apk add --no-cache openssl
+# Instalar OpenSSL para Prisma y tzdata para timezone
+RUN apk add --no-cache openssl tzdata
 
 # Variables de entorno
+ENV TZ=America/Guayaquil
 ENV NODE_ENV=production
 
 # Copiar package.json

@@ -23,9 +23,11 @@ COPY protos/*.proto ./protos/
 FROM node:20-alpine
 WORKDIR /app
 
-# Instalar curl para healthchecks
-RUN apk add --no-cache curl
+# Instalar curl para healthchecks y tzdata para timezone
+RUN apk add --no-cache curl tzdata
 
+# Configurar timezone
+ENV TZ=America/Guayaquil
 ENV NODE_ENV=production
 
 # Copiar package.json

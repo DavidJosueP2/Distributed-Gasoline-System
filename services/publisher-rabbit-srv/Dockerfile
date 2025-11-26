@@ -23,7 +23,11 @@ COPY protos/logs.proto ./protos/logs.proto
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
+# Instalar tzdata para timezone
+RUN apk add --no-cache tzdata
+
 # Variables de entorno
+ENV TZ=America/Guayaquil
 ENV NODE_ENV=production
 
 # Copiar package.json

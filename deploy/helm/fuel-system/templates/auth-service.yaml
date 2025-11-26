@@ -21,32 +21,49 @@ spec:
         app.kubernetes.io/component: auth-service
     spec:
       {{- include "fuel-system.imagePullSecrets" . | nindent 6 }}
-      # Init Container para esperar a que la base de datos esté disponible
-      # Auth-service usa TypeORM con synchronize:true, no necesita SQL manual
       initContainers:
-      - name: wait-for-db
+      - name: create-tables
         image: postgres:15-alpine
         command:
           - sh
           - -c
           - |
             set -e
-            echo "🔄 Waiting for auth database to be ready..."
+            echo "[Auth Init] Waiting for auth database to be ready..."
             {{- $sslMode := .Values.postgresql.external.sslMode | default "disable" }}
+
+            {{- if eq $sslMode "require" }}
+            CONN_STRING="postgresql://${AUTH_DB_USER}:${AUTH_DB_PASS}@${AUTH_DB_HOST}:${AUTH_DB_PORT}/${AUTH_DB_NAME}?sslmode=require"
+            {{- else }}
+            CONN_STRING="postgresql://${AUTH_DB_USER}:${AUTH_DB_PASS}@${AUTH_DB_HOST}:${AUTH_DB_PORT}/${AUTH_DB_NAME}?sslmode=disable"
+            {{- end }}
+
             for i in $(seq 1 30); do
-              {{- if eq $sslMode "require" }}
-              if PGPASSWORD="${AUTH_DB_PASS}" psql "sslmode=require host=${AUTH_DB_HOST} port=${AUTH_DB_PORT} user=${AUTH_DB_USER} dbname=${AUTH_DB_NAME}" -c '\q' 2>/dev/null; then
-              {{- else }}
-              if PGPASSWORD="${AUTH_DB_PASS}" psql -h "${AUTH_DB_HOST}" -p "${AUTH_DB_PORT}" -U "${AUTH_DB_USER}" -d "${AUTH_DB_NAME}" -c '\q' 2>/dev/null; then
-              {{- end }}
-                echo "✅ Auth database is ready!"
-                exit 0
+              if psql "${CONN_STRING}" -c '\q' 2>/dev/null; then
+                echo "[Auth Init] Database connection successful"
+                break
               fi
-              echo "⏳ Waiting for auth database... ($i/30)"
+              echo "[Auth Init] Waiting for database... (attempt $i/30)"
               sleep 2
             done
-            echo "❌ ERROR: Auth database no disponible después de 60 segundos"
-            exit 1
+
+            echo "[Auth Init] Creating verification_tokens table..."
+            psql "${CONN_STRING}" <<'EOF'
+            CREATE TABLE IF NOT EXISTS verification_tokens (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              "userId" INTEGER NOT NULL,
+              "tokenHash" VARCHAR(255) NOT NULL,
+              "expiresAt" TIMESTAMP NOT NULL,
+              used BOOLEAN NOT NULL DEFAULT false,
+              "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_verification_tokens_token ON verification_tokens("tokenHash");
+            CREATE INDEX IF NOT EXISTS idx_verification_tokens_user ON verification_tokens("userId");
+            CREATE INDEX IF NOT EXISTS idx_verification_tokens_expires ON verification_tokens("expiresAt");
+            EOF
+
+            echo "[Auth Init] Tables created successfully"
         env:
         - name: AUTH_DB_HOST
           {{- if .Values.postgresql.external.hosts }}
@@ -263,6 +280,15 @@ spec:
             configMapKeyRef:
               name: {{ include "fuel-system.fullname" . }}-config
               key: POSTGRESQL_SSL_REJECT_UNAUTHORIZED
+
+        # ========== CRITICAL: gRPC Server Configuration ==========
+        # These variables prevent SASL authentication issues
+        - name: GRPC_VERBOSITY
+          value: "ERROR"
+        - name: GRPC_TRACE
+          value: ""
+        - name: GRPC_ENABLE_FORK_SUPPORT
+          value: "1"
 
         resources:
           {{- toYaml .Values.authService.resources | nindent 10 }}

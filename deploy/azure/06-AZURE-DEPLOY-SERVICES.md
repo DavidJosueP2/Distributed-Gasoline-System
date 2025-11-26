@@ -398,6 +398,67 @@ exit
 
 ## Troubleshooting
 
+### API Gateway Service no se crea
+
+**Síntoma:** El pod del API Gateway está Running pero no aparece el Service en `kubectl get svc -n fuel-system`
+
+**Causa:** Error silencioso durante el apply de Helm, generalmente por timeout esperando la IP del LoadBalancer
+
+**Solución:**
+
+```bash
+# 1. Verificar si el Service existe
+kubectl get svc fuel-system-api-gateway -n fuel-system
+
+# Si no existe, crearlo manualmente:
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: fuel-system-api-gateway
+  namespace: fuel-system
+  labels:
+    app.kubernetes.io/name: fuel-system
+    app.kubernetes.io/instance: fuel-system
+    app.kubernetes.io/component: api-gateway
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+    targetPort: http
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: https
+    protocol: TCP
+    name: https
+  selector:
+    app.kubernetes.io/name: fuel-system
+    app.kubernetes.io/instance: fuel-system
+    app.kubernetes.io/component: api-gateway
+EOF
+
+# 2. Verificar que obtuvo IP pública (tarda 1-2 minutos)
+kubectl get svc fuel-system-api-gateway -n fuel-system -w
+
+# 3. Una vez que tenga EXTERNAL-IP, probar
+export API_IP=$(kubectl get svc fuel-system-api-gateway -n fuel-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl http://$API_IP:8080/health
+```
+
+**Prevención:** Aumentar el timeout de Helm:
+
+```bash
+helm upgrade --install fuel-system ./deploy/helm/fuel-system \
+  --namespace fuel-system \
+  --values ./deploy/helm/fuel-system/values.yaml \
+  --values ./deploy/azure/values-azure.yaml \
+  --wait \
+  --timeout 20m \  # Aumentado de 15m a 20m
+  --debug
+```
+
 ### Pods en CrashLoopBackOff
 
 ```bash
@@ -471,6 +532,61 @@ kubectl get configmap fuel-system-config -n fuel-system -o yaml | grep EUREKA
 # Reiniciar microservicios
 kubectl rollout restart deployment -n fuel-system
 ```
+
+### Error "Missing credentials for PLAIN" en recuperación de contraseña
+
+**Síntoma:** El login funciona correctamente pero la recuperación de contraseña falla con error `Missing credentials for "PLAIN"`
+
+**Causa:** El email-service no puede autenticarse con el servidor SMTP. Esto puede ser porque:
+- Las credenciales SMTP no están configuradas correctamente
+- El secret no existe o tiene formato incorrecto
+- Las variables de entorno no coinciden con las del código
+
+**Solución:**
+
+```bash
+# 1. Verificar que el secret SMTP existe y tiene los valores correctos
+kubectl get secret fuel-system-smtp -n fuel-system -o jsonpath="{.data.host}" | base64 --decode && echo
+kubectl get secret fuel-system-smtp -n fuel-system -o jsonpath="{.data.port}" | base64 --decode && echo
+kubectl get secret fuel-system-smtp -n fuel-system -o jsonpath="{.data.user}" | base64 --decode && echo
+kubectl get secret fuel-system-smtp -n fuel-system -o jsonpath="{.data.password}" | base64 --decode && echo
+
+# 2. Si el secret no existe o es incorrecto, crearlo:
+kubectl delete secret fuel-system-smtp -n fuel-system 2>/dev/null || true
+
+# Para Gmail con App Password:
+kubectl create secret generic fuel-system-smtp \
+  --from-literal=host='smtp.gmail.com' \
+  --from-literal=port='587' \
+  --from-literal=user='tu-email@gmail.com' \
+  --from-literal=password='tu-app-password-de-16-caracteres' \
+  --namespace=fuel-system
+
+# NOTA: Para Gmail necesitas generar una App Password en:
+# https://myaccount.google.com/apppasswords
+# (requiere tener 2FA habilitado)
+
+# 3. Verificar las variables de entorno en el pod
+kubectl exec -it deployment/fuel-system-email-service -n fuel-system -- sh
+# Dentro del pod:
+env | grep SMTP
+# Debe mostrar: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+exit
+
+# 4. Reiniciar el email-service para que tome las nuevas credenciales
+kubectl rollout restart deployment/fuel-system-email-service -n fuel-system
+
+# 5. Ver logs para verificar
+kubectl logs -f deployment/fuel-system-email-service -n fuel-system
+
+# 6. Probar recuperación de contraseña
+INGRESS_IP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl -X POST http://$INGRESS_IP/auth/recover-password \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com"}'
+```
+
+**Prevención:** Asegúrate de crear el secret SMTP **antes** de desplegar con Helm, o usa valores correctos en `values-azure.yaml` para que Helm lo cree automáticamente.
 
 ### ImagePullBackOff
 

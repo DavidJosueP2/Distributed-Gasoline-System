@@ -14,12 +14,8 @@ import { DriverLicensesModule } from './driver-licenses/driver-licenses.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [
-        `.env.${process.env.NODE_ENV || 'development'}`, // Intenta primero con el archivo específico del entorno
-        '.env', // Si no existe, usa el archivo .env principal
-        '../../.env', // También busca en la raíz del proyecto
-      ],
-      validate, // 👈 Agrega validación
+      envFilePath: ['.env'], // Solo busca .env local
+      validate,
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

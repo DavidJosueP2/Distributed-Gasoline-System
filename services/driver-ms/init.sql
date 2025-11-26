@@ -19,7 +19,8 @@ create table if not exists drivers (
                 check (availability in ('AVAILABLE','ON_ROUTE','LICENSE_EXPIRED','INACTIVE')),
   version       bigint not null default 0,
   created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+  updated_at    timestamptz not null default now(),
+  deleted_at    timestamptz null  -- Para eliminación lógica (soft delete)
 );
 
 create index if not exists idx_drivers_availability on drivers(availability);

@@ -46,6 +46,13 @@ export class UsersApplicationService {
     return UserMapper.toResponse(user);
   }
 
+  async getUserByIdIncludingInactive(id: number): Promise<UserResponseDto> {
+    const user = await this.repository.findByIdIncludingInactive(id);
+    if (!user) throw new NotFoundException('Usuario no encontrado con id: ' + id);
+    // No llamamos a ensureActive para permitir usuarios inactivos
+    return UserMapper.toResponse(user);
+  }
+
   async getAllUsers(): Promise<UserResponseDto[]> {
     const users = await this.repository.findAll();
     return UserMapper.toList(users);

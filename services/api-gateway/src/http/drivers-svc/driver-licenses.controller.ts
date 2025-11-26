@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Param,
   Body,
   Req,
@@ -43,7 +44,16 @@ export class DriverLicensesHttpController {
     },
     @Req() req: any,
   ): Observable<any> {
-    const payload = DriverLicensesHttpMapper.toCreateDriverLicense({ ...dto, driverId });
+    // Validar que driverId sea válido
+    if (!driverId || driverId <= 0) {
+      throw new Error(`Invalid driverId: ${driverId}`);
+    }
+    
+    const payloadData = { ...dto, driverId };
+    console.log('🔍 API Gateway - Payload data before mapping:', JSON.stringify(payloadData, null, 2));
+    const payload = DriverLicensesHttpMapper.toCreateDriverLicense(payloadData);
+    console.log('🔍 API Gateway - Payload after mapping:', JSON.stringify(payload, null, 2));
+    
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Create(payload, req._grpcMetadata)),
       map((license) => DriverLicensesHttpMapper.toDriverLicenseResponse(license)),
@@ -73,6 +83,42 @@ export class DriverLicensesHttpController {
     const payload = DriverLicensesHttpMapper.toSuspendLicenseRequest(driverId, licenseId);
     return from(this.svc(req)).pipe(
       switchMap((s) => s.Suspend(payload, req._grpcMetadata)),
+      map((license) => DriverLicensesHttpMapper.toDriverLicenseResponse(license)),
+    );
+  }
+
+  @Post(':driverId/licenses/:licenseId/reactivate')
+  @GrpcTimeout(2000)
+  reactivateLicense(
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseId', ParseIntPipe) licenseId: number,
+    @Req() req: any,
+  ): Observable<any> {
+    const payload = DriverLicensesHttpMapper.toReactivateLicenseRequest(driverId, licenseId);
+    return from(this.svc(req)).pipe(
+      switchMap((s) => s.Reactivate(payload, req._grpcMetadata)),
+      map((license) => DriverLicensesHttpMapper.toDriverLicenseResponse(license)),
+    );
+  }
+
+  @Put(':driverId/licenses/:licenseId')
+  @GrpcTimeout(3000)
+  updateLicense(
+    @Param('driverId', ParseIntPipe) driverId: number,
+    @Param('licenseId', ParseIntPipe) licenseId: number,
+    @Body()
+    dto: {
+      licenseTypeId?: number;
+      number?: string;
+      issuedAt?: string;
+      expiresAt?: string;
+      status?: string;
+    },
+    @Req() req: any,
+  ): Observable<any> {
+    const payload = DriverLicensesHttpMapper.toUpdateDriverLicenseRequest(driverId, licenseId, dto);
+    return from(this.svc(req)).pipe(
+      switchMap((s) => s.Update(payload, req._grpcMetadata)),
       map((license) => DriverLicensesHttpMapper.toDriverLicenseResponse(license)),
     );
   }

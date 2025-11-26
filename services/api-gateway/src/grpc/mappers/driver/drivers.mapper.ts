@@ -79,8 +79,18 @@ export class DriversHttpMapper {
    * Convierte HTTP body (camelCase) a gRPC CreateDriverRequest (snake_case)
    */
   static toCreateDriver(src: any) {
+    // Preferir userId (camelCase) sobre user_id (snake_case)
+    const userId = src.userId !== undefined ? src.userId : src.user_id;
+    const convertedUserId = convertGrpcLong(userId);
+    
+    if (convertedUserId <= 0) {
+      throw new Error(`userId inválido: ${userId} convertido a ${convertedUserId}`);
+    }
+    
+    // Enviar ambas variantes porque proto-loader transforma snake_case a camelCase
     return {
-      user_id: convertGrpcLong(src.userId || src.user_id),
+      user_id: convertedUserId,  // snake_case (proto original)
+      userId: convertedUserId,   // camelCase (transformado por proto-loader)
       availability: src.availability || 'AVAILABLE',
       version: src.version !== undefined ? convertGrpcLong(src.version) : undefined,
     };

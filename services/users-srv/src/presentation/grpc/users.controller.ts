@@ -38,6 +38,14 @@ export class UsersGrpcController {
     return UserMapper.toGrpc(user);
   }
 
+  @Public()
+  @GrpcMethod('UserService', 'GetUserIncludingInactive')
+  async getUserIncludingInactive(data: { userId: StringLike }) {
+    const id = this.coerceId(data.userId);
+    const user = await this.service.getUserByIdIncludingInactive(id);
+    return UserMapper.toGrpc(user);
+  }
+
  
 
   @Public()

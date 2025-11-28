@@ -542,6 +542,45 @@ export class TripService {
     return startTime;
   }
 
+  /**
+   * Verifica si el conductor está dentro del margen del 3% del destino
+   * Retorna información de la validación sin lanzar excepción
+   */
+  async checkLocationWarning(
+    routeId: bigint,
+    currentLat: number,
+    currentLng: number,
+  ): Promise<{
+    isWithinMargin: boolean;
+    distanceKm: number;
+    allowedMarginKm: number;
+    deviationPercentage: number;
+  }> {
+    const route = await this.routeRepo.findById(routeId);
+    if (!route) {
+      throw new NotFoundException('Ruta no encontrada');
+    }
+
+    const distanceKm = this.calculateDistance(
+      currentLat,
+      currentLng,
+      route.destinationLat,
+      route.destinationLng,
+    );
+
+    const allowedMarginKm = route.distanceKm * 0.03; // 3% del total
+
+    const deviationPercentage = (distanceKm / route.distanceKm) * 100;
+    const isWithinMargin = distanceKm <= allowedMarginKm;
+
+    return {
+      isWithinMargin,
+      distanceKm,
+      allowedMarginKm,
+      deviationPercentage,
+    };
+  }
+
   async finishTrip(
     id: bigint,
     currentLat?: number,
@@ -565,19 +604,14 @@ export class TripService {
       });
     }
 
-    // Validar que el conductor esté en el destino si se proporcionan coordenadas
-    if (currentLat !== undefined && currentLng !== undefined) {
-      await this.validateDriverAtDestination(
-        trip.routeId,
-        currentLat,
-        currentLng,
-      );
-    }
-
+    // Guardar las coordenadas finales sin validar la ubicación
+    // La validación del 3% se hará durante la revisión por el supervisor
     const endTime = new Date();
     await this.tripRepo.update(id, {
       status: TripStatus.EN_REVISION,
       endTime,
+      currentLat: currentLat ?? trip.currentLat,
+      currentLng: currentLng ?? trip.currentLng,
     });
 
     // Nota: mantenemos driver/vehicle ocupados hasta la revisión
@@ -1070,8 +1104,15 @@ export class TripService {
       ]);
       const drivers = await driversClient.getAllDrivers();
 
-      const result = await Promise.all(
-        drivers.map(async (driver) => {
+      const driversWithRoles = await Promise.all(
+        drivers.map(async (driver): Promise<{
+          id: string | number;
+          userId: string | number;
+          firstName: string;
+          lastName: string;
+          isAssignable: boolean;
+          licenseTypeCodes: string[];
+        } | null> => {
           // Manejar driverId (puede venir como driverId, id, driver_id)
           const driverId = BigInt(
             driver.driverId || driver.id || driver.driver_id || 0,
@@ -1091,17 +1132,38 @@ export class TripService {
           // Obtener información del usuario desde el servicio users
           let firstName = '';
           let lastName = '';
+          let hasDriverRole = false;
           if (userId && userId > 0) {
             try {
               const userInfo = await usersClient.getUserInfo(userId);
               firstName = userInfo.firstName || '';
               lastName = userInfo.lastName || '';
+              
+              // Verificar que el usuario tenga el rol DRIVER
+              const roles = userInfo.roles || [];
+              hasDriverRole = roles.some((role: any) => 
+                (role.name || '').toUpperCase() === 'DRIVER'
+              );
+              
+              if (!hasDriverRole) {
+                this.logger.warn(
+                  `User ${userId} (${firstName} ${lastName}) does not have DRIVER role. Skipping driver ${driverId}.`,
+                );
+                return null; // Filtrar este conductor
+              }
             } catch (error) {
               this.logger.error(
                 `Error getting user info for userId ${userId}:`,
                 error,
               );
+              return null; // Si no se puede obtener la info del usuario, filtrar
             }
+          } else {
+            // Si no hay userId válido, filtrar
+            this.logger.warn(
+              `Driver ${driverId} has invalid userId. Skipping.`,
+            );
+            return null;
           }
 
           // Obtener licencias del conductor desde el campo summary
@@ -1145,7 +1207,14 @@ export class TripService {
         }),
       );
 
-      return result;
+      // Filtrar los null (conductores que no tienen rol DRIVER o tienen errores)
+      const filteredDrivers = driversWithRoles.filter((driver) => driver !== null);
+
+      this.logger.log(
+        `getAssignableDrivers - Filtered ${drivers.length} drivers to ${filteredDrivers.length} with DRIVER role`,
+      );
+
+      return filteredDrivers;
     } catch (error) {
       this.logger.error('Error getting assignable drivers:', error);
       return [];
@@ -1328,5 +1397,18 @@ export class TripService {
     );
 
     return driverTripDetails;
+  }
+
+  // Métodos para verificar existencia de viajes (para validaciones en otros servicios)
+  async hasTripsBySupervisor(supervisorId: bigint): Promise<boolean> {
+    return await this.tripRepo.hasTripsBySupervisor(supervisorId);
+  }
+
+  async hasTripsByDriver(driverId: bigint): Promise<boolean> {
+    return await this.tripRepo.hasTripsByDriver(driverId);
+  }
+
+  async hasTripsByVehicle(vehicleId: bigint): Promise<boolean> {
+    return await this.tripRepo.hasTripsByVehicle(vehicleId);
   }
 }

@@ -19,16 +19,30 @@ import { DataAlreadyExistsException } from '../exceptions/data-already-exists.ex
 import { UpdatePasswordRequest } from '../dto/request/update-password-request';
 import { LogsPublisherService } from '../../infrastructure/logging/logs-publisher.service';
 import { UpdateFullNameUserDto } from '../dto/request/update-full-name-request';
+import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
+import { RoutesClient } from '../../grpc/clients/routes.client';
+import { RpcException } from '@nestjs/microservices';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 
 @Injectable()
 export class UsersApplicationService {
-  //private readonly logger = new Logger(UsersApplicationService.name);
+  private readonly logger = new Logger(UsersApplicationService.name);
 
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly repository: UserRepository,
+    private readonly grpcFactory: GrpcClientFactory,
     //private readonly logsPublisher: LogsPublisherService,
   ) { }
+
+  private async routesClient(): Promise<RoutesClient> {
+    const client = await this.grpcFactory.clientFor(
+      'ROUTES-SERVICE',
+      'routes.v1',
+      'routes.proto',
+    );
+    return new RoutesClient(client);
+  }
 
   async getUserByEmail(
     request: FindUserByEmailRequest,
@@ -147,6 +161,39 @@ export class UsersApplicationService {
   }
 
   async deleteUser(id: number): Promise<{ success: boolean }> {
+    // Obtener el usuario para verificar si es supervisor
+    const user = await this.repository.findByIdIncludingInactive(id);
+    if (!user) {
+      throw new NotFoundException(`Usuario no encontrado con id: ${id}`);
+    }
+
+    // Verificar si el usuario es supervisor
+    const isSupervisor = user.roles.some(role => role.name === 'SUPERVISOR');
+    
+    if (isSupervisor) {
+      // Validar que no tenga viajes asociados
+      try {
+        const routesClient = await this.routesClient();
+        const hasTrips = await routesClient.hasTripsBySupervisor(id);
+        
+        if (hasTrips) {
+          throw new RpcException({
+            code: GrpcStatus.FAILED_PRECONDITION,
+            message: `No se puede desactivar el supervisor con ID ${id} porque tiene viajes asociados. Debe finalizar o reasignar todos los viajes antes de desactivar el supervisor.`,
+          });
+        }
+      } catch (error) {
+        // Si el error es RpcException, re-lanzarlo
+        if (error instanceof RpcException) {
+          throw error;
+        }
+        // Si hay error de conexión con routes-srv, loguear pero permitir la desactivación
+        this.logger.warn(
+          `Error al verificar viajes del supervisor ${id}: ${error instanceof Error ? error.message : 'Error desconocido'}. Continuando con la desactivación.`,
+        );
+      }
+    }
+
     await this.repository.delete(id);
     return { success: true };
   }

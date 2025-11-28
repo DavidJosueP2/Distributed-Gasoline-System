@@ -7,6 +7,10 @@ import { Driver, DriverAvailability } from './entities/driver.entity';
 import { LicenseTypesService } from '../license-types/license-types.service';
 import { DriverLicense } from '../driver-licenses/entities/driver-license.entity';
 import { UsersGrpcClient } from './users-grpc.client';
+import { GrpcClientFactory } from '../grpc/grpc-client.factory';
+import { RoutesClient } from '../grpc/clients/routes.client';
+import { RpcException } from '@nestjs/microservices';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 
 @Injectable()
 export class DriversService {
@@ -17,7 +21,17 @@ export class DriversService {
     private readonly driverRepository: Repository<Driver>,
     private readonly licenseTypesService: LicenseTypesService,
     private readonly usersGrpcClient: UsersGrpcClient,
+    private readonly grpcFactory: GrpcClientFactory,
   ) {}
+
+  private async routesClient(): Promise<RoutesClient> {
+    const client = await this.grpcFactory.clientFor(
+      'ROUTES-SERVICE',
+      'routes.v1',
+      'routes.proto',
+    );
+    return new RoutesClient(client);
+  }
 
   // Método para convertir IDs de gRPC
   private convertGrpcId(id: any): number {
@@ -224,6 +238,28 @@ private mapProtoAvailabilityToString(
 
     if (!driver) {
       throw new NotFoundException(`Driver with ID ${convertedId} not found`);
+    }
+
+    // Validar que no tenga viajes asociados
+    try {
+      const routesClient = await this.routesClient();
+      const hasTrips = await routesClient.hasTripsByDriver(convertedId);
+      
+      if (hasTrips) {
+        throw new RpcException({
+          code: GrpcStatus.FAILED_PRECONDITION,
+          message: `No se puede eliminar el conductor con ID ${convertedId} porque tiene viajes asociados. Debe finalizar o reasignar todos los viajes antes de eliminar el conductor.`,
+        });
+      }
+    } catch (error) {
+      // Si el error es RpcException, re-lanzarlo
+      if (error instanceof RpcException) {
+        throw error;
+      }
+      // Si hay error de conexión con routes-srv, loguear pero permitir la eliminación
+      this.logger.warn(
+        `Error al verificar viajes del conductor ${convertedId}: ${error instanceof Error ? error.message : 'Error desconocido'}. Continuando con la eliminación.`,
+      );
     }
 
     // Eliminación lógica del conductor

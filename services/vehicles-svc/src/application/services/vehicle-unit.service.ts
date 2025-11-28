@@ -10,6 +10,8 @@ import { VehicleUnit, MachineType } from '../../domain';
 import { createPlate } from '../../domain/value-objects/plate';
 import { CalibrationKCalculator } from '../../domain/services/calibration-k-calculator.service';
 import { OperationalStatus, toOperationalStatus, isValidOperationalStatus } from '../../domain/value-objects/operational-status';
+import { GrpcClientFactory } from '../../infra/grpc/grpc-client.factory';
+import { RoutesClient } from '../../infra/grpc/clients/routes.client';
 
 interface CreateUnitInput {
   modelId: bigint;
@@ -39,7 +41,17 @@ export class VehicleUnitService {
     private readonly consRepo: UnitConsumptionSpecsRepository,
     @Inject(TOKENS.VehicleModelRepository)
     private readonly modelRepo: VehicleModelRepository,
+    private readonly grpcFactory: GrpcClientFactory,
   ) {}
+
+  private async routesClient(): Promise<RoutesClient> {
+    const client = await this.grpcFactory.clientFor(
+      'ROUTES-SERVICE',
+      'routes.v1',
+      'routes.proto',
+    );
+    return new RoutesClient(client);
+  }
 
   async listAll(machineTypeFilter?: MachineType) {
     return this.unitRepo.listAll(machineTypeFilter);
@@ -271,6 +283,30 @@ export class VehicleUnitService {
     if (unit.deletedAt) {
       return unit.deletedAt;
     }
+
+    // Validar que no tenga viajes asociados
+    try {
+      const routesClient = await this.routesClient();
+      const hasTrips = await routesClient.hasTripsByVehicle(Number(unit.id));
+      
+      if (hasTrips) {
+        throw new RpcException({
+          code: GrpcStatus.FAILED_PRECONDITION,
+          message: `No se puede eliminar el vehículo con ID ${unit.id} porque tiene viajes asociados. Debe finalizar o reasignar todos los viajes antes de eliminar el vehículo.`,
+        });
+      }
+    } catch (error) {
+      // Si el error es RpcException, re-lanzarlo
+      if (error instanceof RpcException) {
+        throw error;
+      }
+      // Si hay error de conexión con routes-srv, loguear pero permitir la eliminación
+      // (no tenemos logger aquí, pero podemos usar console)
+      console.warn(
+        `Error al verificar viajes del vehículo ${unit.id}: ${error instanceof Error ? error.message : 'Error desconocido'}. Continuando con la eliminación.`,
+      );
+    }
+
     const when = await this.unitRepo.softDelete(unit.id);
     return when;
   }

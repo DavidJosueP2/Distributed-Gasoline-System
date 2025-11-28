@@ -299,6 +299,14 @@ service TripsService {
       returns (ListTripsByTimeRangeResponse);
   rpc ListTripsByDriver(ListTripsByDriverRequest)
       returns (ListTripsByDriverResponse);
+
+  // Verificaciones de existencia de viajes (para validaciones en otros servicios)
+  rpc HasTripsBySupervisor(HasTripsBySupervisorRequest)
+      returns (HasTripsBySupervisorResponse);
+  rpc HasTripsByDriver(HasTripsByDriverRequest)
+      returns (HasTripsByDriverResponse);
+  rpc HasTripsByVehicle(HasTripsByVehicleRequest)
+      returns (HasTripsByVehicleResponse);
 }
 
 message UpdateTripLocationRequest {
@@ -438,4 +446,32 @@ message DriverTripDetail {
 message ListTripsByDriverResponse {
   repeated DriverTripDetail trips = 1;
   int64 total_trips = 2;
+}
+
+// =====================================================
+// Has Trips Messages (para validaciones en otros servicios)
+// =====================================================
+
+message HasTripsBySupervisorRequest {
+  int64 supervisor_id = 1;
+}
+
+message HasTripsBySupervisorResponse {
+  bool has_trips = 1;
+}
+
+message HasTripsByDriverRequest {
+  int64 driver_id = 1;
+}
+
+message HasTripsByDriverResponse {
+  bool has_trips = 1;
+}
+
+message HasTripsByVehicleRequest {
+  int64 vehicle_id = 1;
+}
+
+message HasTripsByVehicleResponse {
+  bool has_trips = 1;
 }

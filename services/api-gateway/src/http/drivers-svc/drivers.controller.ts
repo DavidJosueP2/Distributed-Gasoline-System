@@ -10,15 +10,20 @@ import {
   Req,
   ParseIntPipe,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
-import { Observable, from, switchMap, map } from 'rxjs';
+import { Observable, from, switchMap, map, forkJoin, of, lastValueFrom } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { GrpcClientFactory } from '../../grpc/grpc-client.factory';
 import { GrpcTimeout } from '../../grpc/grpc-timeout.interceptor';
 import { DriversServiceClient } from '../../grpc/clients/driverms/drivers.client';
 import { DriversHttpMapper } from '../../grpc/mappers/driver/drivers.mapper';
+import { UserServiceClient } from '../../grpc/clients/user-svc/users.client';
 
 @Controller('drivers')
 export class DriversHttpController {
+  private readonly logger = new Logger(DriversHttpController.name);
+
   constructor(private readonly factory: GrpcClientFactory) {}
 
   private async svc(req: any): Promise<DriversServiceClient> {
@@ -29,6 +34,80 @@ export class DriversHttpController {
       'driver_ms.proto',
     );
     return client.getService<DriversServiceClient>('DriversService');
+  }
+
+  private async usersSvc(req: any): Promise<UserServiceClient> {
+    const appName = process.env.USERS_APP_NAME || 'USERS-SERVICE';
+    const client = await this.factory.forService(
+      appName,
+      'users',
+      'users.proto',
+    );
+    return client.getService<UserServiceClient>('UserService');
+  }
+
+  /**
+   * Verifica si un usuario tiene el rol DRIVER
+   */
+  private async hasDriverRole(userId: number, req: any): Promise<boolean> {
+    try {
+      const usersService = await this.usersSvc(req);
+      const user = await lastValueFrom(
+        usersService.GetUser({ userId }, req._grpcMetadata),
+      );
+
+      const roles = user?.roles || [];
+      const hasDriver = roles.some(
+        (role: any) => (role.name || '').toUpperCase() === 'DRIVER',
+      );
+
+      if (!hasDriver) {
+        this.logger.warn(
+          `User ${userId} does not have DRIVER role. Roles: ${roles.map((r: any) => r.name).join(', ')}`,
+        );
+      }
+
+      return hasDriver;
+    } catch (error) {
+      this.logger.error(
+        `Error checking DRIVER role for user ${userId}: ${error.message}`,
+      );
+      return false; // Si hay error, no incluir el conductor
+    }
+  }
+
+  /**
+   * Filtra conductores que tienen el rol DRIVER
+   */
+  private async filterDriversByRole(
+    drivers: any[],
+    req: any,
+  ): Promise<any[]> {
+    if (!drivers || drivers.length === 0) return [];
+
+    // Verificar roles en paralelo
+    const driverChecks = await Promise.all(
+      drivers.map(async (driver) => {
+        const userId = Number(driver.userId || driver.user_id || 0);
+        if (userId <= 0) {
+          this.logger.warn(
+            `Driver ${driver.driverId || driver.driver_id} has invalid userId`,
+          );
+          return null;
+        }
+
+        const hasRole = await this.hasDriverRole(userId, req);
+        return hasRole ? driver : null;
+      }),
+    );
+
+    // Filtrar los null
+    const filtered = driverChecks.filter((d) => d !== null);
+    this.logger.log(
+      `Filtered ${drivers.length} drivers to ${filtered.length} with DRIVER role`,
+    );
+
+    return filtered;
   }
 
   @Post()
@@ -69,6 +148,17 @@ export class DriversHttpController {
   findAll(@Req() req: any): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((s) => s.FindAll({}, req._grpcMetadata)),
+      switchMap((response) => {
+        // Filtrar conductores que no tienen el rol DRIVER
+        const drivers = response?.drivers || [];
+        return from(this.filterDriversByRole(drivers, req)).pipe(
+          map((filteredDrivers) => ({
+            ...response,
+            drivers: filteredDrivers,
+            total: filteredDrivers.length,
+          })),
+        );
+      }),
       map((response) => {
         console.log('🔍 GRPC RESPONSE TYPE:', typeof response?.drivers?.[0]?.driver_id);
         console.log('🔍 FIRST DRIVER_ID VALUE:', response?.drivers?.[0]?.driver_id);
@@ -83,6 +173,17 @@ export class DriversHttpController {
   findAllInactive(@Req() req: any): Observable<any> {
     return from(this.svc(req)).pipe(
       switchMap((s) => s.FindAllInactive({}, req._grpcMetadata)),
+      switchMap((response) => {
+        // Filtrar conductores que no tienen el rol DRIVER
+        const drivers = response?.drivers || [];
+        return from(this.filterDriversByRole(drivers, req)).pipe(
+          map((filteredDrivers) => ({
+            ...response,
+            drivers: filteredDrivers,
+            total: filteredDrivers.length,
+          })),
+        );
+      }),
       map((response) => DriversHttpMapper.toDriversListResponse(response)),
     );
   }

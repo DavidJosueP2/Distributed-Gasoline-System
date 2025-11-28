@@ -246,6 +246,33 @@ export class TypeOrmTripRepository implements TripRepository {
     return entities.map((entity) => this.toDomain(entity));
   }
 
+  async hasTripsBySupervisor(supervisorId: bigint): Promise<boolean> {
+    const count = await this.repository.count({
+      where: {
+        supervisorId: supervisorId.toString(),
+      },
+    });
+    return count > 0;
+  }
+
+  async hasTripsByDriver(driverId: bigint): Promise<boolean> {
+    const count = await this.repository.count({
+      where: {
+        driverId: driverId.toString(),
+      },
+    });
+    return count > 0;
+  }
+
+  async hasTripsByVehicle(vehicleId: bigint): Promise<boolean> {
+    const count = await this.repository.count({
+      where: {
+        vehicleId: vehicleId.toString(),
+      },
+    });
+    return count > 0;
+  }
+
   private toDomain(entity: TripEntity): Trip {
     return {
       id: BigInt(entity.id),

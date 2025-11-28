@@ -7,6 +7,7 @@ export interface UserInfo {
   firstName: string;
   lastName: string;
   email: string;
+  roles?: Array<{ roleId: number; name: string }>;
 }
 
 export interface UserResponse {
@@ -39,11 +40,16 @@ export class UsersClient {
     );
     
     // Manejar ambos casos: camelCase y snake_case (viene desde gRPC)
+    const roles = response.roles || [];
     return {
       id: response.userId || response.user_id || 0,
       firstName: response.firstName || response.first_name || '',
       lastName: response.lastName || response.last_name || '',
       email: response.email || '',
+      roles: Array.isArray(roles) ? roles.map((role: any) => ({
+        roleId: role.roleId || role.role_id || 0,
+        name: role.name || '',
+      })) : [],
     };
   }
 

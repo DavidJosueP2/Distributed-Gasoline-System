@@ -337,6 +337,33 @@ export class TripsController {
     }
   }
 
+  @GrpcMethod('TripsService', 'CheckLocationWarning')
+  async checkLocationWarning(request: any): Promise<any> {
+    try {
+      const result = await this.tripService.checkLocationWarning(
+        BigInt(request.routeId),
+        request.currentLat,
+        request.currentLng,
+      );
+      return {
+        isWithinMargin: result.isWithinMargin,
+        distanceKm: result.distanceKm,
+        allowedMarginKm: result.allowedMarginKm,
+        deviationPercentage: result.deviationPercentage,
+      };
+    } catch (error) {
+      this.logger.error(
+        `CheckLocationWarning error: ${(error as any)?.message}`,
+        (error as any)?.stack,
+      );
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: 'Error interno del servidor',
+      });
+    }
+  }
+
   @GrpcMethod('TripsService', 'ReviewTrip')
   async reviewTrip(request: any): Promise<any> {
     try {
@@ -792,6 +819,63 @@ export class TripsController {
     } catch (error) {
       this.logger.error(
         `ListTripsByTimeRange error: ${(error as any)?.message}`,
+        (error as any)?.stack,
+      );
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: `Error interno del servidor: ${(error as any)?.message || 'Error desconocido'}`,
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'HasTripsBySupervisor')
+  async hasTripsBySupervisor(request: any): Promise<any> {
+    try {
+      const supervisorId = BigInt(request.supervisorId || request.supervisor_id || 0);
+      const hasTrips = await this.tripService.hasTripsBySupervisor(supervisorId);
+      return { hasTrips };
+    } catch (error) {
+      this.logger.error(
+        `HasTripsBySupervisor error: ${(error as any)?.message}`,
+        (error as any)?.stack,
+      );
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: `Error interno del servidor: ${(error as any)?.message || 'Error desconocido'}`,
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'HasTripsByDriver')
+  async hasTripsByDriver(request: any): Promise<any> {
+    try {
+      const driverId = BigInt(request.driverId || request.driver_id || 0);
+      const hasTrips = await this.tripService.hasTripsByDriver(driverId);
+      return { hasTrips };
+    } catch (error) {
+      this.logger.error(
+        `HasTripsByDriver error: ${(error as any)?.message}`,
+        (error as any)?.stack,
+      );
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        code: GrpcStatus.INTERNAL,
+        message: `Error interno del servidor: ${(error as any)?.message || 'Error desconocido'}`,
+      });
+    }
+  }
+
+  @GrpcMethod('TripsService', 'HasTripsByVehicle')
+  async hasTripsByVehicle(request: any): Promise<any> {
+    try {
+      const vehicleId = BigInt(request.vehicleId || request.vehicle_id || 0);
+      const hasTrips = await this.tripService.hasTripsByVehicle(vehicleId);
+      return { hasTrips };
+    } catch (error) {
+      this.logger.error(
+        `HasTripsByVehicle error: ${(error as any)?.message}`,
         (error as any)?.stack,
       );
       if (error instanceof RpcException) throw error;

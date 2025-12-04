@@ -30,4 +30,8 @@ export interface TripRepository {
     vehicleId: bigint,
     status: TripStatus,
   ): Promise<Trip[]>;
+  // Métodos para verificar existencia de viajes (para validaciones en otros servicios)
+  hasTripsBySupervisor(supervisorId: bigint): Promise<boolean>;
+  hasTripsByDriver(driverId: bigint): Promise<boolean>;
+  hasTripsByVehicle(vehicleId: bigint): Promise<boolean>;
 }

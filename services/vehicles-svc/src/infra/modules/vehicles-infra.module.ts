@@ -6,15 +6,18 @@ import {PrismaIdempotencyKeyRepository} from "../../db/prisma/repositories/prism
 import {PrismaVehicleUnitRepository} from "../../db/prisma/repositories/prisma-vehicle-unit.repository";
 import {PrismaUnitConsumptionSpecsRepository} from "../../db/prisma/repositories/prisma-unit-consumption-specs.repository";
 import {TOKENS} from "../../application/tokens";
+import { DiscoveryModule } from '../discovery/discovery.module';
+import { GrpcClientFactory } from '../grpc/grpc-client.factory';
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, DiscoveryModule],
     providers: [
         PrismaVehicleModelRepository,
         PrismaModelEngineSpecRepository,
         PrismaIdempotencyKeyRepository,
         PrismaVehicleUnitRepository,
         PrismaUnitConsumptionSpecsRepository,
+        GrpcClientFactory,
         { provide: TOKENS.VehicleModelRepository, useClass: PrismaVehicleModelRepository },
         { provide: TOKENS.ModelEngineSpecRepository, useClass: PrismaModelEngineSpecRepository },
         { provide: TOKENS.IdempotencyKeyRepository, useClass: PrismaIdempotencyKeyRepository },
@@ -27,6 +30,7 @@ import {TOKENS} from "../../application/tokens";
         TOKENS.IdempotencyKeyRepository,
         TOKENS.VehicleUnitRepository,
         TOKENS.UnitConsumptionSpecsRepository,
+        GrpcClientFactory,
     ],
 })
 export class VehiclesInfraModule {}

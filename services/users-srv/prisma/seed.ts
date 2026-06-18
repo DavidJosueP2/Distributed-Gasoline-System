@@ -37,16 +37,28 @@ async function main() {
   console.log('✅ Roles created');
 
   // 2. Crear Usuarios con contraseñas hasheadas
+  // 2. Crear Usuarios en el MISMO ORDEN que init.sql para mantener consistencia de IDs
+  // ORDEN EXACTO del init.sql:
+  // 1. Alice (Admin)
+  // 2. Sam (Supervisor)
+  // 3. Dylan (Driver)
+  // 4. Bruce (Admin)
+  // 5. Carol (Admin)
+  // 6. Mark (Supervisor)
+  // 7. Lisa (Supervisor)
+  // 8. John (Driver)
+  // 9. Mary (Driver)
+
   const [
-    aliceAdmin,
-    bruceAdmin,
-    carolAdmin,
-    samSupervisor,
-    markSupervisor,
-    lisaSupervisor,
-    dylanDriver,
-    johnDriver,
-    maryDriver,
+    aliceAdmin,      // ID 1
+    samSupervisor,   // ID 2
+    dylanDriver,     // ID 3
+    bruceAdmin,      // ID 4
+    carolAdmin,      // ID 5
+    markSupervisor,  // ID 6
+    lisaSupervisor,  // ID 7
+    johnDriver,      // ID 8
+    maryDriver,      // ID 9
   ] = await Promise.all([
     prisma.user.upsert({
       where: { username: 'alice_admin' },
@@ -58,6 +70,32 @@ async function main() {
         phone: '+51 111 222 333',
         username: 'alice_admin',
         passwordHash: await bcrypt.hash('admin123', 10),
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.upsert({
+      where: { username: 'sam_supervisor' },
+      update: {},
+      create: {
+        firstName: 'Sam',
+        lastName: 'Supervisor',
+        email: 'samsupervisor@gmail.com',
+        phone: '+51 444 555 666',
+        username: 'sam_supervisor',
+        passwordHash: await bcrypt.hash('supervisor123', 10),
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.upsert({
+      where: { username: 'dylan_driver' },
+      update: {},
+      create: {
+        firstName: 'Dylan',
+        lastName: 'Driver',
+        email: 'dylandriver@gmail.com',
+        phone: '+51 777 888 999',
+        username: 'dylan_driver',
+        passwordHash: await bcrypt.hash('driver123', 10),
         status: 'ACTIVE',
       },
     }),
@@ -88,19 +126,6 @@ async function main() {
       },
     }),
     prisma.user.upsert({
-      where: { username: 'sam_supervisor' },
-      update: {},
-      create: {
-        firstName: 'Sam',
-        lastName: 'Supervisor',
-        email: 'sam.supervisor@example.com',
-        phone: '+51 444 555 666',
-        username: 'sam_supervisor',
-        passwordHash: await bcrypt.hash('supervisor123', 10),
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.user.upsert({
       where: { username: 'mark_supervisor' },
       update: {},
       create: {
@@ -123,19 +148,6 @@ async function main() {
         phone: '+51 444 777 999',
         username: 'lisa_supervisor',
         passwordHash: await bcrypt.hash('supervisor123', 10),
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.user.upsert({
-      where: { username: 'dylan_driver' },
-      update: {},
-      create: {
-        firstName: 'Dylan',
-        lastName: 'Driver',
-        email: 'dylan.driver@example.com',
-        phone: '+51 777 888 999',
-        username: 'dylan_driver',
-        passwordHash: await bcrypt.hash('driver123', 10),
         status: 'ACTIVE',
       },
     }),

@@ -105,12 +105,37 @@ for each row execute function set_updated_at();
 -- =========================
 -- Datos iniciales para testing
 
--- Insertar conductores (user_id debe coincidir con users-srv)
+-- NOTA IMPORTANTE: Los user_id deben corresponder ÚNICAMENTE a usuarios con rol DRIVER en users-srv.
+-- Según users-srv/db/init.sql, los drivers son:
+--   - dylan_driver (username = 'dylan_driver')
+--   - john_driver  (username = 'john_driver')
+--   - mary_driver  (username = 'mary_driver')
+--
+-- Para verificar los user_id correctos, ejecutar en la BD de users-srv:
+--   SELECT u.user_id, u.username, u.first_name, r.name as role
+--   FROM users u
+--   JOIN user_roles ur ON u.user_id = ur.user_id
+--   JOIN roles r ON ur.role_id = r.role_id
+--   WHERE r.name = 'DRIVER'
+--   ORDER BY u.user_id;
+--
+-- Basado en el orden de inserción en users-srv:
+--   1. Alice (Admin)
+--   2. Sam (Supervisor)  
+--   3. Dylan (Driver)     ← user_id = 3
+--   4. Bruce (Admin)
+--   5. Carol (Admin)
+--   6. Mark (Supervisor)
+--   7. Lisa (Supervisor)
+--   8. John (Driver)      ← user_id = 8
+--   9. Mary (Driver)      ← user_id = 9
+
+-- Insertar conductores usando los user_id correctos de los DRIVERS
 insert into drivers(user_id, availability)
 values 
-  (3, 'AVAILABLE'),
-  (8, 'AVAILABLE'),
-  (9, 'AVAILABLE')
+  (3, 'AVAILABLE'),  -- dylan_driver
+  (8, 'AVAILABLE'),  -- john_driver
+  (9, 'AVAILABLE')   -- mary_driver
 on conflict (user_id) do nothing;
 
 -- Insertar tipos de licencia comunes
